@@ -1,4 +1,4 @@
-import { D, type Doc, mk } from "@narrate/core";
+import { capFirst, D, type Doc, mk } from "@narrate/core";
 import { type Engine, type N, unwrap } from "../engine";
 import type { CallRule } from "../plugin";
 import { block, isFn, itemName, lambdaBlock, lambdaCond, lambdaNoun, pluckedListProp, pluckedProp, propPlural } from "./lambdas";
@@ -107,7 +107,7 @@ function stageDoc({ e, say, step: { m, args, node } }: { e: Engine; say: StdPhra
 		default: {
 			const inner = e.withAlias(
 				{ params: [THEM] },
-				(p) => mk("v", `\u0000${pipe.them}`, p),
+				(p) => mk("v", pipe.them, p),
 				() => e.call({ ...node, callee: { ...unwrap(node.callee), object: THEM } }, false),
 			);
 			return D(inner.t, inner.kids);
@@ -126,7 +126,7 @@ function pipelineRule({ node, e, say }: { node: N; e: Engine; say: StdPhrases })
 		return [
 			{
 				d: 0,
-				text: say.pipe.stage({ n: String(i + 1), step: `${t.charAt(0).toUpperCase()}${t.slice(1)}` }),
+				text: say.pipe.stage({ n: String(i + 1), step: capFirst(t) }),
 				start: step.node.start,
 				end: step.node.end,
 				kind: "bullet" as const,

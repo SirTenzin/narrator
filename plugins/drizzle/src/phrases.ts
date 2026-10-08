@@ -191,6 +191,8 @@ export type DrizzlePhrases = {
 		noColumns: string;
 		including: Phrase<"relation">;
 		extra: Phrase<"name" | "value">;
+		/** A `where` filter held in a variable, read as a condition. */
+		matchesFilter: Phrase<"filter">;
 		option: Phrase<"key" | "value">;
 		/** Object-style `where: { posts: { ... } }` filtering on a related table. */
 		hasRelated: NegPhrase<"relation" | "condition">;

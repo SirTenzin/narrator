@@ -3,6 +3,8 @@ import { autumn } from "@narrate/example-autumn";
 import { type Engine, TypeExplainer, typeRefName, typescript, unwrap } from "@narrate/lang-ts";
 import { oxcParser as parseSync } from "@narrate/lang-ts/oxc";
 import { en } from "@narrate/locale-en";
+import { betterAuth } from "@narrate/plugin-better-auth";
+import { effect } from "@narrate/plugin-effect";
 import { testing } from "@narrate/plugin-testing";
 import { zod } from "@narrate/plugin-zod";
 import { Glob } from "bun";
@@ -20,7 +22,7 @@ const crossFileTypes = ({ engine, path }: { engine: Engine; path: string }) => {
 		}
 	};
 };
-const ts = typescript({ parser: parseSync, plugins: [zod(), testing(), autumn()], setup: crossFileTypes });
+const ts = typescript({ parser: parseSync, plugins: [zod(), testing(), effect(), betterAuth(), autumn()], setup: crossFileTypes });
 const narrator = createNarrator({ languages: [ts], locale: en });
 
 const ROOT = process.env.ROOT ?? "/workspace/autumn";

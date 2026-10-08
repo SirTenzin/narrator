@@ -131,7 +131,7 @@ const OPS: Record<string, Op> = {
 const asc = (ascending: boolean) => (c: Ctx, args: N[]) => {
 	if (args.length !== 1) return null;
 	const col = val(c, args[0]);
-	const time = c.e.lex.looksLikeTime(plain(col.t));
+	const time = c.e.g.isTimeLike(plain(col.t));
 	return D(c.say.order[ascending ? "ascending" : "descending"]({ column: col.t, time }), col.kids);
 };
 

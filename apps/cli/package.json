@@ -15,6 +15,9 @@
 		"@narrate/locale-en": "workspace:*",
 		"@narrate/plugin-zod": "workspace:*",
 		"@narrate/plugin-testing": "workspace:*",
-		"@narrate/example-autumn": "workspace:*"
+		"@narrate/example-autumn": "workspace:*",
+		"@narrate/plugin-effect": "workspace:*",
+		"@narrate/plugin-better-auth": "workspace:*",
+		"@narrate/plugin-drizzle": "workspace:*"
 	}
 }

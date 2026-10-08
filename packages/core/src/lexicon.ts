@@ -35,6 +35,7 @@ const DEFAULT_ACRONYMS = new Set([
 	"s3",
 	"otp",
 	"oauth",
+	"graphql",
 	"ttl",
 	"utc",
 	"iso",
@@ -42,10 +43,11 @@ const DEFAULT_ACRONYMS = new Set([
 	"arr",
 ]);
 
-const ACRONYM_DISPLAY: Record<string, string> = { ids: "IDs", urls: "URLs", oauth: "OAuth", db: "DB" };
+const ACRONYM_DISPLAY: Record<string, string> = { ids: "IDs", urls: "URLs", oauth: "OAuth", db: "DB", graphql: "GraphQL" };
 
 const DEFAULT_GLOSSARY: Record<string, string> = {
 	cus: "customer",
+	github: "GitHub",
 	cust: "customer",
 	ent: "entitlement",
 	ents: "entitlements",
@@ -85,9 +87,13 @@ const DEFAULT_GLOSSARY: Record<string, string> = {
 	env: "env",
 };
 
+// Mixed-case words that camelCase splitting would tear apart ("OAuth" -> "o auth").
+const MIXED_CASE = /OAuth|GraphQL|GitHub/g;
+
 export function splitWords(id: string): string[] {
 	return id
 		.replace(/^[_$#]+/, "")
+		.replace(MIXED_CASE, (w) => ` ${w.toLowerCase()} `)
 		.replace(/([a-z0-9])([A-Z])/g, "$1 $2")
 		.replace(/([A-Z]+)([A-Z][a-z])/g, "$1 $2")
 		.replace(/([a-zA-Z])(\d)/g, "$1$2")

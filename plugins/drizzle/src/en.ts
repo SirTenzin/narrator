@@ -120,6 +120,7 @@ export const en: DrizzlePhrases = {
 		noColumns: "picking none of its own columns",
 		including: ({ relation }) => `including ${relation}`,
 		extra: ({ name, value }) => `adding ${name}: ${value}`,
+		matchesFilter: ({ filter }) => `it matches the ${filter} filter`,
 		option: ({ key, value }) => `${key}: ${value}`,
 		hasRelated: ({ relation, condition, neg }) => `${neg ? "has no" : "has"} ${relation} where ${condition}`,
 	},

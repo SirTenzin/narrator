@@ -3,12 +3,14 @@ import { autumn } from "@narrate/example-autumn";
 import { typescript } from "@narrate/lang-ts";
 import { oxcParser } from "@narrate/lang-ts/oxc";
 import { en } from "@narrate/locale-en";
+import { betterAuth } from "@narrate/plugin-better-auth";
+import { effect } from "@narrate/plugin-effect";
 import { testing } from "@narrate/plugin-testing";
 import { zod } from "@narrate/plugin-zod";
 
 /** The narrator the CLI and dev tools use: TS/JS in, English out, with Autumn's conventions. */
 export const narrator = createNarrator({
-	languages: [typescript({ parser: oxcParser, plugins: [zod(), testing(), autumn()] })],
+	languages: [typescript({ parser: oxcParser, plugins: [zod(), testing(), effect(), betterAuth(), autumn()] })],
 	locale: en,
 });
 

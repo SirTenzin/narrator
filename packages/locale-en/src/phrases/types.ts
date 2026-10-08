@@ -4,6 +4,8 @@ import { grammar } from "../grammar";
 const orNothing = (optional: boolean) => (optional ? " (or nothing)" : "");
 const quoted = (doc: string | null) => (doc ? ` — “${doc}”` : "");
 
+const ORDINALS = ["first", "second", "third", "fourth", "fifth"];
+
 export const types: TypePhrases = {
 	unknown: "something",
 	string: "text",
@@ -22,6 +24,16 @@ export const types: TypePhrases = {
 	union: ({ options, optional }) => `${options}${orNothing(optional)}`,
 	objectWith: ({ members }) => `an object with ${members}`,
 	tuple: ({ items }) => `a pair of ${items}`,
+	intersection: ({ parts }) => parts.join(", plus "),
+	indexed: ({ type, key }) => `the type of ${type}'s ${key}`,
+	typeOf: ({ value }) => `the type of ${value}`,
+	keyOf: ({ type }) => `a key of ${type}`,
+	itemOf: ({ type }) => `an item of ${type}`,
+	pick: ({ type, fields }) => `the ${fields} of ${type}`,
+	omit: ({ type, fields }) => `${type} without ${fields}`,
+	returnOf: ({ fn }) => `what ${fn} gives back`,
+	paramsOf: ({ fn, index }) => (index === null ? `the inputs of ${fn}` : `the ${ORDINALS[index] ?? `#${index + 1}`} input of ${fn}`),
+	bigint: "a big number",
 	predicate: ({ subject, type }) => `whether ${subject} is ${type}`,
 	member: ({ name, optional }) => `${name}${optional ? " (optional)" : ""}`,
 	explain: {

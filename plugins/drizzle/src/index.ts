@@ -6,7 +6,7 @@ import type { DrizzlePhrases } from "./phrases";
 import { QUERY_METHODS, queryDoc } from "./query";
 import { findDoc } from "./relational";
 import { columnDoc, constraintDoc, defineRelationsDoc, enumDoc, relationsDoc, rlsTableDoc, tableDoc } from "./schema";
-import type { Ctx } from "./shared";
+import { type Ctx, sqlFragment } from "./shared";
 import { batchDoc, countDoc, rollbackDoc, transactionDoc } from "./transaction";
 
 export type { ColumnType, DrizzlePhrases, ReferentialAction } from "./phrases";
@@ -84,11 +84,13 @@ const calls: Record<string, Call> = {
 };
 
 /** Drizzle ORM: query builders, relational queries, SQL operators and `sql` fragments, transactions, and schema definitions. */
+const sqlTemplate: CallRule<DrizzlePhrases> = ({ node, e, say }) => sqlFragment({ e, say }, node);
+
 export const drizzle = (): TsPlugin<DrizzlePhrases> =>
 	definePlugin({
 		name: "drizzle",
 		phrases: { en },
-		calls,
+		calls: { ...calls, "sql``": sqlTemplate, "*.sql``": sqlTemplate },
 		conditions: Object.fromEntries(
 			Object.entries(operatorConds).map(([k, op]) => [k, (({ args, e, neg, say }) => op({ e, say }, args, neg)) as CondRule<DrizzlePhrases>]),
 		),

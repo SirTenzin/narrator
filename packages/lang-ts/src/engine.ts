@@ -180,8 +180,7 @@ export class Engine {
 	raw(n: N, reason = n?.type): string {
 		this.stats.fallbacks++;
 		this.stats.fallbackTypes[reason] = (this.stats.fallbackTypes[reason] ?? 0) + 1;
-		let code = this.src.slice(n.start, n.end).replace(/\s+/g, " ");
-		if (code.length > 160) code = `${code.slice(0, 157)}…`;
+		const code = this.src.slice(n.start, n.end).replace(/\s+/g, " ");
 		return mk("c", code);
 	}
 
@@ -374,6 +373,11 @@ export class Engine {
 			case "ImportExpression":
 				return this.wrap(this.noun(n.source), (t) => p.dynamicImport({ path: t }));
 			case "TaggedTemplateExpression": {
+				const key = this.ruleKeyOf(unwrap(n.tag));
+				for (const rule of key ? (this.calls[`${key}\`\``] ?? []) : []) {
+					const r = rule({ node: n, args: [n.quasi], obj: null, e: this, stmt: false });
+					if (r) return asDoc(r);
+				}
 				const tag = this.code(n.tag);
 				const text = n.quasi.quasis
 					.map((q: N) => q.value.cooked)
@@ -926,7 +930,10 @@ export class Engine {
 			for (const rule of table[key] ?? []) out.push({ rule, obj });
 		};
 		if (c.type === "Identifier") add(pre + c.name, null);
-		else if (c.type === "MemberExpression" && !c.computed) {
+		else if (c.type === "CallExpression") {
+			const inner = this.ruleKeyOf(unwrap(c.callee));
+			if (inner) add(`${inner}()`, null);
+		} else if (c.type === "MemberExpression" && !c.computed) {
 			const obj = unwrap(c.object);
 			const m = c.property.name;
 			if (obj.type === "Identifier") {
@@ -937,6 +944,14 @@ export class Engine {
 			add(`*.${m}`, c.object);
 		}
 		return out;
+	}
+
+	/** `Effect.fn` -> "Effect.fn", `x.y.z` -> "*.z": the key a curried call's inner callee is matched by. */
+	ruleKeyOf(c: N): string | null {
+		if (c.type === "Identifier") return c.name;
+		if (c.type !== "MemberExpression" || c.computed) return null;
+		const obj = unwrap(c.object);
+		return obj.type === "Identifier" ? `${obj.name}.${c.property.name}` : `*.${c.property.name}`;
 	}
 
 	/** Whether a dialect rule claims this call (without counting it as rendered). */
@@ -1894,7 +1909,17 @@ export class Engine {
 				if (name === "Record" && args[1]) return y.lookup({ key: this.typeName(args[0]), value: this.typeName(args[1]) });
 				if (name === "Map" && args[1]) return y.map({ key: this.typeName(args[0]), value: this.typeName(args[1]) });
 				if (name === "Set" && args[0]) return y.set({ item: this.typeName(args[0]) });
-				if ((name === "Partial" || name === "Pick" || name === "Omit" || name === "Readonly") && args[0]) return this.typeText(args[0]);
+				if ((name === "Pick" || name === "Omit") && args[1]) {
+					const keys = args[1].type === "TSUnionType" ? args[1].types : [args[1]];
+					const fields = this.g.list(
+						keys.map((k: N) => (k.type === "TSLiteralType" && typeof k.literal?.value === "string" ? this.prop(k.literal.value) : this.typeText(k))),
+					);
+					return (name === "Pick" ? y.pick : y.omit)({ type: this.typeText(args[0], top), fields });
+				}
+				if ((name === "Partial" || name === "Readonly" || name === "Required" || name === "Awaited" || name === "NonNullable") && args[0])
+					return this.typeText(args[0], top);
+				if (name === "ReturnType" && args[0]) return y.returnOf({ fn: this.typeSubject(args[0]) });
+				if (name === "Parameters" && args[0]) return y.paramsOf({ fn: this.typeSubject(args[0]), index: null });
 				return y.reference({ type: mk("t", name, name), name });
 			}
 			case "TSUnionType": {
@@ -1910,7 +1935,7 @@ export class Engine {
 					});
 				return y.union({
 					options: this.g.list(
-						parts.map((x: N) => this.typeText(x)),
+						parts.map((x: N) => this.typeText(x, top)),
 						"or",
 					),
 					optional,
@@ -1928,9 +1953,58 @@ export class Engine {
 				return this.typeText(t.typeAnnotation, top);
 			case "TSTypePredicate":
 				return t.typeAnnotation ? y.predicate({ subject: this.code(t.parameterName), type: this.typeText(t.typeAnnotation.typeAnnotation) }) : y.boolean;
+			case "TSIntersectionType":
+				return y.intersection({ parts: t.types.map((x: N) => this.typeText(x, true)) });
+			case "TSIndexedAccessType": {
+				const k = t.indexType;
+				const obj = t.objectType.type === "TSParenthesizedType" ? t.objectType.typeAnnotation : t.objectType;
+				if (k.type === "TSNumberKeyword") return y.itemOf({ type: this.typeSubject(obj) });
+				const fnArg =
+					obj.type === "TSTypeReference" && this.code(obj.typeName) === "Parameters" ? (obj.typeArguments ?? obj.typeParameters)?.params?.[0] : null;
+				if (fnArg && k.type === "TSLiteralType" && typeof k.literal?.value === "number")
+					return y.paramsOf({ fn: this.typeSubject(fnArg), index: k.literal.value });
+				const key = k.type === "TSLiteralType" && typeof k.literal?.value === "string" ? this.lex.humanize(k.literal.value) : this.typeText(k);
+				return y.indexed({ type: this.typeSubject(t.objectType), key });
+			}
+			case "TSTypeQuery":
+				return y.typeOf({ value: this.qualifiedName(t.exprName) });
+			case "TSTypeOperator":
+				return t.operator === "keyof" ? y.keyOf({ type: this.typeText(t.typeAnnotation) }) : this.typeText(t.typeAnnotation, top);
+			case "TSBigIntKeyword":
+				return y.bigint;
+			case "TSObjectKeyword":
+				return y.object;
 			default:
-				return mk("c", this.code(t).slice(0, 40));
+				return mk(
+					"c",
+					this.code(t)
+						.replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, "")
+						.replace(/\s+/g, " ")
+						.trim(),
+				);
 		}
+	}
+
+	/** `a.b.c` in type position (`typeof a.b`) -> "a's b's c". */
+	qualifiedName(q: N): string {
+		if (q.type !== "TSQualifiedName") return this.ref(this.code(q));
+		const path: string[] = [];
+		let cur = q;
+		while (cur.type === "TSQualifiedName") {
+			path.unshift(this.prop(cur.right.name));
+			cur = cur.left;
+		}
+		return this.say.expressions.member.chain({ path: [this.ref(this.code(cur)), ...path] });
+	}
+
+	/** A type named as the thing it describes: `typeof f` -> "f", `Api["send"]` -> "Api's send". */
+	typeSubject(t: N): string {
+		if (t.type === "TSTypeQuery") return this.qualifiedName(t.exprName);
+		const k = t.indexType;
+		if (t.type === "TSIndexedAccessType" && k.type === "TSLiteralType" && typeof k.literal?.value === "string")
+			return this.say.expressions.member.chain({ path: [this.typeSubject(t.objectType), this.prop(k.literal.value)] });
+		if (t.type === "TSTypeReference") return this.typeName(t);
+		return this.typeText(t);
 	}
 
 	typeName(t: N): string {

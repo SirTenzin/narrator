@@ -289,7 +289,7 @@ function indexColumn(c: Ctx, n: N): string {
 	const dirs = steps.filter((s) => /^(asc|desc|nullsFirst|nullsLast|op)$/.test(s.m));
 	if (!steps.length || dirs.length !== steps.length) return val(c, n).t;
 	const column = val(c, root).t;
-	const time = e.lex.looksLikeTime(plain(column));
+	const time = e.g.isTimeLike(plain(column));
 	return steps.some((s) => s.m === "desc") ? say.order.descending({ column, time }) : say.order.ascending({ column, time });
 }
 

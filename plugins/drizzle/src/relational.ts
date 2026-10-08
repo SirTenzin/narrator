@@ -62,7 +62,8 @@ function optionKids(c: Ctx, opts: N): Kid[] {
 		const v = unwrap(p.value);
 		if (k === "where" && (v.type === "Identifier" || v.type === "MemberExpression")) {
 			const o = val(c, v);
-			add(D(r.option({ key: e.prop(k), value: o.t }), o.kids));
+			const w = D(r.matchesFilter({ filter: o.t }), o.kids);
+			add(D(say.query.where({ condition: w.t }), w.kids), w);
 		} else if (k === "where") {
 			const w = whereDoc(c, v, false);
 			add(D(say.query.where({ condition: w.t }), w.kids), w);
@@ -79,7 +80,8 @@ function optionKids(c: Ctx, opts: N): Kid[] {
 			}
 		else {
 			const o = val(c, v);
-			add(D(r.option({ key: e.prop(k), value: o.t }), o.kids));
+			const w = D(r.matchesFilter({ filter: o.t }), o.kids);
+			add(D(say.query.where({ condition: w.t }), w.kids), w);
 		}
 	}
 	return out;
@@ -123,7 +125,7 @@ function orderList(c: Ctx, v: N): string {
 				const dir = literalString(p.value);
 				if (!k || (dir !== "asc" && dir !== "desc")) return entryDoc(e, p).t;
 				const column = e.prop(k);
-				const time = e.lex.looksLikeTime(plain(column));
+				const time = e.g.isTimeLike(plain(column));
 				return dir === "asc" ? say.order.ascending({ column, time }) : say.order.descending({ column, time });
 			}),
 		);

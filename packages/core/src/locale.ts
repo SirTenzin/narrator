@@ -309,6 +309,25 @@ export interface TypePhrases {
 	union: Phrase<{ options: string; optional: boolean }>;
 	objectWith: Phrase<{ members: string }>;
 	tuple: Phrase<{ items: string }>;
+	/** `A & B`: every part, all at once. */
+	intersection: Phrase<{ parts: string[] }>;
+	/** `T["key"]`. */
+	indexed: Phrase<{ type: string; key: string }>;
+	/** `typeof value`. */
+	typeOf: Phrase<{ value: string }>;
+	/** `(typeof list)[number]`, `T[number]`. */
+	itemOf: Phrase<{ type: string }>;
+	/** `Pick<T, "a" | "b">`. */
+	pick: Phrase<{ type: string; fields: string }>;
+	/** `Omit<T, "a">`. */
+	omit: Phrase<{ type: string; fields: string }>;
+	/** `ReturnType<F>`. */
+	returnOf: Phrase<{ fn: string }>;
+	/** `Parameters<F>`, and `Parameters<F>[i]` with a 0-based `index`. */
+	paramsOf: Phrase<{ fn: string; index: number | null }>;
+	/** `keyof T`. */
+	keyOf: Phrase<{ type: string }>;
+	bigint: string;
 	predicate: Phrase<{ subject: string; type: string }>;
 	member: Phrase<{ name: string; optional: boolean }>;
 	explain: {

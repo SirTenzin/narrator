@@ -35,7 +35,7 @@ export type TsPlugin<P = any> = {
 	errorLabels?: Record<string, string>;
 	/** Exact source text -> phrase, e.g. `{ "Number.MAX_SAFE_INTEGER": "no limit" }`. */
 	constants?: Record<string, string>;
-	/** Keyed by callee: `foo`, `Obj.method`, `*.method` (any receiver), `new Foo`. Later plugins win. */
+	/** Keyed by callee: `foo`, `Obj.method`, `*.method` (any receiver), `new Foo`, `Effect.fn()` (curried: `Effect.fn(a)(b)`), `sql``` (tagged template). Later plugins win. */
 	calls?: Record<string, CallRule<P>>;
 	conditions?: Record<string, CondRule<P>>;
 	statements?: StmtRule<P>[];

@@ -10,6 +10,9 @@
 		"@narrate/plugin-zod": "workspace:*",
 		"@narrate/plugin-testing": "workspace:*",
 		"@narrate/example-autumn": "workspace:*",
-		"@oxc-parser/wasm": "0.60.0"
+		"@oxc-parser/wasm": "0.60.0",
+		"@narrate/plugin-effect": "workspace:*",
+		"@narrate/plugin-better-auth": "workspace:*",
+		"@narrate/plugin-drizzle": "workspace:*"
 	}
 }
