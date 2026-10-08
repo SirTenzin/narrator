@@ -1,0 +1,15 @@
+{
+	"name": "@narrate/testkit",
+	"version": "0.0.0",
+	"private": true,
+	"description": "Helpers for testing plugins and locales.",
+	"type": "module",
+	"exports": {
+		".": "./src/index.ts"
+	},
+	"dependencies": {
+		"@narrate/core": "workspace:*",
+		"@narrate/lang-ts": "workspace:*",
+		"@narrate/locale-en": "workspace:*"
+	}
+}

@@ -1,5 +1,5 @@
-import css from "./inline.css" with { type: "text" };
 import type { DiffReport, DiffRequest } from "./background";
+import css from "./inline.css" with { type: "text" };
 
 type FileJson = DiffReport["files"][number];
 type UnitJson = FileJson["units"][number];
@@ -10,7 +10,12 @@ const PREF_KEY = "plainEnglish.enabled";
 const isEnabled = () => localStorage.getItem(PREF_KEY) !== "0";
 const setEnabled = (on: boolean) => localStorage.setItem(PREF_KEY, on ? "1" : "0");
 
-const esc = (s: unknown) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+const esc = (s: unknown) =>
+	String(s ?? "")
+		.replace(/&/g, "&amp;")
+		.replace(/</g, "&lt;")
+		.replace(/>/g, "&gt;")
+		.replace(/"/g, "&quot;");
 
 /* ---------- which page are we on ---------- */
 
@@ -103,8 +108,14 @@ const classic: Flavor = {
 };
 
 const reactBg: Record<Side, [string, string]> = {
-	addition: ["var(--diffBlob-additionNum-bgColor, var(--diffBlob-addition-bgColor-num))", "var(--diffBlob-additionLine-bgColor, var(--diffBlob-addition-bgColor-line))"],
-	deletion: ["var(--diffBlob-deletionNum-bgColor, var(--diffBlob-deletion-bgColor-num))", "var(--diffBlob-deletionLine-bgColor, var(--diffBlob-deletion-bgColor-line))"],
+	addition: [
+		"var(--diffBlob-additionNum-bgColor, var(--diffBlob-addition-bgColor-num))",
+		"var(--diffBlob-additionLine-bgColor, var(--diffBlob-addition-bgColor-line))",
+	],
+	deletion: [
+		"var(--diffBlob-deletionNum-bgColor, var(--diffBlob-deletion-bgColor-num))",
+		"var(--diffBlob-deletionLine-bgColor, var(--diffBlob-deletion-bgColor-line))",
+	],
 	context: ["var(--bgColor-default)", "var(--bgColor-default)"],
 };
 const reactHunk = (split: boolean, html: string, attrs: string, cls: string) =>
@@ -115,7 +126,9 @@ const react: Flavor = {
 		`<td class="new-diff-line-number ${side === "context" ? "diff-line-number-neutral" : ""} ${n ? "" : "empty-diff-line"}" ${n ? `data-line-number="${n}"` : ""} style="background-color: ${reactBg[side][0]}">${n ?? ""}</td>`,
 	code: (side, c, pos) =>
 		`<td class="diff-text-cell v-align-top ${pos ? `${pos}-side-diff-cell` : ""}" style="background-color: ${reactBg[side][1]}; padding-right: 24px">${
-			c ? `<code class="diff-text syntax-highlighted-line ${side === "context" ? "" : side}">${side === "context" ? "" : `<span class="diff-text-marker">${marker(side)}</span>`}<div class="diff-text-inner">${lineHtml(c)}</div></code>` : ""
+			c
+				? `<code class="diff-text syntax-highlighted-line ${side === "context" ? "" : side}">${side === "context" ? "" : `<span class="diff-text-marker">${marker(side)}</span>`}<div class="diff-text-inner">${lineHtml(c)}</div></code>`
+				: ""
 		}</td>`,
 	blank: () => `<td class="empty-diff-line left-side"></td><td class="empty-diff-line left-side"></td>`,
 	hunk: (split, html, attrs = "") => reactHunk(split, html, attrs, "pe-hunk"),
@@ -140,19 +153,28 @@ function rowHtml(fl: Flavor, r: RowJson, split: boolean, seen: Seen = { l: null,
 		const rt = r.right ? fl.num(right, once(seen, "r", r.right.from)) + fl.code(right, r.right, "right") : fl.blank();
 		return tr(l + rt);
 	}
-	if (r.kind === "same") return tr(fl.num("context", once(seen, "l", r.left?.from)) + fl.num("context", once(seen, "r", r.right?.from)) + fl.code("context", r.right));
+	if (r.kind === "same")
+		return tr(fl.num("context", once(seen, "l", r.left?.from)) + fl.num("context", once(seen, "r", r.right?.from)) + fl.code("context", r.right));
 	let out = "";
 	if (r.left) out += tr(fl.num("deletion", once(seen, "l", r.left.from)) + fl.num("deletion", null) + fl.code("deletion", r.left));
 	if (r.right) out += tr(fl.num("addition", null) + fl.num("addition", once(seen, "r", r.right.from)) + fl.code("addition", r.right));
 	return out;
 }
 
-const statusWord: Record<string, string> = { modified: "changed", added: "added", removed: "removed", moved: "moved", renamed: "renamed", "moved-away": "moved away" };
+const statusWord: Record<string, string> = {
+	modified: "changed",
+	added: "added",
+	removed: "removed",
+	moved: "moved",
+	renamed: "renamed",
+	"moved-away": "moved away",
+};
 
 function unitTitle(u: UnitJson): string {
 	let origin = "";
 	if (u.other && u.status === "renamed") origin = ` (was ${esc(u.other.title)})`;
-	else if (u.other && u.status === "moved") origin = ` (from ${esc(u.other.path.split("/").pop())}${u.other.title !== u.title ? `, was ${esc(u.other.title)}` : ""})`;
+	else if (u.other && u.status === "moved")
+		origin = ` (from ${esc(u.other.path.split("/").pop())}${u.other.title !== u.title ? `, was ${esc(u.other.title)}` : ""})`;
 	return `<span class="pe-unit-title">${esc(u.title)}</span> <span class="pe-unit-status pe-${esc(u.status)}">${statusWord[u.status] ?? esc(u.status)}</span>${origin}`;
 }
 
@@ -165,7 +187,10 @@ function buildTable(fl: Flavor, f: FileJson | null, split: boolean, original: HT
 	const colgroup = original.querySelector("colgroup")?.outerHTML ?? "";
 	let body = "";
 	if (!f) {
-		body += fl.hunk(split, `<span class="pe-note">Plain English: the English for this file didn't change, so the code is shown below (the edit is in imports, types, formatting or string contents).</span>`);
+		body += fl.hunk(
+			split,
+			`<span class="pe-note">Plain English: the English for this file didn't change, so the code is shown below (the edit is in imports, types, formatting or string contents).</span>`,
+		);
 		table.innerHTML = `${colgroup}<tbody>${body}</tbody>`;
 		return table;
 	}
@@ -174,7 +199,10 @@ function buildTable(fl: Flavor, f: FileJson | null, split: boolean, original: HT
 	if (!changed.length && f.status === "renamed") body += fl.hunk(split, `<span class="pe-note">Renamed with no logic changes.</span>`);
 	changed.forEach((u, ui) => {
 		if (u.status === "moved-away") {
-			body += fl.hunk(split, `${unitTitle(u)} to <b>${esc(u.other!.path.split("/").pop())}</b>${u.other!.title !== u.title ? ` as <b>${esc(u.other!.title)}</b>` : ""}`);
+			body += fl.hunk(
+				split,
+				`${unitTitle(u)} to <b>${esc(u.other!.path.split("/").pop())}</b>${u.other!.title !== u.title ? ` as <b>${esc(u.other!.title)}</b>` : ""}`,
+			);
 			return;
 		}
 		body += fl.hunk(split, unitTitle(u));
@@ -185,8 +213,14 @@ function buildTable(fl: Flavor, f: FileJson | null, split: boolean, original: HT
 		});
 	});
 	if (unchanged.length) {
-		const names = unchanged.slice(0, 5).map((u) => esc(u.title)).join(", ");
-		body += fl.hunk(split, `<span class="pe-note">${unchanged.length} unchanged: ${names}${unchanged.length > 5 ? `, and ${unchanged.length - 5} more` : ""}</span>`);
+		const names = unchanged
+			.slice(0, 5)
+			.map((u) => esc(u.title))
+			.join(", ");
+		body += fl.hunk(
+			split,
+			`<span class="pe-note">${unchanged.length} unchanged: ${names}${unchanged.length > 5 ? `, and ${unchanged.length - 5} more` : ""}</span>`,
+		);
 	}
 	table.innerHTML = `${colgroup}<tbody>${body}</tbody>`;
 	table.addEventListener("click", (e) => {
@@ -354,7 +388,10 @@ const schedule = () => {
 };
 
 new MutationObserver((muts) => {
-	if (muts.every((m) => [...m.addedNodes, ...m.removedNodes].every((n) => n instanceof Element && (n.classList.contains("pe-table") || n.closest?.(".pe-table"))))) return;
+	if (
+		muts.every((m) => [...m.addedNodes, ...m.removedNodes].every((n) => n instanceof Element && (n.classList.contains("pe-table") || n.closest?.(".pe-table"))))
+	)
+		return;
 	schedule();
 }).observe(document.documentElement, { childList: true, subtree: true });
 

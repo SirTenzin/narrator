@@ -4,8 +4,7 @@ const SEP = "\uE001";
 const E = "\uE002";
 const RE = /\uE000(\w)\uE001([^\uE001]*)\uE001([^\uE002]*)\uE002/g;
 
-export const mk = (kind: "v" | "f" | "t" | "l" | "c", text: string, payload = "") =>
-	`${S}${kind}${SEP}${payload}${SEP}${text}${E}`;
+export const mk = (kind: "v" | "f" | "t" | "l" | "c", text: string, payload = "") => `${S}${kind}${SEP}${payload}${SEP}${text}${E}`;
 
 export const plain = (s: string) => s.replace(RE, (_, k, _p, t) => (k === "t" ? `(${t})` : t));
 export const vlen = (s: string) => s.replace(RE, (_, _k, _p, t) => t).length;

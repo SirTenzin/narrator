@@ -1,6 +1,6 @@
 import { D, type Doc, mk, plain } from "@narrate/core";
-import { type Dialect, type Engine, type N, listJoin, unwrap } from "./engine";
-import { humanize, isPluralWord, possessive, singular, splitWords } from "./names";
+import { type Engine, listJoin, type N, unwrap } from "./engine";
+import type { TsPlugin } from "./plugin";
 
 const isFn = (n: N) => n && (unwrap(n).type === "ArrowFunctionExpression" || unwrap(n).type === "FunctionExpression");
 
@@ -22,7 +22,12 @@ function lambdaNoun(e: Engine, fn: N, eachAlias: boolean): Doc | null {
 	const ex = e.lambdaExpr(fn);
 	if (!ex) return null;
 	const p = e.paramName(fn.params[0]);
-	if (eachAlias && p && e.countUses(ex, p) === 1) return e.withAlias(fn, (x) => `each ${e.ref(x)}`, () => e.noun(ex));
+	if (eachAlias && p && e.countUses(ex, p) === 1)
+		return e.withAlias(
+			fn,
+			(x) => `each ${e.ref(x)}`,
+			() => e.noun(ex),
+		);
 	return e.noun(ex);
 }
 
@@ -47,19 +52,11 @@ function pluckedListProp(e: Engine, fn: N): string | null {
 	return pluckedProp(e, fn);
 }
 
-const pluralize = (w: string) => {
-	if (isPluralWord(w)) return w;
-	if (/IDs?$/.test(w) || w.endsWith("ID")) return `${w}s`;
-	if (/[^aeiou]y$/.test(w)) return `${w.slice(0, -1)}ies`;
-	if (/(s|x|ch|sh)$/.test(w)) return `${w}es`;
-	return `${w}s`;
-};
-
-const propPlural = (prop: string) => mk("v", pluralize(humanize(prop)), prop);
+const propPlural = (e: Engine, prop: string) => mk("v", e.g.plural(e.lex.humanize(prop)), prop);
 
 /** "the IDs of customer products" */
 function plucked(e: Engine, coll: Doc, prop: string, flat = false): Doc {
-	return D(`${flat ? "all " : ""}the ${propPlural(prop)} ${flat ? "across" : "of"} ${coll.t}`, coll.kids);
+	return D(`${flat ? "all " : ""}the ${propPlural(e, prop)} ${flat ? "across" : "of"} ${coll.t}`, coll.kids);
 }
 
 function lambdaBlock(e: Engine, fn: N): Doc {
@@ -67,7 +64,7 @@ function lambdaBlock(e: Engine, fn: N): Doc {
 	return D("", lines);
 }
 
-const arrayRules: Dialect["calls"] = {
+const arrayRules: TsPlugin["calls"] = {
 	"*.map": ({ obj, args, e }) => {
 		const coll = e.noun(obj);
 		const fn = args[0] && unwrap(args[0]);
@@ -156,15 +153,22 @@ const arrayRules: Dialect["calls"] = {
 		if (ex && acc && item) {
 			const u = unwrap(ex);
 			if (u.type === "BinaryExpression" && u.operator === "+" && unwrap(u.left).name === acc) {
-				const term = e.withAlias({ params: [fn.params[1]] }, (x) => `each ${e.ref(x)}`, () => e.noun(u.right));
+				const term = e.withAlias(
+					{ params: [fn.params[1]] },
+					(x) => `each ${e.ref(x)}`,
+					() => e.noun(u.right),
+				);
 				const prop = unwrap(u.right).type === "MemberExpression" && unwrap(unwrap(u.right).object).name === item ? unwrap(u.right).property.name : null;
-				if (prop) return D(`the total ${mk("v", humanize(prop), prop)} across ${coll.t}`, coll.kids);
+				if (prop) return D(`the total ${mk("v", e.lex.humanize(prop), prop)} across ${coll.t}`, coll.kids);
 				return D(`the total of ${term.t} across ${coll.t}`, [...coll.kids, ...term.kids]);
 			}
 		}
 		const start = init ? e.noun(init) : D("the first item");
 		const steps = ex ? [{ d: 0, text: `• the running total becomes ${e.text(ex)}`, start: -1, end: -1, kind: "bullet" as const }] : e.body(fn.body, 0);
-		return D(`${coll.t} combined into one value, starting from ${start.t}; for each ${item ? e.ref(item) : "item"} (with the running total ${acc ? e.ref(acc) : ""}):`, [...coll.kids, ...start.kids, ...steps]);
+		return D(
+			`${coll.t} combined into one value, starting from ${start.t}; for each ${item ? e.ref(item) : "item"} (with the running total ${acc ? e.ref(acc) : ""}):`,
+			[...coll.kids, ...start.kids, ...steps],
+		);
 	},
 	"*.sort": ({ obj, args, e }) => sortRule(e, obj, args),
 	"*.toSorted": ({ obj, args, e }) => sortRule(e, obj, args),
@@ -204,7 +208,10 @@ const arrayRules: Dialect["calls"] = {
 		const joined = listJoin(items.map((i: Doc) => i.t));
 		if (items.some((i: Doc) => i.kids.length) || plain(joined).length > 80) {
 			if (items.length === 1) return D(`add ${items[0]!.t.replace(/:$/, "")} to ${coll.t}:`, items[0]!.kids);
-			return D(`add these to ${coll.t}:`, items.flatMap((i: Doc) => e.bullet(i)));
+			return D(
+				`add these to ${coll.t}:`,
+				items.flatMap((i: Doc) => e.bullet(i)),
+			);
 		}
 		return D(`add ${joined} to ${coll.t}`, coll.kids);
 	},
@@ -245,7 +252,7 @@ const arrayRules: Dialect["calls"] = {
 		if (args.length !== 1 || e.isAmbient(obj) || unwrap(args[0]).type === "ObjectExpression") return null;
 		const o = e.noun(obj);
 		const k = e.noun(args[0]);
-		return D(`${possessive(o.t)} entry for ${k.t}`, [...o.kids, ...k.kids]);
+		return D(`${e.g.possessive(o.t)} entry for ${k.t}`, [...o.kids, ...k.kids]);
 	},
 	"*.set": ({ obj, args, e }) => {
 		if (args.length !== 2) return null;
@@ -270,7 +277,10 @@ function someEvery(e: Engine, obj: N, args: N[], neg: boolean, kind: "some" | "e
 	if (!fn) return null;
 	if (!isFn(fn)) {
 		const f = e.noun(fn);
-		return D(`${kind === "some" ? (neg ? "none of" : "at least one of") : neg ? "not all of" : "all of"} ${coll.t} ${kind === "some" && !neg ? "passes" : "pass"} ${f.t}`, coll.kids);
+		return D(
+			`${kind === "some" ? (neg ? "none of" : "at least one of") : neg ? "not all of" : "all of"} ${coll.t} ${kind === "some" && !neg ? "passes" : "pass"} ${f.t}`,
+			coll.kids,
+		);
 	}
 	const item = itemName(e, fn);
 	const destr = e.isDestructured(fn);
@@ -323,23 +333,26 @@ function sortRule(e: Engine, obj: N, args: N[]): Doc {
 		if (u.type === "BinaryExpression" && u.operator === "-") {
 			const ka = key(u.left, a);
 			const kb = key(u.right, b);
-			if (ka && ka === kb) return D(`${coll.t}, sorted by ${mk("v", humanize(ka), ka)} (smallest first)`, coll.kids);
+			if (ka && ka === kb) return D(`${coll.t}, sorted by ${mk("v", e.lex.humanize(ka), ka)} (smallest first)`, coll.kids);
 			const ra = key(u.left, b);
 			const rb = key(u.right, a);
-			if (ra && ra === rb) return D(`${coll.t}, sorted by ${mk("v", humanize(ra), ra)} (largest first)`, coll.kids);
+			if (ra && ra === rb) return D(`${coll.t}, sorted by ${mk("v", e.lex.humanize(ra), ra)} (largest first)`, coll.kids);
 		}
 		if (u.type === "CallExpression" && unwrap(u.callee).property?.name === "localeCompare") {
 			const k1 = key(unwrap(u.callee).object, a);
 			const k2 = key(u.arguments[0], b);
-			if (k1 && k1 === k2) return D(`${coll.t}, sorted alphabetically by ${mk("v", humanize(k1), k1)}`, coll.kids);
+			if (k1 && k1 === k2) return D(`${coll.t}, sorted alphabetically by ${mk("v", e.lex.humanize(k1), k1)}`, coll.kids);
 			const r1 = key(unwrap(u.callee).object, b);
-			if (r1) return D(`${coll.t}, sorted reverse-alphabetically by ${mk("v", humanize(r1), r1)}`, coll.kids);
+			if (r1) return D(`${coll.t}, sorted reverse-alphabetically by ${mk("v", e.lex.humanize(r1), r1)}`, coll.kids);
 		}
 	}
-	return D(`${coll.t}, sorted by this rule:`, [...coll.kids, ...(ex ? [{ d: 0, text: `• compare ${a} and ${b} by ${e.text(ex)}`, start: -1, end: -1, kind: "bullet" as const }] : e.body(fn.body, 0))]);
+	return D(`${coll.t}, sorted by this rule:`, [
+		...coll.kids,
+		...(ex ? [{ d: 0, text: `• compare ${a} and ${b} by ${e.text(ex)}`, start: -1, end: -1, kind: "bullet" as const }] : e.body(fn.body, 0)),
+	]);
 }
 
-const valueRules: Dialect["calls"] = {
+const valueRules: TsPlugin["calls"] = {
 	"*.toString": ({ obj, e }) => D(`${e.text(obj)} as text`),
 	"*.toLowerCase": ({ obj, e }) => D(`${e.text(obj)} in lowercase`),
 	"*.toUpperCase": ({ obj, e }) => D(`${e.text(obj)} in uppercase`),
@@ -419,7 +432,7 @@ function logRule(e: Engine, obj: N, args: N[], verb: string): Doc | null {
 	});
 	const msg = msgIdx >= 0 ? e.text(args[msgIdx]) : null;
 	const others = args.filter((_, i) => i !== msgIdx);
-	const extra = others.length ? ` (with ${listJoin(e.argPairs(others).map((p) => (p.key ? mk("v", humanize(p.key), p.key) : p.text.t)))})` : "";
+	const extra = others.length ? ` (with ${listJoin(e.argPairs(others).map((p) => (p.key ? mk("v", e.lex.humanize(p.key), p.key) : p.text.t)))})` : "";
 	return D(`${verb}${msg ? ` ${msg}` : ""}${extra}`);
 }
 
@@ -428,14 +441,19 @@ function parallel(e: Engine, arg: N, stmt: boolean, settled: boolean): Doc {
 	const tail = settled ? " (carrying on even if some fail)" : "";
 	if (a?.type === "ArrayExpression") {
 		const items = a.elements.map((el: N) => (unwrap(el).type === "CallExpression" ? e.call(unwrap(el), true) : e.noun(el)));
-		return D(`${stmt ? "do" : "the results of doing"} these at the same time${tail}:`, items.flatMap((i: Doc) => e.bullet(i)));
+		return D(
+			`${stmt ? "do" : "the results of doing"} these at the same time${tail}:`,
+			items.flatMap((i: Doc) => e.bullet(i)),
+		);
 	}
 	if (a?.type === "CallExpression" && unwrap(a.callee).property?.name === "map" && isFn(a.arguments[0])) {
 		const fn = unwrap(a.arguments[0]);
 		const coll = e.noun(unwrap(a.callee).object);
 		const item = e.isDestructured(fn) ? "item" : itemName(e, fn);
 		const ex = e.lambdaExpr(fn);
-		const steps = ex ? [{ d: 0, text: unwrap(ex).type === "CallExpression" ? e.call(unwrap(ex), true).t : e.text(ex), start: -1, end: -1, kind: "stmt" as const }] : e.body(fn.body, 0);
+		const steps = ex
+			? [{ d: 0, text: unwrap(ex).type === "CallExpression" ? e.call(unwrap(ex), true).t : e.text(ex), start: -1, end: -1, kind: "stmt" as const }]
+			: e.body(fn.body, 0);
 		return D(`for every ${item} in ${coll.t}, all at the same time${tail}${stmt ? "" : ", collecting the results"}:`, [...coll.kids, ...steps]);
 	}
 	return D(`${stmt ? "wait for all of" : "the results of"} ${e.text(arg)}${tail}`);
@@ -443,7 +461,7 @@ function parallel(e: Engine, arg: N, stmt: boolean, settled: boolean): Doc {
 
 const styleOnly = ({ args, e }: { args: N[]; e: Engine }) => (args.length === 1 ? e.noun(args[0]) : null);
 
-const conditionRules: Dialect["conditions"] = {
+const conditionRules: TsPlugin["conditions"] = {
 	"*.includes": ({ obj, args, e, neg }) => includes(e, obj, args, neg),
 	"*.has": ({ obj, args, e, neg }) => hasRule(e, obj, args, neg),
 	"*.some": ({ obj, args, e, neg }) => someEvery(e, obj, args, neg, "some"),
@@ -459,7 +477,24 @@ const conditionRules: Dialect["conditions"] = {
 	"Object.keys": () => null,
 };
 
-const PIPE_OPS = new Set(["map", "flatMap", "filter", "find", "findLast", "some", "every", "sort", "toSorted", "slice", "join", "reduce", "at", "concat", "reverse", "toReversed"]);
+const PIPE_OPS = new Set([
+	"map",
+	"flatMap",
+	"filter",
+	"find",
+	"findLast",
+	"some",
+	"every",
+	"sort",
+	"toSorted",
+	"slice",
+	"join",
+	"reduce",
+	"at",
+	"concat",
+	"reverse",
+	"toReversed",
+]);
 
 /** `[...new Set(x)]` -> x */
 function dedupeSource(n: N): N | null {
@@ -504,7 +539,7 @@ function stageDoc(e: Engine, m: string, args: N[], node: N): Doc {
 			const flat = m === "flatMap" ? ", and flatten the results into one list" : "";
 			if (!lam) return D(`pass each one through ${e.text(fn)}${flat}`);
 			const prop = m === "flatMap" ? pluckedListProp(e, fn) : pluckedProp(e, fn);
-			if (prop) return D(m === "flatMap" ? `take all of their ${propPlural(prop)}` : `take each one's ${mk("v", humanize(prop), prop)}`);
+			if (prop) return D(m === "flatMap" ? `take all of their ${propPlural(e, prop)}` : `take each one's ${mk("v", e.lex.humanize(prop), prop)}`);
 			const body = lambdaNoun(e, fn, false);
 			const item = e.isDestructured(fn) ? `item (${listJoin(fn.params.flatMap((p: N) => e.patternNames(p)))})` : itemName(e, fn);
 			if (body) return D(`turn each ${item} into ${body.t}${flat}`, body.kids);
@@ -520,7 +555,8 @@ function stageDoc(e: Engine, m: string, args: N[], node: N): Doc {
 		case "every": {
 			const c = lam ? lambdaCond(e, fn) : null;
 			const q = m === "some" ? "any of them" : "all of them";
-			if (c) return D(`check whether ${q} ${m === "some" ? "has" : "have"} ${c.t.replace(new RegExp(`^${itemName(e, fn)}\\b`), "")}`.replace(/  +/g, " "), c.kids);
+			if (c)
+				return D(`check whether ${q} ${m === "some" ? "has" : "have"} ${c.t.replace(new RegExp(`^${itemName(e, fn)}\\b`), "")}`.replace(/  +/g, " "), c.kids);
 			return D(`check whether ${q} pass${m === "some" ? "es" : ""} ${lam ? "this check:" : e.text(fn)}`, lam ? lambdaBlock(e, fn).kids : []);
 		}
 		case "dedupe":
@@ -544,7 +580,10 @@ function pipelineRule({ node, e }: { node: N; e: Engine }): Doc | null {
 	const stages = steps.map((s, i) => {
 		const d = stageDoc(e, s.m, s.args, s.node);
 		const t = d.t.replace(/:$/, "") + (d.kids.length ? ":" : "");
-		return [{ d: 0, text: `${i + 1}. ${t.charAt(0).toUpperCase()}${t.slice(1)}`, start: s.node.start, end: s.node.end, kind: "bullet" as const }, ...d.kids.map((k) => ({ ...k, d: k.d + 1 }))];
+		return [
+			{ d: 0, text: `${i + 1}. ${t.charAt(0).toUpperCase()}${t.slice(1)}`, start: s.node.start, end: s.node.end, kind: "bullet" as const },
+			...d.kids.map((k) => ({ ...k, d: k.d + 1 })),
+		];
 	});
 	return D(`${r.t}, after these steps:`, [...r.kids, ...stages.flat()]);
 }
@@ -557,7 +596,7 @@ const pipelinedArrayRules = Object.fromEntries(
 	}),
 );
 
-export const std: Dialect = {
+export const std: TsPlugin = {
 	name: "std",
 	ambient: ["ctx"],
 	errors: /Error$/,
@@ -568,9 +607,13 @@ export const std: Dialect = {
 		NaN: "not-a-number",
 		"Number.EPSILON": "a tiny number",
 	},
-	calls: { ...pipelinedArrayRules, ...valueRules, "chalk.*": styleOnly, chalk: styleOnly, cn: ({ args }) => (args.length ? D("some CSS classes") : null), clsx: () => D("some CSS classes") },
+	calls: {
+		...pipelinedArrayRules,
+		...valueRules,
+		"chalk.*": styleOnly,
+		chalk: styleOnly,
+		cn: ({ args }) => (args.length ? D("some CSS classes") : null),
+		clsx: () => D("some CSS classes"),
+	},
 	conditions: conditionRules,
 };
-
-void singular;
-void splitWords;

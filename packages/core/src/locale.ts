@@ -3,6 +3,15 @@ export interface Grammar {
 	/** "a, b, and c" / "a or b". */
 	list(items: string[], conj?: "and" | "or"): string;
 	formatNumber(n: number): string;
+	/** Indefinite article for a noun phrase ("a"/"an"). */
+	article(noun: string): string;
+	/** "customer" -> "customer's"; markup-aware. */
+	possessive(noun: string): string;
+	plural(noun: string): string;
+	singular(noun: string): string;
+	isPlural(noun: string): boolean;
+	/** Leading word of a yes/no name, negated: "is" -> "is not", "has" -> "has no". */
+	negatePredicateHead(head: string): string;
 }
 
 /** Every phrase the built-in TS/JS narration can produce. Arguments are already-rendered markup strings. */
@@ -19,4 +28,6 @@ export interface Locale {
 	id: string;
 	grammar: Grammar;
 	phrases: CorePhrases;
+	/** Translations for plugins that don't ship this locale themselves, keyed by plugin name. */
+	plugins?: Record<string, unknown>;
 }

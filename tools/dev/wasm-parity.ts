@@ -1,11 +1,12 @@
 // The extension parses with oxc's wasm build; this checks it narrates identically to the native parser.
-import * as wasm from "@oxc-parser/wasm";
+
 import { createNarrator, renderText } from "@narrate/core";
 import { autumn } from "@narrate/example-autumn";
 import { typescript } from "@narrate/lang-ts";
 import { oxcParser } from "@narrate/lang-ts/oxc";
 import { oxcWasmParser } from "@narrate/lang-ts/wasm";
 import { en } from "@narrate/locale-en";
+import * as wasm from "@oxc-parser/wasm";
 import { AUTUMN, corpusFiles } from "./corpus";
 
 const make = (parser: typeof oxcParser) => createNarrator({ languages: [typescript({ parser, plugins: [autumn()] })], locale: en });

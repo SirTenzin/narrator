@@ -20,10 +20,20 @@ for (const f of await corpusFiles(root)) {
 		for (const [k, v] of Object.entries(stats.fallbackTypes)) ft[k] = (ft[k] ?? 0) + v;
 		renderText(lines);
 	} catch (err: any) {
-		crashes.push({ f, err: String(err?.stack ?? err).split("\n").slice(0, 3).join(" | ") });
+		crashes.push({
+			f,
+			err: String(err?.stack ?? err)
+				.split("\n")
+				.slice(0, 3)
+				.join(" | "),
+		});
 	}
 }
 totals.ms = Math.round(performance.now() - t0);
-const top = Object.entries(ft).sort((a, b) => b[1] - a[1]).slice(0, 15);
-console.log(JSON.stringify({ ...totals, crashes: crashes.length, fallbackRate: +(totals.fallbacks / Math.max(1, totals.nodes)).toFixed(4), topFallbacks: top }, null, 1));
+const top = Object.entries(ft)
+	.sort((a, b) => b[1] - a[1])
+	.slice(0, 15);
+console.log(
+	JSON.stringify({ ...totals, crashes: crashes.length, fallbackRate: +(totals.fallbacks / Math.max(1, totals.nodes)).toFixed(4), topFallbacks: top }, null, 1),
+);
 for (const c of crashes.slice(0, 10)) console.log(c.f, c.err);

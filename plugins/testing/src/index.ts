@@ -1,5 +1,5 @@
 import { D, type Doc } from "@narrate/core";
-import { definePlugin, type Engine, humanize, type N, type TsPlugin, unwrap } from "@narrate/lang-ts";
+import { definePlugin, type Engine, type N, type TsPlugin, unwrap } from "@narrate/lang-ts";
 
 const isFn = (n: N) => n && (unwrap(n).type === "ArrowFunctionExpression" || unwrap(n).type === "FunctionExpression");
 
@@ -41,7 +41,7 @@ function expectChain(e: Engine, node: N): Doc | null {
 					toHaveBeenCalledTimes: `was called ${arg} time(s)`,
 					toHaveBeenCalledWith: `was called with ${arg}`,
 				};
-				const verb = M[last.m] ?? `${humanize(last.m)}${not} ${arg}`;
+				const verb = M[last.m] ?? `${e.lex.humanize(last.m)}${not} ${arg}`;
 				return D(`check that ${subject.t} ${verb}`, subject.kids);
 			}
 			const m = c.type === "MemberExpression" ? c.property.name : null;
@@ -96,7 +96,6 @@ function testBlock(e: Engine, label: string, args: (N | null)[]): Doc | null {
 	const lines = ex ? [{ d: 0, text: e.text(ex), start: -1, end: -1, kind: "stmt" as const }] : e.body(f.body, 0);
 	return D(`${label}${title}:`, lines);
 }
-
 
 /** bun:test, vitest and jest: `describe`/`test`/`it` blocks and `expect(...)` matchers. */
 export const testing = (): TsPlugin => definePlugin({ name: "testing", calls: testRules });

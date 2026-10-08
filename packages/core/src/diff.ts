@@ -26,7 +26,8 @@ function lcs(a: string[], b: string[]): [number, number][] {
 	const n = a.length;
 	const m = b.length;
 	const dp: Uint32Array[] = Array.from({ length: n + 1 }, () => new Uint32Array(m + 1));
-	for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--) dp[i]![j] = a[i] === b[j] ? dp[i + 1]![j + 1]! + 1 : Math.max(dp[i + 1]![j]!, dp[i]![j + 1]!);
+	for (let i = n - 1; i >= 0; i--)
+		for (let j = m - 1; j >= 0; j--) dp[i]![j] = a[i] === b[j] ? dp[i + 1]![j + 1]! + 1 : Math.max(dp[i + 1]![j]!, dp[i]![j + 1]!);
 	const pairs: [number, number][] = [];
 	let i = 0;
 	let j = 0;
@@ -46,7 +47,10 @@ function tokenize(text: string): string[] {
 	return text.match(/\uE000[^\uE002]*\uE002|\s+|[A-Za-z0-9_'’-]+|[^\sA-Za-z0-9_\uE000]/g) ?? [];
 }
 
-function wordDiff(a: string, b: string): { left: { text: string; changed: boolean }[]; right: { text: string; changed: boolean }[]; merged: Merged; similarity: number } {
+function wordDiff(
+	a: string,
+	b: string,
+): { left: { text: string; changed: boolean }[]; right: { text: string; changed: boolean }[]; merged: Merged; similarity: number } {
 	const ta = tokenize(a);
 	const tb = tokenize(b);
 	const norm = (t: string) => plain(t);

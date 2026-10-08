@@ -1,4 +1,3 @@
-import initWasm, { parseSync } from "@oxc-parser/wasm/web/oxc_parser_wasm.js";
 import { type ChangedFile, createNarrator, type FileJson, type Narrator } from "@narrate/core";
 import { autumn } from "@narrate/example-autumn";
 import { typescript } from "@narrate/lang-ts";
@@ -6,6 +5,7 @@ import { oxcWasmParser } from "@narrate/lang-ts/wasm";
 import { en } from "@narrate/locale-en";
 import { testing } from "@narrate/plugin-testing";
 import { zod } from "@narrate/plugin-zod";
+import initWasm, { parseSync } from "@oxc-parser/wasm/web/oxc_parser_wasm.js";
 
 export type DiffRequest = { kind: "pull"; owner: string; repo: string; number: string } | { kind: "commit"; owner: string; repo: string; sha: string };
 export type DiffReport = { title: string; subtitle: string; url: string; base: string; head: string; skipped: number; files: FileJson[] };
@@ -59,7 +59,14 @@ async function mapLimit<T, R>(items: T[], limit: number, fn: (x: T) => Promise<R
 
 type GhFile = { filename: string; previous_filename?: string; status: string };
 
-const STATUS: Record<string, ChangedFile["status"]> = { added: "added", removed: "deleted", renamed: "renamed", modified: "modified", changed: "modified", copied: "added" };
+const STATUS: Record<string, ChangedFile["status"]> = {
+	added: "added",
+	removed: "deleted",
+	renamed: "renamed",
+	modified: "modified",
+	changed: "modified",
+	copied: "added",
+};
 
 const cache = new Map<string, DiffReport>();
 
@@ -101,7 +108,10 @@ async function buildReport(req: DiffRequest, progress: (t: string) => void): Pro
 	const changed = await mapLimit(narratable, 8, async (f): Promise<ChangedFile> => {
 		const status = STATUS[f.status] ?? "modified";
 		const oldPath = status === "added" ? null : (f.previous_filename ?? f.filename);
-		const [oldSrc, newSrc] = await Promise.all([oldPath && base ? raw(owner, repo, base, oldPath).catch(() => "") : "", status === "deleted" ? "" : raw(owner, repo, head, f.filename).catch(() => "")]);
+		const [oldSrc, newSrc] = await Promise.all([
+			oldPath && base ? raw(owner, repo, base, oldPath).catch(() => "") : "",
+			status === "deleted" ? "" : raw(owner, repo, head, f.filename).catch(() => ""),
+		]);
 		progress(`Fetched ${++fetched} of ${narratable.length} files…`);
 		return { path: f.filename, oldPath, status, oldSrc, newSrc };
 	});

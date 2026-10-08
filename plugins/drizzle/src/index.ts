@@ -1,18 +1,25 @@
 import { D, type Doc } from "@narrate/core";
 import { definePlugin, type Engine, listJoin, type N, type TsPlugin, unwrap } from "@narrate/lang-ts";
 
-const sqlCompare = (word: string, negWord: string) => ({ args, e, neg }: { args: N[]; e: Engine; neg?: boolean }) => {
-	const a = e.noun(args[0]);
-	const b = e.noun(args[1]);
-	return D(`${a.t} ${neg ? negWord : word} ${b.t}`, [...a.kids, ...b.kids]);
-};
+const sqlCompare =
+	(word: string, negWord: string) =>
+	({ args, e, neg }: { args: N[]; e: Engine; neg?: boolean }) => {
+		const a = e.noun(args[0]);
+		const b = e.noun(args[1]);
+		return D(`${a.t} ${neg ? negWord : word} ${b.t}`, [...a.kids, ...b.kids]);
+	};
 
-const sqlLogic = (isAnd: boolean) => ({ args, e, neg }: { args: N[]; e: Engine; neg?: boolean }) => {
-	const items: Doc[] = args.filter(Boolean).map((a: N) => e.cond(a, !!neg));
-	const and = isAnd !== !!neg;
-	if (items.length === 1) return items[0]!;
-	return D(and ? "all of these are true:" : "any of these is true:", items.flatMap((i) => e.bullet(i)));
-};
+const sqlLogic =
+	(isAnd: boolean) =>
+	({ args, e, neg }: { args: N[]; e: Engine; neg?: boolean }) => {
+		const items: Doc[] = args.filter(Boolean).map((a: N) => e.cond(a, !!neg));
+		const and = isAnd !== !!neg;
+		if (items.length === 1) return items[0]!;
+		return D(
+			and ? "all of these are true:" : "any of these is true:",
+			items.flatMap((i) => e.bullet(i)),
+		);
+	};
 
 /** Treats a drizzle helper call (`eq(col, x)`) as a condition wherever it appears. */
 const asCond = (rule: (x: any) => Doc) => ({
@@ -115,10 +122,27 @@ function drizzleQuery({ node, e }: { node: N; e: Engine }): Doc | null {
 				kids.push(D(`then ${s.m}${a.length ? ` (${listJoin(a.map((x) => x.t))})` : ""}`));
 		}
 	}
-	return D(`${title}:`, kids.flatMap((k) => e.bullet(k)));
+	return D(
+		`${title}:`,
+		kids.flatMap((k) => e.bullet(k)),
+	);
 }
 
-const queryMethods = ["select", "from", "where", "limit", "orderBy", "returning", "values", "onConflictDoNothing", "onConflictDoUpdate", "innerJoin", "leftJoin", "groupBy", "for"];
+const queryMethods = [
+	"select",
+	"from",
+	"where",
+	"limit",
+	"orderBy",
+	"returning",
+	"values",
+	"onConflictDoNothing",
+	"onConflictDoUpdate",
+	"innerJoin",
+	"leftJoin",
+	"groupBy",
+	"for",
+];
 
 /** Drizzle ORM: query builders (`db.select()...`) and SQL operators (`eq`, `and`, `inArray`, ...). */
 export const drizzle = (): TsPlugin =>

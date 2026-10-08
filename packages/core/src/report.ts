@@ -54,7 +54,15 @@ export function buildDiffReport({
 	const oldStartsByPath = new Map(computed.map((c) => [c.f.path, c.oldStarts]));
 
 	const mergedHtml = (m: Merged) =>
-		m.map((t) => (t.op === "del" ? `<del class="wd">${toHtml(t.text, resolve)}</del>` : t.op === "add" ? `<ins class="wi">${toHtml(t.text, resolve)}</ins>` : toHtml(t.text, resolve))).join("");
+		m
+			.map((t) =>
+				t.op === "del"
+					? `<del class="wd">${toHtml(t.text, resolve)}</del>`
+					: t.op === "add"
+						? `<ins class="wi">${toHtml(t.text, resolve)}</ins>`
+						: toHtml(t.text, resolve),
+			)
+			.join("");
 
 	const cell = (c: Cell, starts: number[]): CellJson | null => {
 		if (!c) return null;
@@ -66,39 +74,50 @@ export function buildDiffReport({
 			for (let i = 0; i < ts.length; ) {
 				let j = i;
 				while (j < ts.length && ts[j]!.changed === ts[i]!.changed) j++;
-				const chunk = ts.slice(i, j).map((t) => toHtml(t.text, resolve)).join("");
+				const chunk = ts
+					.slice(i, j)
+					.map((t) => toHtml(t.text, resolve))
+					.join("");
 				html += ts[i]!.changed ? `<mark class="chg">${chunk}</mark>` : chunk;
 				i = j;
 			}
 		}
-		return { d: l.d, kind: l.kind, html, from: l.start >= 0 ? lineAt(starts, l.start) : null, to: l.end >= 0 ? lineAt(starts, Math.max(l.start, l.end - 1)) : null };
+		return {
+			d: l.d,
+			kind: l.kind,
+			html,
+			from: l.start >= 0 ? lineAt(starts, l.start) : null,
+			to: l.end >= 0 ? lineAt(starts, Math.max(l.start, l.end - 1)) : null,
+		};
 	};
 
-	const result = computed.map(({ f, units, oldStarts, newStarts }): FileJson => ({
-		path: f.path,
-		oldPath: f.oldPath,
-		status: f.status,
-		adds: units.reduce((n, u) => n + u.adds, 0),
-		dels: units.reduce((n, u) => n + u.dels, 0),
-		units: units.map((u) => {
-			const leftStarts = u.status === "moved" && u.other ? (oldStartsByPath.get(u.other.path) ?? oldStarts) : oldStarts;
-			return {
-				key: u.key,
-				title: u.title,
-				status: u.status,
-				other: u.other,
-				adds: u.adds,
-				dels: u.dels,
-				rows: u.rows.map((r) => ({
-					kind: r.kind,
-					count: r.count,
-					left: cell(r.left, leftStarts),
-					right: cell(r.right, newStarts),
-					merged: r.merged ? mergedHtml(r.merged) : undefined,
-					hidden: r.hidden?.map((h) => ({ kind: h.kind, left: cell(h.left, leftStarts), right: cell(h.right, newStarts) })),
-				})),
-			};
+	const result = computed.map(
+		({ f, units, oldStarts, newStarts }): FileJson => ({
+			path: f.path,
+			oldPath: f.oldPath,
+			status: f.status,
+			adds: units.reduce((n, u) => n + u.adds, 0),
+			dels: units.reduce((n, u) => n + u.dels, 0),
+			units: units.map((u) => {
+				const leftStarts = u.status === "moved" && u.other ? (oldStartsByPath.get(u.other.path) ?? oldStarts) : oldStarts;
+				return {
+					key: u.key,
+					title: u.title,
+					status: u.status,
+					other: u.other,
+					adds: u.adds,
+					dels: u.dels,
+					rows: u.rows.map((r) => ({
+						kind: r.kind,
+						count: r.count,
+						left: cell(r.left, leftStarts),
+						right: cell(r.right, newStarts),
+						merged: r.merged ? mergedHtml(r.merged) : undefined,
+						hidden: r.hidden?.map((h) => ({ kind: h.kind, left: cell(h.left, leftStarts), right: cell(h.right, newStarts) })),
+					})),
+				};
+			}),
 		}),
-	}));
+	);
 	return result.filter((f) => f.status === "renamed" || f.units.some((u) => u.status !== "unchanged"));
 }

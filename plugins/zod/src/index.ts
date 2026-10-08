@@ -1,5 +1,5 @@
 import { D, mk } from "@narrate/core";
-import { definePlugin, type Engine, humanize, listJoin, type N, type TsPlugin, unwrap } from "@narrate/lang-ts";
+import { definePlugin, type Engine, listJoin, type N, type TsPlugin, unwrap } from "@narrate/lang-ts";
 
 /** Zod: `z.string().optional()` -> "optional text". */
 function zodText(e: Engine, n: N): string | null {
@@ -12,17 +12,43 @@ function zodText(e: Engine, n: N): string | null {
 	}
 	if (cur?.type !== "Identifier" || cur.name !== "z" || !steps.length) return null;
 	const base = steps[0]!;
-	const BASE: Record<string, string> = { string: "text", number: "a number", boolean: "true/false", date: "a date", any: "anything", unknown: "anything", null: "null", bigint: "a big number" };
+	const BASE: Record<string, string> = {
+		string: "text",
+		number: "a number",
+		boolean: "true/false",
+		date: "a date",
+		any: "anything",
+		unknown: "anything",
+		null: "null",
+		bigint: "a big number",
+	};
 	let t: string;
 	if (BASE[base.m]) t = BASE[base.m]!;
 	else if (base.m === "object" || base.m === "strictObject") {
 		const o = unwrap(base.args[0]);
-		const keys = o?.type === "ObjectExpression" ? o.properties.map((p: N) => (p.key ? mk("v", humanize(p.key.name ?? String(p.key.value)), p.key.name) : "…")) : [];
+		const keys =
+			o?.type === "ObjectExpression" ? o.properties.map((p: N) => (p.key ? mk("v", e.lex.humanize(p.key.name ?? String(p.key.value)), p.key.name) : "…")) : [];
 		t = `an object with ${listJoin(keys)}`;
 	} else if (base.m === "array") t = `a list of ${zodText(e, base.args[0]) ?? e.text(base.args[0])}`;
-	else if (base.m === "enum") t = `one of ${unwrap(base.args[0])?.type === "ArrayExpression" ? listJoin(unwrap(base.args[0]).elements.map((x: N) => e.text(x)), "or") : e.text(base.args[0])}`;
+	else if (base.m === "enum")
+		t = `one of ${
+			unwrap(base.args[0])?.type === "ArrayExpression"
+				? listJoin(
+						unwrap(base.args[0]).elements.map((x: N) => e.text(x)),
+						"or",
+					)
+				: e.text(base.args[0])
+		}`;
 	else if (base.m === "literal") t = `exactly ${e.text(base.args[0])}`;
-	else if (base.m === "union") t = `either ${unwrap(base.args[0])?.type === "ArrayExpression" ? listJoin(unwrap(base.args[0]).elements.map((x: N) => zodText(e, x) ?? e.text(x)), "or") : "…"}`;
+	else if (base.m === "union")
+		t = `either ${
+			unwrap(base.args[0])?.type === "ArrayExpression"
+				? listJoin(
+						unwrap(base.args[0]).elements.map((x: N) => zodText(e, x) ?? e.text(x)),
+						"or",
+					)
+				: "…"
+		}`;
 	else if (base.m === "record") t = `a lookup of ${zodText(e, base.args[base.args.length - 1]) ?? "values"}`;
 	else if (base.m === "nativeEnum") t = `one of the ${e.text(base.args[0])} values`;
 	else return null;
@@ -53,9 +79,41 @@ const zodRule = ({ node, e }: { node: N; e: Engine }) => {
 };
 
 const zodRules: TsPlugin["calls"] = Object.fromEntries(
-	["z.object", "z.string", "z.number", "z.boolean", "z.array", "z.enum", "z.union", "z.literal", "z.record", "z.date", "z.any", "z.unknown", "z.nativeEnum", "z.strictObject", "*.optional", "*.nullable", "*.nullish", "*.default", "*.min", "*.max", "*.int", "*.positive", "*.nonnegative", "*.email", "*.url", "*.uuid", "*.describe", "*.meta", "*.openapi", "*.extend", "*.refine", "*.transform"].map((k) => [k, zodRule]),
+	[
+		"z.object",
+		"z.string",
+		"z.number",
+		"z.boolean",
+		"z.array",
+		"z.enum",
+		"z.union",
+		"z.literal",
+		"z.record",
+		"z.date",
+		"z.any",
+		"z.unknown",
+		"z.nativeEnum",
+		"z.strictObject",
+		"*.optional",
+		"*.nullable",
+		"*.nullish",
+		"*.default",
+		"*.min",
+		"*.max",
+		"*.int",
+		"*.positive",
+		"*.nonnegative",
+		"*.email",
+		"*.url",
+		"*.uuid",
+		"*.describe",
+		"*.meta",
+		"*.openapi",
+		"*.extend",
+		"*.refine",
+		"*.transform",
+	].map((k) => [k, zodRule]),
 );
-
 
 export const zod = (): TsPlugin =>
 	definePlugin({

@@ -1,53 +1,25 @@
-import { capFirst, type CorePhrases, D, type Doc, type Line, type LineKind, type Locale, lowerFirst, mk, plain, vlen } from "@narrate/core";
-import type { Parser } from "./parser";
 import {
-	article,
-	singular as singularWord,
-	converterParts,
-	extendVocabulary,
-	humanize,
-	humanizeWords,
-	isPluralWord,
-	isPredicateName,
-	looksLikeTime,
-	possessive,
-	predicatePhrase,
-	singular,
-	splitWords,
-	startsWithVerb,
-	type Vocabulary,
-} from "./names";
+	type CorePhrases,
+	capFirst,
+	D,
+	type Doc,
+	type Grammar,
+	Lexicon,
+	type Line,
+	type LineKind,
+	type Locale,
+	lowerFirst,
+	mk,
+	plain,
+	vlen,
+} from "@narrate/core";
+import type { Parser } from "./parser";
+import type { CallRule, CondRule, StmtRule, TsPlugin } from "./plugin";
 
 export type N = any;
 
-export type CallRule = (ctx: { node: N; args: N[]; obj: N | null; e: Engine; stmt: boolean }) => Doc | string | null | undefined;
-export type CondRule = (ctx: { node: N; args: N[]; obj: N | null; e: Engine; neg: boolean }) => Doc | string | null | undefined;
-export type StmtRule = (ctx: { node: N; e: Engine; d: number }) => boolean;
-
-export type Dialect = {
-	name: string;
-	vocabulary?: Vocabulary;
-	/** Identifiers that are plumbing: dropped from argument lists and member chains (e.g. `ctx`). */
-	ambient?: string[];
-	/** Constructor names whose instances are errors; `message` is pulled out for `throw`. */
-	errors?: string[] | RegExp;
-	/** How to name an error class when thrown, e.g. `{ RecaseError: "an error" }`. */
-	errorLabels?: Record<string, string>;
-	/** Exact source text -> phrase, e.g. `{ "Number.MAX_SAFE_INTEGER": "no limit" }`. */
-	constants?: Record<string, string>;
-	/** Keyed by callee: `foo`, `Obj.method`, `*.method`, `new Foo`. */
-	calls?: Record<string, CallRule>;
-	conditions?: Record<string, CondRule>;
-	statements?: StmtRule[];
-	/** Describes a schema-builder expression (e.g. `z.object({...})`) as a type, or null if it isn't one. */
-	describeSchema?: (e: Engine, n: N) => string | null;
-};
-
-/** A TS/JS plugin: rules for one library or codebase. */
-export type TsPlugin = Dialect;
-
-/** Identity helper that gives plugin authors type inference and autocomplete. */
-export const definePlugin = (p: TsPlugin): TsPlugin => p;
+/** A rule after the engine has bound its plugin's phrasebook in. */
+type Bound<R extends (ctx: any) => any> = (ctx: Omit<Parameters<R>[0], "say">) => ReturnType<R>;
 
 const asDoc = (x: Doc | string) => (typeof x === "string" ? D(x) : x);
 
@@ -75,7 +47,12 @@ export function unwrap(n: N): N {
 const isFn = (n: N) => n && (n.type === "ArrowFunctionExpression" || n.type === "FunctionExpression");
 const isNullish = (n: N) => {
 	n = unwrap(n);
-	return !n || (n.type === "Literal" && n.value === null && !n.regex) || (n.type === "Identifier" && n.name === "undefined") || (n.type === "UnaryExpression" && n.operator === "void");
+	return (
+		!n ||
+		(n.type === "Literal" && n.value === null && !n.regex) ||
+		(n.type === "Identifier" && n.name === "undefined") ||
+		(n.type === "UnaryExpression" && n.operator === "void")
+	);
 };
 const isBoolLit = (n: N) => unwrap(n)?.type === "Literal" && typeof unwrap(n).value === "boolean";
 const calleeName = (n: N): string | null => {
@@ -114,15 +91,15 @@ export function typeRefName(t: N, code: (n: N) => string): string | null {
 
 export class Engine {
 	src = "";
-	dialects: Dialect[] = [];
+	dialects: TsPlugin[] = [];
 	ambient = new Set<string>();
 	errorNames = new Set<string>();
 	errorLabels: Record<string, string> = {};
 	constants: Record<string, string> = {};
 	errorPattern: RegExp | null = null;
-	calls: Record<string, CallRule[]> = {};
-	conds: Record<string, CondRule[]> = {};
-	stmtRules: StmtRule[] = [];
+	calls: Record<string, Bound<CallRule>[]> = {};
+	conds: Record<string, Bound<CondRule>[]> = {};
+	stmtRules: Bound<StmtRule>[] = [];
 	aliases = new Map<string, string>();
 	/** variable -> type spec: `Type` or `@Type.field`. */
 	varTypes = new Map<string, string>();
@@ -137,31 +114,55 @@ export class Engine {
 	readonly parse: Parser;
 	readonly locale: Locale;
 	readonly say: CorePhrases;
+	readonly g: Grammar;
+	readonly lex = new Lexicon();
 
 	constructor({ parser, plugins, locale }: { parser: Parser; plugins: TsPlugin[]; locale: Locale }) {
 		this.parse = parser;
 		this.locale = locale;
 		this.say = locale.phrases;
+		this.g = locale.grammar;
 		for (const d of plugins) this.use(d);
 	}
 
-	use(d: Dialect) {
+	use(d: TsPlugin) {
 		this.dialects.push(d);
-		if (d.vocabulary) extendVocabulary(d.vocabulary);
+		const say = this.phrasesFor(d);
+		const bind =
+			<R extends (ctx: any) => any>(r: R): Bound<R> =>
+			(ctx) =>
+				r({ ...ctx, say });
+		if (d.vocabulary) this.lex.extend(d.vocabulary);
 		for (const a of d.ambient ?? []) this.ambient.add(a);
 		Object.assign(this.errorLabels, d.errorLabels ?? {});
 		Object.assign(this.constants, d.constants ?? {});
 		if (d.errors instanceof RegExp) this.errorPattern = d.errors;
 		else for (const x of d.errors ?? []) this.errorNames.add(x);
-		for (const [k, r] of Object.entries(d.calls ?? {})) (this.calls[k] ??= []).unshift(r);
-		for (const [k, r] of Object.entries(d.conditions ?? {})) (this.conds[k] ??= []).unshift(r);
-		this.stmtRules.push(...(d.statements ?? []));
+		for (const [k, r] of Object.entries(d.calls ?? {})) (this.calls[k] ??= []).unshift(bind(r));
+		for (const [k, r] of Object.entries(d.conditions ?? {})) (this.conds[k] ??= []).unshift(bind(r));
+		this.stmtRules.push(...(d.statements ?? []).map(bind));
 		return this;
+	}
+
+	/** A plugin's phrasebook for this locale: locale override, then the plugin's own translation, then English. */
+	phrasesFor(d: TsPlugin): unknown {
+		return this.locale.plugins?.[d.name] ?? d.phrases?.[this.locale.id] ?? d.phrases?.en;
+	}
+
+	/** `isUpgrade` -> "is upgrade" / "is not upgrade". */
+	predicatePhrase(id: string, negated: boolean): string {
+		const w = this.lex.words(id);
+		return `${negated ? this.g.negatePredicateHead(w[0]!) : w[0]!} ${this.lex.display(w.slice(1))}`.trim();
+	}
+
+	/** A property or key name as linked display text: `cusId` -> "customer ID". */
+	prop(key: string): string {
+		return mk("v", this.lex.humanize(key), key);
 	}
 
 	schemaText(n: N): string | null {
 		for (const d of this.dialects) {
-			const t = d.describeSchema?.(this, n);
+			const t = d.describeSchema?.(this, n, this.phrasesFor(d));
 			if (t) return t;
 		}
 		return null;
@@ -185,14 +186,14 @@ export class Engine {
 		const alias = this.aliases.get(name);
 		if (alias) return alias;
 		const t = this.varTypes.get(name);
-		return mk("v", humanize(name), t ? `${name}|${t}` : name);
+		return mk("v", this.lex.humanize(name), t ? `${name}|${t}` : name);
 	}
 
 	fnRef(name: string, text: string) {
 		return mk("f", text, name);
 	}
 
-	isAmbient(n: N) {
+	isAmbient(n: N): boolean {
 		n = unwrap(n);
 		if (!n) return false;
 		if (n.type === "Identifier") return this.ambient.has(n.name);
@@ -205,7 +206,7 @@ export class Engine {
 	}
 
 	isBoolName(name: string) {
-		return this.bools.has(name) || isPredicateName(name);
+		return this.bools.has(name) || this.lex.isPredicateName(name);
 	}
 
 	looksBoolean(n: N): boolean {
@@ -217,7 +218,8 @@ export class Engine {
 		if (isBoolLit(n)) return true;
 		if (n.type === "CallExpression") {
 			const c = calleeName(n);
-			if (c && (isPredicateName(c) || /^(includes|has|some|every|startsWith|endsWith|isArray|test|Boolean|notNullish|nullish|eq|and|or)$/.test(c))) return true;
+			if (c && (this.lex.isPredicateName(c) || /^(includes|has|some|every|startsWith|endsWith|isArray|test|Boolean|notNullish|nullish|eq|and|or)$/.test(c)))
+				return true;
 		}
 		if (n.type === "Identifier") return this.isBoolName(n.name);
 		return false;
@@ -254,19 +256,26 @@ export class Engine {
 		if (!pairs.length) return D("");
 		const items = pairs.map(({ key, node, text }) => {
 			if (!key) return text;
-			const sameWords = plain(text.t) === humanize(key) || (unwrap(node)?.type === "Identifier" && humanize(unwrap(node).name) === humanize(key));
+			const sameWords =
+				plain(text.t) === this.lex.humanize(key) || (unwrap(node)?.type === "Identifier" && this.lex.humanize(unwrap(node).name) === this.lex.humanize(key));
 			if (sameWords) return text;
-			if (isBoolLit(node)) return D(unwrap(node).value ? mk("v", humanize(key), key) : `no ${mk("v", humanize(key), key)}`);
-			return D(`${mk("v", humanize(key), key)}: ${text.t}`, text.kids);
+			if (isBoolLit(node)) return D(unwrap(node).value ? mk("v", this.lex.humanize(key), key) : `no ${mk("v", this.lex.humanize(key), key)}`);
+			return D(`${mk("v", this.lex.humanize(key), key)}: ${text.t}`, text.kids);
 		});
 		const joined = listJoin(items.map((i) => i.t));
 		const kidsInline = items.filter((i) => i.kids.length).length;
 		if (items.length <= 3 && vlen(joined) <= 70 && kidsInline === 0) return D(` (${joined})`);
-		return D(":", items.flatMap((i) => this.bullet(i)));
+		return D(
+			":",
+			items.flatMap((i) => this.bullet(i)),
+		);
 	}
 
 	bullet(doc: Doc, d = 0, kind: LineKind = "bullet"): Line[] {
-		return [{ d, text: `• ${doc.t}${doc.kids.length && !doc.t.endsWith(":") ? ":" : ""}`, start: -1, end: -1, kind }, ...doc.kids.map((k) => ({ ...k, d: k.d + d + 1 }))];
+		return [
+			{ d, text: `• ${doc.t}${doc.kids.length && !doc.t.endsWith(":") ? ":" : ""}`, start: -1, end: -1, kind },
+			...doc.kids.map((k) => ({ ...k, d: k.d + d + 1 })),
+		];
 	}
 
 	// ---------- nouns ----------
@@ -280,7 +289,14 @@ export class Engine {
 			if (this.constants[k]) return D(mk("l", this.constants[k]!));
 			const meta = /^import\.meta\.(\w+)(?:\.(\w+))?$/.exec(k);
 			if (meta) {
-				const M: Record<string, string> = { main: "this file is being run directly", dir: "this file's folder", dirname: "this file's folder", url: "this file's URL", filename: "this file's path", path: "this file's path" };
+				const M: Record<string, string> = {
+					main: "this file is being run directly",
+					dir: "this file's folder",
+					dirname: "this file's folder",
+					url: "this file's URL",
+					filename: "this file's path",
+					path: "this file's path",
+				};
 				if (meta[1] === "env" && meta[2]) return D(`the ${mk("l", meta[2])} environment variable`);
 				if (M[meta[1]!]) return D(M[meta[1]!]!);
 			}
@@ -340,7 +356,11 @@ export class Engine {
 				return this.wrap(this.noun(n.source), (t) => `the module at ${t}`);
 			case "TaggedTemplateExpression": {
 				const tag = this.code(n.tag);
-				const text = n.quasi.quasis.map((q: N) => q.value.cooked).join("{…}").replace(/\s+/g, " ").trim();
+				const text = n.quasi.quasis
+					.map((q: N) => q.value.cooked)
+					.join("{…}")
+					.replace(/\s+/g, " ")
+					.trim();
 				if (/sql/i.test(tag)) return D(`the SQL ${mk("c", text)}`);
 				return D(this.raw(n));
 			}
@@ -402,7 +422,13 @@ export class Engine {
 		const { root, steps } = this.chain(n);
 		const last = steps.at(-1)!;
 		const prefix = { type: "MemberExpression", ...n };
-		if (last.name === "length" && steps.length === 1 && root?.type === "CallExpression" && unwrap(root.callee).property?.name === "filter" && root.arguments[0]?.type?.includes("Function")) {
+		if (
+			last.name === "length" &&
+			steps.length === 1 &&
+			root?.type === "CallExpression" &&
+			unwrap(root.callee).property?.name === "filter" &&
+			root.arguments[0]?.type?.includes("Function")
+		) {
 			const fn = unwrap(root.arguments[0]);
 			const ex = this.lambdaExpr(fn);
 			if (ex) {
@@ -420,10 +446,16 @@ export class Engine {
 			const inner = this.memberFrom(root, steps.slice(0, -1));
 			if (idx.type === "Literal" && idx.value === 0) return this.wrap(inner, (t) => `the first of ${t}`);
 			if (idx.type === "Literal" && typeof idx.value === "number") return this.wrap(inner, (t) => `item #${idx.value + 1} of ${t}`);
-			if (idx.type === "BinaryExpression" && idx.operator === "-" && unwrap(idx.left).type === "MemberExpression" && unwrap(idx.left).property?.name === "length" && unwrap(idx.right).value === 1)
+			if (
+				idx.type === "BinaryExpression" &&
+				idx.operator === "-" &&
+				unwrap(idx.left).type === "MemberExpression" &&
+				unwrap(idx.left).property?.name === "length" &&
+				unwrap(idx.right).value === 1
+			)
 				return this.wrap(inner, (t) => `the last of ${t}`);
 			const k = this.noun(idx);
-			return D(`${possessive(inner.t)} entry for ${k.t}`, [...inner.kids, ...k.kids]);
+			return D(`${this.g.possessive(inner.t)} entry for ${k.t}`, [...inner.kids, ...k.kids]);
 		}
 		void prefix;
 		return this.memberFrom(root, steps);
@@ -440,16 +472,16 @@ export class Engine {
 			if (s.index) {
 				const idx = unwrap(s.index);
 				const firstOrLast = idx.type === "Literal" && idx.value === 0 ? "first" : null;
-				if (firstOrLast && names.length && isPluralWord(humanize(names.at(-1)!))) {
+				if (firstOrLast && names.length && this.g.isPlural(this.lex.humanize(names.at(-1)!))) {
 					const n = names.pop()!;
 					words.pop();
-					words.push(`${firstOrLast} ${mk("v", singularWord(humanize(n)), n)}`);
+					words.push(`${firstOrLast} ${mk("v", this.g.singular(this.lex.humanize(n)), n)}`);
 					names.push(n);
 					continue;
 				}
 				const cur = this.joinPossessive(base, words);
 				const k = this.noun(s.index);
-				base = firstOrLast ? D(`the first of ${cur.t}`, cur.kids) : D(`${possessive(cur.t)} entry for ${k.t}`, [...cur.kids, ...k.kids]);
+				base = firstOrLast ? D(`the first of ${cur.t}`, cur.kids) : D(`${this.g.possessive(cur.t)} entry for ${k.t}`, [...cur.kids, ...k.kids]);
 				names.length = 0;
 				words.length = 0;
 				continue;
@@ -458,22 +490,26 @@ export class Engine {
 			const rootType = i === 0 && root?.type === "Identifier" ? this.varTypes.get(root.name) : undefined;
 			const ownerType = rootType && !rootType.startsWith("@") ? rootType : null;
 			names.push(s.name!);
-			words.push(mk("v", humanize(s.name!), ownerType ? `${s.name}|@${ownerType}.${s.name}` : s.name!));
+			words.push(mk("v", this.lex.humanize(s.name!), ownerType ? `${s.name}|@${ownerType}.${s.name}` : s.name!));
 		}
 		return this.joinPossessive(base, words, root?.type === "CallExpression" && !!base && base === firstBase);
 	}
 
 	joinPossessive(base: Doc | null, words: string[], fromCall = false): Doc {
-		if (fromCall && base && words.length) return D(`the ${words.map((w, i) => (i < words.length - 1 ? possessive(w) : w)).join(" ")} from ${base.t}`, base.kids);
+		if (fromCall && base && words.length)
+			return D(`the ${words.map((w, i) => (i < words.length - 1 ? this.g.possessive(w) : w)).join(" ")} from ${base.t}`, base.kids);
 		if (!base) {
 			if (!words.length) return D("the context");
-			const chain = words.map((w, i) => (i < words.length - 1 ? possessive(w) : w)).join(" ");
+			const chain = words.map((w, i) => (i < words.length - 1 ? this.g.possessive(w) : w)).join(" ");
 			return D(`the ${chain}`);
 		}
 		if (!words.length) return base;
 		const all = [base.t, ...words];
-		if (all.length <= 4) return D(all.map((w, i) => (i < all.length - 1 ? possessive(w) : w)).join(" "), base.kids);
-		const head = all.slice(0, -1).map((w, i, a) => (i < a.length - 1 ? possessive(w) : w)).join(" ");
+		if (all.length <= 4) return D(all.map((w, i) => (i < all.length - 1 ? this.g.possessive(w) : w)).join(" "), base.kids);
+		const head = all
+			.slice(0, -1)
+			.map((w, i, a) => (i < a.length - 1 ? this.g.possessive(w) : w))
+			.join(" ");
 		return D(`the ${all.at(-1)} of ${head}`, base.kids);
 	}
 
@@ -489,12 +525,18 @@ export class Engine {
 			const parts: Doc[] = els.map((e: N) => this.noun(e.argument));
 			const joined = parts.map((p) => p.t).join(", plus ");
 			if (vlen(joined) <= 80 && parts.every((p) => !p.kids.length)) return D(joined);
-			return D("one list combining:", parts.flatMap((p) => this.bullet(p)));
+			return D(
+				"one list combining:",
+				parts.flatMap((p) => this.bullet(p)),
+			);
 		}
 		const parts = els.map((e: N) => (e.type === "SpreadElement" ? this.wrap(this.noun(e.argument), (t) => `everything in ${t}`) : this.noun(e)));
 		const joined = listJoin(parts.map((p: Doc) => p.t));
 		if (parts.length <= 4 && vlen(joined) < 70 && parts.every((p: Doc) => !p.kids.length)) return D(`a list of ${joined}`);
-		return D("a list of:", parts.flatMap((p: Doc) => this.bullet(p)));
+		return D(
+			"a list of:",
+			parts.flatMap((p: Doc) => this.bullet(p)),
+		);
 	}
 
 	object(n: N): Doc {
@@ -503,7 +545,7 @@ export class Engine {
 		if (first.type === "SpreadElement" && rest.length && rest.every((p: N) => p.type !== "SpreadElement" && !p.method)) {
 			const base = this.noun(first.argument);
 			const overrides: Doc[] = rest.map((p: N) => {
-				const k = p.computed ? `[${this.noun(p.key).t}]` : mk("v", humanize(p.key.name ?? String(p.key.value)), p.key.name ?? String(p.key.value));
+				const k = p.computed ? `[${this.noun(p.key).t}]` : mk("v", this.lex.humanize(p.key.name ?? String(p.key.value)), p.key.name ?? String(p.key.value));
 				const v = p.shorthand ? D(this.ref(p.key.name)) : this.noun(p.value);
 				return D(`${k} set to ${v.t}`, v.kids);
 			});
@@ -527,7 +569,11 @@ export class Engine {
 		const u = unwrap(arg);
 		let test: N | null = null;
 		let obj: N | null = null;
-		if (u.type === "ConditionalExpression" && unwrap(u.consequent).type === "ObjectExpression" && (isNullish(u.alternate) || (unwrap(u.alternate).type === "ObjectExpression" && !unwrap(u.alternate).properties.length))) {
+		if (
+			u.type === "ConditionalExpression" &&
+			unwrap(u.consequent).type === "ObjectExpression" &&
+			(isNullish(u.alternate) || (unwrap(u.alternate).type === "ObjectExpression" && !unwrap(u.alternate).properties.length))
+		) {
 			test = u.test;
 			obj = unwrap(u.consequent);
 		} else if (u.type === "LogicalExpression" && u.operator === "&&" && unwrap(u.right).type === "ObjectExpression") {
@@ -542,7 +588,11 @@ export class Engine {
 
 	objectProp(p: N): Doc {
 		{
-			const keyText = p.computed ? `[${this.noun(p.key).t}]` : p.key.type === "Identifier" ? mk("v", humanize(p.key.name), p.key.name) : this.literal(p.key);
+			const keyText = p.computed
+				? `[${this.noun(p.key).t}]`
+				: p.key.type === "Identifier"
+					? mk("v", this.lex.humanize(p.key.name), p.key.name)
+					: this.literal(p.key);
 			if (p.shorthand && p.key.type === "Identifier") return D(this.ref(p.key.name));
 			if (p.kind === "get") return D(`${keyText} (computed)`);
 			if (p.method || (isFn(p.value) && unwrap(p.value).body.type === "BlockStatement")) {
@@ -557,7 +607,10 @@ export class Engine {
 	objectFromItems(items: Doc[]): Doc {
 		const joined = listJoin(items.map((i) => i.t));
 		if (items.length <= 3 && vlen(joined) < 70 && items.every((i) => !i.kids.length)) return D(`an object with ${joined}`);
-		return D("an object with:", items.flatMap((i) => this.bullet(i)));
+		return D(
+			"an object with:",
+			items.flatMap((i) => this.bullet(i)),
+		);
 	}
 
 	binaryNoun(n: N): Doc {
@@ -592,7 +645,8 @@ export class Engine {
 			};
 			const l = operand(n.left);
 			const r = operand(n.right);
-			if (op === "+" && (unwrap(n.left).type === "Literal" && typeof unwrap(n.left).value === "string")) return D(`${l.t} followed by ${r.t}`, [...l.kids, ...r.kids]);
+			if (op === "+" && unwrap(n.left).type === "Literal" && typeof unwrap(n.left).value === "string")
+				return D(`${l.t} followed by ${r.t}`, [...l.kids, ...r.kids]);
 			return D(`${l.t} ${opWord} ${r.t}`, [...l.kids, ...r.kids]);
 		}
 		if (/^(===|!==|==|!=|<|>|<=|>=|in|instanceof|&&|\|\|)$/.test(op)) return this.wrap(this.cond(n), (t) => `whether ${t}`);
@@ -626,7 +680,8 @@ export class Engine {
 		}
 		const inline = `${a.t} if ${c.t}, otherwise ${b.t}`;
 		const short = (x: N) => ["Literal", "Identifier", "TemplateLiteral"].includes(unwrap(x)?.type);
-		if ((vlen(inline) <= 130 || (short(n.consequent) && short(n.alternate) && vlen(inline) <= 140)) && !c.kids.length && !a.kids.length && !b.kids.length) return D(inline);
+		if ((vlen(inline) <= 130 || (short(n.consequent) && short(n.alternate) && vlen(inline) <= 140)) && !c.kids.length && !a.kids.length && !b.kids.length)
+			return D(inline);
 		const kids: Line[] = [];
 		kids.push(...this.bullet(D(`if so: ${a.t}`, a.kids)));
 		kids.push(...this.bullet(D(`if not: ${b.t}`, b.kids)));
@@ -639,7 +694,7 @@ export class Engine {
 		const v = this.noun(n.right);
 		const r = unwrap(n.right);
 		const fname = r?.type === "CallExpression" ? calleeName(r) : null;
-		if (n.operator === "=" && fname && startsWithVerb(fname) && !converterParts(fname) && !this.applyRulesQuiet(r)) {
+		if (n.operator === "=" && fname && this.lex.startsWithVerb(fname) && !this.lex.converterParts(fname) && !this.applyRulesQuiet(r)) {
 			const call = this.call(r, true);
 			return D(`${call.t}, and put the result in ${target.t}`, call.kids);
 		}
@@ -676,7 +731,7 @@ export class Engine {
 			}
 			const key = typeof a.name.name === "string" ? a.name.name : this.code(a.name);
 			if (/^(className|class|style|key|ref|data-.*|aria-.*|id|tabIndex|role|asChild)$/.test(key)) continue;
-			const label = mk("v", humanize(key.replace(/^on([A-Z])/, "on $1")), key);
+			const label = mk("v", this.lex.humanize(key.replace(/^on([A-Z])/, "on $1")), key);
 			if (!a.value) {
 				attrs.push(label);
 				continue;
@@ -694,7 +749,7 @@ export class Engine {
 				attrKids.push(...this.bullet(D(`${label}: ${v.t}`, v.kids)));
 				continue;
 			}
-			attrs.push(plain(v.t) === humanize(key) ? label : `${label}: ${v.t}`);
+			attrs.push(plain(v.t) === this.lex.humanize(key) ? label : `${label}: ${v.t}`);
 		}
 		const head = `${tag}${attrs.length ? ` (${attrs.join("; ")})` : ""}`;
 		const kids = this.jsxChildren(n.children, head);
@@ -725,7 +780,10 @@ export class Engine {
 		}
 		if (!items.length) return D(head);
 		if (items.length === 1 && !items[0]!.kids.length && vlen(items[0]!.t) < 60) return D(`${head} showing ${items[0]!.t}`);
-		return D(`${head} containing`, items.flatMap((i) => this.bullet(i)));
+		return D(
+			`${head} containing`,
+			items.flatMap((i) => this.bullet(i)),
+		);
 	}
 
 	// ---------- lambdas ----------
@@ -820,7 +878,8 @@ export class Engine {
 				const key = x.key?.name;
 				if (key && this.ambient.has(key)) return [];
 				const v = x.value;
-				if (v?.type === "Identifier" && key && humanize(v.name) !== humanize(key)) return [`${mk("v", humanize(key), key)} (as ${this.ref(v.name)})`];
+				if (v?.type === "Identifier" && key && this.lex.humanize(v.name) !== this.lex.humanize(key))
+					return [`${mk("v", this.lex.humanize(key), key)} (as ${this.ref(v.name)})`];
 				return this.patternNames(v, withTypes);
 			});
 		if (p.type === "ArrayPattern") return p.elements.filter(Boolean).flatMap((x: N) => this.patternNames(x));
@@ -893,7 +952,8 @@ export class Engine {
 		if (c.type === "Identifier") return this.namedCall(c.name, n.arguments, stmt, null);
 		if (c.type === "MemberExpression" && !c.computed) {
 			const obj = unwrap(c.object);
-			if (obj.type === "Identifier" && /^[A-Z]/.test(obj.name) && !this.ambient.has(obj.name)) return this.namedCall(c.property.name, n.arguments, stmt, obj.name);
+			if (obj.type === "Identifier" && /^[A-Z]/.test(obj.name) && !this.ambient.has(obj.name))
+				return this.namedCall(c.property.name, n.arguments, stmt, obj.name);
 			return this.methodCall(c.object, c.property.name, n.arguments, stmt);
 		}
 		if (c.type === "Super") {
@@ -907,40 +967,44 @@ export class Engine {
 
 	/** `cusProductToPrices({ cusProduct })` -> "the prices of customer product". */
 	namedCall(name: string, args: N[], stmt: boolean, owner: string | null): Doc {
-		const conv = converterParts(name);
+		const conv = this.lex.converterParts(name);
 		const via = owner ? ` ${mk("c", `[${owner}]`)}` : "";
 		if (conv) {
 			const [from, to] = conv;
 			const fromKey = from.join(" ");
 			const pairs = this.argPairs(args);
-			let subjectIdx = pairs.findIndex((p) => p.key && splitWords(p.key).join(" ") === fromKey);
-			if (subjectIdx < 0) subjectIdx = pairs.findIndex((p) => p.key && fromKey.endsWith(splitWords(p.key).join(" ")));
+			let subjectIdx = pairs.findIndex((p) => p.key && this.lex.words(p.key).join(" ") === fromKey);
+			if (subjectIdx < 0) subjectIdx = pairs.findIndex((p) => p.key && fromKey.endsWith(this.lex.words(p.key).join(" ")));
 			if (subjectIdx < 0 && pairs.length === 1) subjectIdx = 0;
 			if (subjectIdx < 0) subjectIdx = pairs.findIndex((p) => !p.key);
-			const target = this.fnRef(name, humanizeWords(to));
+			const target = this.fnRef(name, this.lex.display(to));
 			if (subjectIdx >= 0) {
 				const subj = pairs[subjectIdx]!;
-				const rest = args.length && unwrap(args[0]).type === "ObjectExpression"
-					? this.argList(args, new Set([subj.key!]))
-					: this.argList(args.filter((a) => unwrap(a) !== subj.node));
-				return D(`the ${target} of ${subj.text.t}${via}${rest.t ? (rest.t === ":" ? ", given:" : ` (given ${rest.t.slice(2, -1)})`) : ""}`, [...subj.text.kids, ...rest.kids]);
+				const rest =
+					args.length && unwrap(args[0]).type === "ObjectExpression"
+						? this.argList(args, new Set([subj.key!]))
+						: this.argList(args.filter((a) => unwrap(a) !== subj.node));
+				return D(`the ${target} of ${subj.text.t}${via}${rest.t ? (rest.t === ":" ? ", given:" : ` (given ${rest.t.slice(2, -1)})`) : ""}`, [
+					...subj.text.kids,
+					...rest.kids,
+				]);
 			}
 			const a = this.argList(args);
-			return D(`the ${target} of ${this.fnRef(name, humanizeWords(from))}${via}${a.t}`, a.kids);
+			return D(`the ${target} of ${this.fnRef(name, this.lex.display(from))}${via}${a.t}`, a.kids);
 		}
-		if (isPredicateName(name)) return this.wrap(this.predicateCall(name, args, false, owner), (t) => (stmt ? `check whether ${t}` : `whether ${t}`));
-		const words = humanize(name);
+		if (this.lex.isPredicateName(name)) return this.wrap(this.predicateCall(name, args, false, owner), (t) => (stmt ? `check whether ${t}` : `whether ${t}`));
+		const words = this.lex.humanize(name);
 		const a = this.argList(args);
-		if (startsWithVerb(name) || this.localFns.has(name)) return D(`${this.fnRef(name, words)}${via}${a.t}`, a.kids);
-		if (stmt && splitWords(name)[0] === "on") return D(`trigger ${this.fnRef(name, words)}${via}${a.t}`, a.kids);
-		if (stmt && splitWords(name).length > 1) return D(`${this.fnRef(name, words)}${via}${a.t}`, a.kids);
+		if (this.lex.startsWithVerb(name) || this.localFns.has(name)) return D(`${this.fnRef(name, words)}${via}${a.t}`, a.kids);
+		if (stmt && this.lex.words(name)[0] === "on") return D(`trigger ${this.fnRef(name, words)}${via}${a.t}`, a.kids);
+		if (stmt && this.lex.words(name).length > 1) return D(`${this.fnRef(name, words)}${via}${a.t}`, a.kids);
 		if (stmt) return D(`run ${this.fnRef(name, words)}${via}${a.t}`, a.kids);
 		const lastWord = words.split(" ").at(-1)!;
 		if (/^(of|for|from|by|in|on|at)$/.test(lastWord) && !stmt) {
 			const inner = this.argPairs(args).map((p) => p.text.t);
 			return D(`the ${this.fnRef(name, words)} ${listJoin(inner)}${via}`);
 		}
-		const det = /^[A-Z]/.test(name) || splitWords(name).length === 1 ? "the result of " : isPluralWord(lastWord) ? "" : `${article(words)} `;
+		const det = /^[A-Z]/.test(name) || this.lex.words(name).length === 1 ? "the result of " : this.g.isPlural(lastWord) ? "" : `${this.g.article(words)} `;
 		return D(`${det}${this.fnRef(name, words)}${via}${a.t}`, a.kids);
 	}
 
@@ -948,22 +1012,28 @@ export class Engine {
 		const obj = this.noun(objNode);
 		const a = this.argList(args);
 		const objAmb = this.isAmbient(objNode);
-		const m = mk("f", humanize(method), "");
-		if (isPredicateName(method)) {
-			return D(`${stmt ? "check whether " : "whether "}${objAmb ? "" : `${obj.t} `}${predicatePhrase(method, false)}${a.t}`, [...obj.kids, ...a.kids]);
+		const m = mk("f", this.lex.humanize(method), "");
+		if (this.lex.isPredicateName(method)) {
+			return D(`${stmt ? "check whether " : "whether "}${objAmb ? "" : `${obj.t} `}${this.predicatePhrase(method, false)}${a.t}`, [...obj.kids, ...a.kids]);
 		}
-		if (startsWithVerb(method)) {
-			const w = splitWords(method);
-			const verb = mk("f", humanizeWords(w.slice(0, 1)), "");
-			const rest = w.length > 1 ? ` ${mk("f", humanizeWords(w.slice(1)), "")}` : "";
+		if (this.lex.startsWithVerb(method)) {
+			const w = this.lex.words(method);
+			const verb = mk("f", this.lex.display(w.slice(0, 1)), "");
+			const rest = w.length > 1 ? ` ${mk("f", this.lex.display(w.slice(1)), "")}` : "";
 			const target = objAmb ? "" : ` ${obj.t}`;
 			return D(`${verb}${target}${rest}${a.t}`, [...obj.kids, ...a.kids]);
 		}
-		if (stmt && splitWords(method).length > 1 && splitWords(method)[0] !== "on") {
-			const w = splitWords(method);
-			return D(`${mk("f", humanizeWords(w.slice(0, 1)), "")}${objAmb ? "" : ` ${obj.t}`} ${mk("f", humanizeWords(w.slice(1)), "")}${a.t}`, [...obj.kids, ...a.kids]);
+		if (stmt && this.lex.words(method).length > 1 && this.lex.words(method)[0] !== "on") {
+			const w = this.lex.words(method);
+			return D(`${mk("f", this.lex.display(w.slice(0, 1)), "")}${objAmb ? "" : ` ${obj.t}`} ${mk("f", this.lex.display(w.slice(1)), "")}${a.t}`, [
+				...obj.kids,
+				...a.kids,
+			]);
 		}
-		return D(`${stmt ? (splitWords(method)[0] === "on" ? "trigger " : "run ") : ""}${objAmb ? "" : `${possessive(obj.t)} `}${m}${a.t}`, [...obj.kids, ...a.kids]);
+		return D(`${stmt ? (this.lex.words(method)[0] === "on" ? "trigger " : "run ") : ""}${objAmb ? "" : `${this.g.possessive(obj.t)} `}${m}${a.t}`, [
+			...obj.kids,
+			...a.kids,
+		]);
 	}
 
 	newExpr(n: N): Doc {
@@ -971,15 +1041,19 @@ export class Engine {
 		if (ruled) return ruled;
 		const name = unwrap(n.callee).type === "Identifier" ? unwrap(n.callee).name : null;
 		if (name && this.isErrorCtor(name)) return this.errorDoc(n);
-		const callee = name ? this.fnRef(name, humanize(name)) : this.noun(n.callee).t;
+		const callee = name ? this.fnRef(name, this.lex.humanize(name)) : this.noun(n.callee).t;
 		const a = this.argList(n.arguments);
 		return D(`a new ${callee}${a.t}`, a.kids);
 	}
 
 	errorDoc(n: N): Doc {
 		const name = unwrap(n.callee).name as string;
-		const words = humanize(name);
-		const label = this.errorLabels[name] ? this.fnRef(name, this.errorLabels[name]) : name === "Error" ? "an error" : this.fnRef(name, `${article(words)} ${words}`);
+		const words = this.lex.humanize(name);
+		const label = this.errorLabels[name]
+			? this.fnRef(name, this.errorLabels[name])
+			: name === "Error"
+				? "an error"
+				: this.fnRef(name, `${this.g.article(words)} ${words}`);
 		const first = unwrap(n.arguments[0]);
 		let msg: Doc | null = null;
 		let extra = "";
@@ -997,11 +1071,11 @@ export class Engine {
 
 	predicateCall(name: string, args: N[], neg: boolean, owner: string | null): Doc {
 		const pairs = this.argPairs(args);
-		const nameWords = splitWords(name);
+		const nameWords = this.lex.words(name);
 		let si = pairs.findIndex((p) => {
 			const k = p.key ?? (unwrap(p.node).type === "Identifier" ? unwrap(p.node).name : null);
 			if (!k) return false;
-			const kw = splitWords(k).join(" ");
+			const kw = this.lex.words(k).join(" ");
 			return nameWords.join(" ").endsWith(kw) || nameWords.slice(1).join(" ").includes(kw);
 		});
 		if (si < 0 && pairs.length) si = 0;
@@ -1010,16 +1084,25 @@ export class Engine {
 		if (subj) {
 			const k = subj.key ?? (unwrap(subj.node).type === "Identifier" ? unwrap(subj.node).name : null);
 			if (k) {
-				const kw = splitWords(k);
+				const kw = this.lex.words(k);
 				const tail = words.slice(-kw.length).join(" ");
 				if (tail === kw.join(" ") && words.length - kw.length >= 2) words = words.slice(0, -kw.length);
 			}
 		}
 		const head = words[0]!;
-		const phrase = predicatePhrase(head + words.slice(1).map((w) => w[0]!.toUpperCase() + w.slice(1)).join(""), neg);
+		const phrase = this.predicatePhrase(
+			head +
+				words
+					.slice(1)
+					.map((w) => w[0]!.toUpperCase() + w.slice(1))
+					.join(""),
+			neg,
+		);
 		const f = this.fnRef(name, phrase);
 		const rest = pairs.filter((_, i) => i !== si);
-		const restText = rest.length ? ` (given ${listJoin(rest.map((r) => (r.key && plain(r.text.t) !== humanize(r.key) ? `${mk("v", humanize(r.key), r.key)}: ${r.text.t}` : r.text.t)))})` : "";
+		const restText = rest.length
+			? ` (given ${listJoin(rest.map((r) => (r.key && plain(r.text.t) !== this.lex.humanize(r.key) ? `${mk("v", this.lex.humanize(r.key), r.key)}: ${r.text.t}` : r.text.t)))})`
+			: "";
 		const via = owner ? ` ${mk("c", `[${owner}]`)}` : "";
 		return D(`${subj ? `${subj.text.t} ` : ""}${f}${via}${restText}`, [...(subj?.text.kids ?? []), ...rest.flatMap((r) => r.text.kids)]);
 	}
@@ -1046,37 +1129,48 @@ export class Engine {
 			const ruled = this.applyRules(this.conds, n, { neg });
 			if (ruled) return ruled;
 			const c = unwrap(n.callee);
-			if (c.type === "Identifier" && isPredicateName(c.name)) return this.predicateCall(c.name, n.arguments, neg, null);
+			if (c.type === "Identifier" && this.lex.isPredicateName(c.name)) return this.predicateCall(c.name, n.arguments, neg, null);
 			if (c.type === "Identifier") {
-				const w = splitWords(c.name);
-				const vi = w.findIndex((x, i) => i > 0 && /^(is|has|have|can|should|was|matches|needs|contains|includes|uses|owns|allows|supports|requires|exceeds)$/.test(x));
+				const w = this.lex.words(c.name);
+				const vi = w.findIndex(
+					(x, i) => i > 0 && /^(is|has|have|can|should|was|matches|needs|contains|includes|uses|owns|allows|supports|requires|exceeds)$/.test(x),
+				);
 				if (vi > 0) {
 					const subject = w.slice(0, vi).join(" ");
 					const pairs = this.argPairs(n.arguments);
-					const rest = pairs.filter((p) => plain(p.text.t) !== humanize(subject) && splitWords(p.key ?? "").join(" ") !== subject);
-					const verb = predicatePhrase(w.slice(vi).map((x, i) => (i ? x[0]!.toUpperCase() + x.slice(1) : x)).join(""), neg);
-					return D(`${humanizeWords(w.slice(0, vi))} ${this.fnRef(c.name, verb)}${rest.length ? ` (given ${listJoin(rest.map((r) => r.text.t))})` : ""}`);
+					const rest = pairs.filter((p) => plain(p.text.t) !== this.lex.humanize(subject) && this.lex.words(p.key ?? "").join(" ") !== subject);
+					const verb = this.predicatePhrase(
+						w
+							.slice(vi)
+							.map((x, i) => (i ? x[0]!.toUpperCase() + x.slice(1) : x))
+							.join(""),
+						neg,
+					);
+					return D(`${this.lex.display(w.slice(0, vi))} ${this.fnRef(c.name, verb)}${rest.length ? ` (given ${listJoin(rest.map((r) => r.text.t))})` : ""}`);
 				}
 			}
-			if (c.type === "MemberExpression" && !c.computed && isPredicateName(c.property.name)) {
+			if (c.type === "MemberExpression" && !c.computed && this.lex.isPredicateName(c.property.name)) {
 				const obj = unwrap(c.object);
 				if (obj.type === "Identifier" && /^[A-Z]/.test(obj.name)) return this.predicateCall(c.property.name, n.arguments, neg, obj.name);
 				const o = this.noun(c.object);
 				const a = this.argList(n.arguments);
-				return D(`${this.isAmbient(c.object) ? "" : `${o.t} `}${this.fnRef(c.property.name, predicatePhrase(c.property.name, neg))}${a.t}`, [...o.kids, ...a.kids]);
+				return D(`${this.isAmbient(c.object) ? "" : `${o.t} `}${this.fnRef(c.property.name, this.predicatePhrase(c.property.name, neg))}${a.t}`, [
+					...o.kids,
+					...a.kids,
+				]);
 			}
 			const call = this.call(n, false);
 			if (/^whether /.test(plain(call.t))) return D(neg ? `not ${call.t.replace(/whether /, "")}` : call.t.replace(/whether /, ""), call.kids);
 			if (/^(the|a|an) /.test(plain(call.t))) {
 				const rest = call.t.replace(/^(the|a|an) /, "");
-				return D(neg ? `there is no ${rest}` : `there is ${article(plain(rest))} ${rest}`, call.kids);
+				return D(neg ? `there is no ${rest}` : `there is ${this.g.article(plain(rest))} ${rest}`, call.kids);
 			}
 			return D(`${call.t} ${neg ? "gives back nothing" : "gives back something"}`, call.kids);
 		}
 		if (n.type === "Identifier") {
 			if (this.isBoolName(n.name)) {
-				const aux = /^(is|has|have|can|should|was|were|did|does|will|needs|must|are|had)$/.test(splitWords(n.name)[0]!);
-				if (isPredicateName(n.name) && aux) return D(this.aliases.get(n.name) ?? mk("v", predicatePhrase(n.name, neg), n.name));
+				const aux = /^(is|has|have|can|should|was|were|did|does|will|needs|must|are|had)$/.test(this.lex.words(n.name)[0]!);
+				if (this.lex.isPredicateName(n.name) && aux) return D(this.aliases.get(n.name) ?? mk("v", this.predicatePhrase(n.name, neg), n.name));
 				return D(`${this.ref(n.name)} is ${neg ? "false" : "true"}`);
 			}
 			return D(`${this.ref(n.name)} ${neg ? "is missing" : "is set"}`);
@@ -1088,9 +1182,9 @@ export class Engine {
 				const inner = this.memberFrom(root, steps.slice(0, -1));
 				return D(`${inner.t} ${neg ? "is empty" : "is not empty"}`, inner.kids);
 			}
-			if (last.name && isPredicateName(last.name)) {
+			if (last.name && this.lex.isPredicateName(last.name)) {
 				const inner = steps.length > 1 || !this.isAmbient(root) ? this.memberFrom(root, steps.slice(0, -1)) : D("it");
-				return D(`${inner.t} ${mk("v", predicatePhrase(last.name, neg), last.name)}`, inner.kids);
+				return D(`${inner.t} ${mk("v", this.predicatePhrase(last.name, neg), last.name)}`, inner.kids);
 			}
 			const m = this.member(n);
 			if (last.name && this.bools.has(last.name)) return D(`${m.t} is ${neg ? "false" : "true"}`, m.kids);
@@ -1123,9 +1217,15 @@ export class Engine {
 			while (u.type === "UnaryExpression" && u.operator === "!") u = unwrap(u.argument);
 			return u.type === "LogicalExpression" && u.operator !== "??";
 		});
-		const joined = listJoin(items.map((i) => i.t), isAnd ? "and" : "or");
+		const joined = listJoin(
+			items.map((i) => i.t),
+			isAnd ? "and" : "or",
+		);
 		if (!nested && items.length <= 3 && vlen(joined) <= 95 && items.every((i) => !i.kids.length)) return D(joined);
-		return D(isAnd ? "all of these are true:" : "any of these is true:", items.flatMap((i) => this.bullet(i)));
+		return D(
+			isAnd ? "all of these are true:" : "any of these is true:",
+			items.flatMap((i) => this.bullet(i)),
+		);
 	}
 
 	compare(n: N, neg: boolean): Doc | null {
@@ -1139,7 +1239,16 @@ export class Engine {
 			if (neg) eq = !eq;
 			if (isNullish(R)) return this.wrap(this.noun(L), (t) => `${t} ${eq ? "is missing" : "is set"}`);
 			if (L.type === "UnaryExpression" && L.operator === "typeof" && R.type === "Literal") {
-				const typ: Record<string, string> = { string: "text", number: "a number", boolean: "true/false", object: "an object", function: "a function", undefined: "missing", bigint: "a big number", symbol: "a symbol" };
+				const typ: Record<string, string> = {
+					string: "text",
+					number: "a number",
+					boolean: "true/false",
+					object: "an object",
+					function: "a function",
+					undefined: "missing",
+					bigint: "a big number",
+					symbol: "a symbol",
+				};
 				return this.wrap(this.noun(L.argument), (t) => `${t} ${eq ? "is" : "is not"} ${typ[R.value] ?? R.value}`);
 			}
 			if (L.type === "MemberExpression" && !L.computed && L.property.name === "length" && R.type === "Literal" && R.value === 0) {
@@ -1163,7 +1272,7 @@ export class Engine {
 			">=": ["<", "is at least", "is at or after"],
 		};
 		if (rel[op]) {
-			if (neg) op = rel[op][0];
+			if (neg) op = rel[op]![0];
 			if (L.type === "MemberExpression" && !L.computed && L.property.name === "length" && R.type === "Literal") {
 				const inner = this.noun(L.object);
 				if ((op === ">" && R.value === 0) || (op === ">=" && R.value === 1)) return D(`${inner.t} is not empty`, inner.kids);
@@ -1173,17 +1282,17 @@ export class Engine {
 			}
 			const l = this.noun(L);
 			const r = this.noun(R);
-			const timey = looksLikeTime(plain(l.t)) || looksLikeTime(plain(r.t));
+			const timey = this.lex.looksLikeTime(plain(l.t)) || this.lex.looksLikeTime(plain(r.t));
 			if (!timey && R.type === "Literal" && R.value === 0) {
 				const z = { ">": "is positive", "<": "is negative", ">=": "is zero or more", "<=": "is zero or less" }[op];
 				return D(`${l.t} ${z}`, l.kids);
 			}
-			return D(`${l.t} ${rel[op][timey ? 2 : 1]} ${r.t}`, [...l.kids, ...r.kids]);
+			return D(`${l.t} ${rel[op]![timey ? 2 : 1]} ${r.t}`, [...l.kids, ...r.kids]);
 		}
 		if (op === "instanceof") {
 			const l = this.noun(L);
 			const name = R.type === "Identifier" ? R.name : this.code(R);
-			return D(`${l.t} ${neg ? "is not" : "is"} ${article(humanize(name))} ${this.fnRef(name, humanize(name))}`, l.kids);
+			return D(`${l.t} ${neg ? "is not" : "is"} ${this.g.article(this.lex.humanize(name))} ${this.fnRef(name, this.lex.humanize(name))}`, l.kids);
 		}
 		if (op === "in") {
 			const k = this.noun(L);
@@ -1204,7 +1313,8 @@ export class Engine {
 	emitDoc(d: number, doc: Doc, n: N | null, end = ".", kind: LineKind = "stmt") {
 		const t = doc.t.endsWith(":") ? doc.t : doc.t + (doc.kids.length ? ":" : end);
 		this.emit(d, capFirst(t), n, kind);
-		for (const k of doc.kids) this.lines.push({ ...k, d: k.d + d + 1, start: k.start < 0 ? (n?.start ?? -1) : k.start, end: k.end < 0 ? (n?.end ?? -1) : k.end });
+		for (const k of doc.kids)
+			this.lines.push({ ...k, d: k.d + d + 1, start: k.start < 0 ? (n?.start ?? -1) : k.start, end: k.end < 0 ? (n?.end ?? -1) : k.end });
 	}
 
 	/** Renders statements into a detached Line[] at relative depth `d`. */
@@ -1231,7 +1341,13 @@ export class Engine {
 		let i = this.comments.findLastIndex((c) => c.end <= n.start);
 		if (i < 0 || this.usedComments.has(i) || !/^\s*$/.test(this.src.slice(this.comments[i]!.end, n.start))) return;
 		const group = [i];
-		while (i > 0 && !this.usedComments.has(i - 1) && /^\s*$/.test(this.src.slice(this.comments[i - 1]!.end, this.comments[i]!.start)) && !/\n\s*\n/.test(this.src.slice(this.comments[i - 1]!.end, this.comments[i]!.start))) group.unshift(--i);
+		while (
+			i > 0 &&
+			!this.usedComments.has(i - 1) &&
+			/^\s*$/.test(this.src.slice(this.comments[i - 1]!.end, this.comments[i]!.start)) &&
+			!/\n\s*\n/.test(this.src.slice(this.comments[i - 1]!.end, this.comments[i]!.start))
+		)
+			group.unshift(--i);
 		for (const g of group) this.usedComments.add(g);
 		const text = group
 			.map((g) => this.comments[g]!.value)
@@ -1246,7 +1362,7 @@ export class Engine {
 		this.lines.push({ d, text: `“${text}”`, start: c0.start, end: this.comments[group.at(-1)!]!.end, kind: "note" });
 	}
 
-	stmt(n: N, d: number) {
+	stmt(n: N, d: number): void {
 		this.leadingComments(n, d);
 		for (const r of this.stmtRules) if (r({ node: n, e: this, d })) return;
 		switch (n.type) {
@@ -1257,7 +1373,11 @@ export class Engine {
 				const decl = n.declaration;
 				if (decl.type === "FunctionDeclaration" || decl.type === "ClassDeclaration") return this.stmt(decl, d);
 				if (isFn(decl)) return this.fnDecl(decl.id?.name ?? "default export", decl, n, d);
-				return this.emitDoc(d, this.wrap(this.noun(decl), (t) => `export ${t} as the default`), n);
+				return this.emitDoc(
+					d,
+					this.wrap(this.noun(decl), (t) => `export ${t} as the default`),
+					n,
+				);
 			}
 			case "ExportAllDeclaration":
 			case "ImportDeclaration":
@@ -1332,7 +1452,7 @@ export class Engine {
 		}
 	}
 
-	exprStmt(expr: N, d: number, n: N) {
+	exprStmt(expr: N, d: number, n: N): void {
 		const u = unwrap(expr);
 		if (u.type === "CallExpression") {
 			const name = calleeName(u);
@@ -1381,11 +1501,11 @@ export class Engine {
 			}
 			if (init.type === "CallExpression") {
 				const fname = calleeName(init);
-				const verbal = fname && (startsWithVerb(fname) || this.localFns.has(fname)) && !converterParts(fname) && !this.applyRulesQuiet(init);
+				const verbal = fname && (this.lex.startsWithVerb(fname) || this.localFns.has(fname)) && !this.lex.converterParts(fname) && !this.applyRulesQuiet(init);
 				if (verbal) {
 					const call = this.call(init, true);
-					const vw = splitWords(id.name);
-					const fw = splitWords(fname);
+					const vw = this.lex.words(id.name);
+					const fw = this.lex.words(fname);
 					const subsumed = vw.length && fw.slice(-vw.length).join(" ") === vw.join(" ");
 					if (subsumed) return this.emitDoc(d, D(`${call.t.replace(/:$/, "")} → ${name}${call.t.endsWith(":") ? ":" : ""}`, call.kids), n);
 					return this.emitDoc(d, D(`${call.t.replace(/:$/, "")}, and call the result ${name}${call.t.endsWith(":") ? ":" : ""}`, call.kids), n);
@@ -1393,7 +1513,7 @@ export class Engine {
 			}
 			const val = this.noun(init);
 			if (kind === "let") return this.emitDoc(d, D(`Let ${name} start as ${val.t}`, val.kids), n);
-			if (plain(val.t) === humanize(id.name)) return;
+			if (plain(val.t) === this.lex.humanize(id.name)) return;
 			return this.emitDoc(d, D(`Let ${name} be ${val.t}`, val.kids), n);
 		}
 		if (id.type === "ObjectPattern") {
@@ -1401,7 +1521,7 @@ export class Engine {
 			if (!names.length) return;
 			if (!init) return this.emit(d, `Declare ${listJoin(names)}.`, n);
 			const fname = init.type === "CallExpression" ? calleeName(init) : null;
-			if (fname && startsWithVerb(fname) && !converterParts(fname) && !this.applyRulesQuiet(init)) {
+			if (fname && this.lex.startsWithVerb(fname) && !this.lex.converterParts(fname) && !this.applyRulesQuiet(init)) {
 				const call = this.call(init, true);
 				return this.emitDoc(d, D(`${call.t.replace(/:$/, "")}, and take its ${listJoin(names)}${call.t.endsWith(":") ? ":" : ""}`, call.kids), n);
 			}
@@ -1415,7 +1535,13 @@ export class Engine {
 				this.emit(d, "Do these at the same time:", n);
 				unwrap(init.arguments[0]).elements.forEach((el: N, i: number) => {
 					const x = unwrap(el).type === "CallExpression" ? this.call(unwrap(el), true) : this.noun(el);
-					this.emitDoc(d + 1, D(`• ${x.t.replace(/:$/, "")}${names[i] && names[i] !== "(skip)" ? ` → ${names[i]}` : ""}${x.t.endsWith(":") ? ":" : ""}`, x.kids), el, "", "bullet");
+					this.emitDoc(
+						d + 1,
+						D(`• ${x.t.replace(/:$/, "")}${names[i] && names[i] !== "(skip)" ? ` → ${names[i]}` : ""}${x.t.endsWith(":") ? ":" : ""}`, x.kids),
+						el,
+						"",
+						"bullet",
+					);
 				});
 				return;
 			}
@@ -1431,14 +1557,14 @@ export class Engine {
 	}
 
 	fnTitle(name: string, fn: N): string {
-		const conv = converterParts(name);
-		const words = splitWords(name);
-		if (conv) return `${capFirst(humanizeWords(conv[0]))} → ${humanizeWords(conv[1])}`;
-		if (isPredicateName(name)) return `${capFirst(humanizeWords(words))}?`;
-		if (/^[A-Z]/.test(name) && this.returnsJsx(fn)) return `${capFirst(humanize(name))} (component)`;
-		if (/^to[A-Z]/.test(name)) return `To turn into ${humanize(name.slice(2))}`;
-		if (startsWithVerb(name) || this.localFns.has(name)) return `To ${humanize(name)}`;
-		return capFirst(humanize(name));
+		const conv = this.lex.converterParts(name);
+		const words = this.lex.words(name);
+		if (conv) return `${capFirst(this.lex.display(conv[0]))} → ${this.lex.display(conv[1])}`;
+		if (this.lex.isPredicateName(name)) return `${capFirst(this.lex.display(words))}?`;
+		if (/^[A-Z]/.test(name) && this.returnsJsx(fn)) return `${capFirst(this.lex.humanize(name))} (component)`;
+		if (/^to[A-Z]/.test(name)) return `To turn into ${this.lex.humanize(name.slice(2))}`;
+		if (this.lex.startsWithVerb(name) || this.localFns.has(name)) return `To ${this.lex.humanize(name)}`;
+		return capFirst(this.lex.humanize(name));
 	}
 
 	returnsJsx(fn: N): boolean {
@@ -1489,12 +1615,12 @@ export class Engine {
 	classDecl(n: N, d: number) {
 		const name = n.id?.name ?? "anonymous class";
 		const ext = n.superClass ? ` (extends ${this.noun(n.superClass).t})` : "";
-		this.emit(d, `Class ${mk("f", capFirst(humanize(name)), name)}${ext}:`, n, "head");
+		this.emit(d, `Class ${mk("f", capFirst(this.lex.humanize(name)), name)}${ext}:`, n, "head");
 		for (const m of n.body.body) {
 			this.leadingComments(m, d + 1);
 			if (m.type === "MethodDefinition" || m.type === "TSAbstractMethodDefinition") {
 				if (!m.value?.body) continue;
-				const mname = m.kind === "constructor" ? "when created" : m.key.name ?? this.code(m.key);
+				const mname = m.kind === "constructor" ? "when created" : (m.key.name ?? this.code(m.key));
 				if (m.kind === "constructor") {
 					const given = m.value.params.flatMap((p: N) => this.patternNames(p));
 					this.emit(d + 1, `When created${given.length ? ` — given ${listJoin(given)}` : ""}:`, m, "head");
@@ -1503,13 +1629,18 @@ export class Engine {
 			} else if (m.type === "PropertyDefinition") {
 				const k = m.key.name ?? this.code(m.key);
 				if (m.value && isFn(m.value)) this.fnDecl(k, unwrap(m.value), m, d + 1);
-				else if (m.value) this.emitDoc(d + 1, this.wrap(this.noun(m.value), (t) => `Field ${mk("v", humanize(k), k)} starts as ${t}`), m);
-				else this.emit(d + 1, `Field ${mk("v", humanize(k), k)}.`, m, "note");
+				else if (m.value)
+					this.emitDoc(
+						d + 1,
+						this.wrap(this.noun(m.value), (t) => `Field ${mk("v", this.lex.humanize(k), k)} starts as ${t}`),
+						m,
+					);
+				else this.emit(d + 1, `Field ${mk("v", this.lex.humanize(k), k)}.`, m, "note");
 			}
 		}
 	}
 
-	returnLike(ex: N, d: number, n: N) {
+	returnLike(ex: N, d: number, n: N): void {
 		const u = unwrap(ex);
 		if (isNullish(u)) return this.emit(d, "Give back nothing.", n);
 		if (this.looksBoolean(u)) {
@@ -1518,7 +1649,7 @@ export class Engine {
 		}
 		if (u.type === "CallExpression") {
 			const name = calleeName(u);
-			if (name && (startsWithVerb(name) || this.localFns.has(name)) && !converterParts(name) && !this.applyRulesQuiet(u)) {
+			if (name && (this.lex.startsWithVerb(name) || this.localFns.has(name)) && !this.lex.converterParts(name) && !this.applyRulesQuiet(u)) {
 				const call = this.call(u, true);
 				return this.emitDoc(d, D(`${call.t.replace(/:$/, "")}, and give back the result${call.t.endsWith(":") ? ":" : ""}`, call.kids), n);
 			}
@@ -1534,7 +1665,11 @@ export class Engine {
 			this.emit(d, "Otherwise:", u.alternate);
 			return this.returnLike(u.alternate, d + 1, u.alternate);
 		}
-		this.emitDoc(d, this.wrap(this.noun(u), (t) => `Give back ${t}`), n);
+		this.emitDoc(
+			d,
+			this.wrap(this.noun(u), (t) => `Give back ${t}`),
+			n,
+		);
 	}
 
 	returnStmt(n: N, d: number) {
@@ -1544,8 +1679,17 @@ export class Engine {
 
 	throwStmt(n: N, d: number) {
 		const a = unwrap(n.argument);
-		if (a.type === "NewExpression") return this.emitDoc(d, this.wrap(this.newExpr(a), (t) => `Fail with ${t}`), n);
-		return this.emitDoc(d, this.wrap(this.noun(a), (t) => `Fail with ${t}`), n);
+		if (a.type === "NewExpression")
+			return this.emitDoc(
+				d,
+				this.wrap(this.newExpr(a), (t) => `Fail with ${t}`),
+				n,
+			);
+		return this.emitDoc(
+			d,
+			this.wrap(this.noun(a), (t) => `Fail with ${t}`),
+			n,
+		);
 	}
 
 	/** One-liner form of a simple statement, for guard clauses. */
@@ -1619,7 +1763,11 @@ export class Engine {
 			this.emit(d, `Count ${i} from ${start.t} while ${this.cond(test).t}:`, n);
 			return this.block(n.body, d + 1);
 		}
-		const parts = [n.init && `start with ${unwrap(n.init).type === "VariableDeclaration" ? this.code(n.init) : this.noun(n.init).t}`, n.test && `repeat while ${this.cond(n.test).t}`, n.update && `then ${this.noun(n.update).t} each time`].filter(Boolean);
+		const parts = [
+			n.init && `start with ${unwrap(n.init).type === "VariableDeclaration" ? this.code(n.init) : this.noun(n.init).t}`,
+			n.test && `repeat while ${this.cond(n.test).t}`,
+			n.update && `then ${this.noun(n.update).t} each time`,
+		].filter(Boolean);
 		this.emit(d, `${capFirst(parts.join(", "))}:`, n);
 		this.block(n.body, d + 1);
 	}
@@ -1648,7 +1796,11 @@ export class Engine {
 		for (const c of n.consequent ?? n.cases) {
 			if (c.test) pending.push(this.noun(c.test).t);
 			if (!c.consequent.length) continue;
-			const label = c.test ? `If it is ${listJoin(pending, "or")}:` : pending.length ? `If it is ${listJoin(pending, "or")}, or anything else:` : "For anything else:";
+			const label = c.test
+				? `If it is ${listJoin(pending, "or")}:`
+				: pending.length
+					? `If it is ${listJoin(pending, "or")}, or anything else:`
+					: "For anything else:";
 			pending = [];
 			this.emit(d + 1, `• ${label}`, c, "bullet");
 			const stmts = c.consequent.length === 1 && c.consequent[0].type === "BlockStatement" ? c.consequent[0].body : c.consequent;
@@ -1689,13 +1841,20 @@ export class Engine {
 				if (name === "Map" && args[1]) return `a map of ${this.typeName(args[0])} to ${this.typeName(args[1])}`;
 				if (name === "Set" && args[0]) return `a set of ${this.typeName(args[0])}`;
 				if ((name === "Partial" || name === "Pick" || name === "Omit" || name === "Readonly") && args[0]) return this.typeText(args[0]);
-				return `${article(name)} ${mk("t", name, name)}`;
+				return `${this.g.article(name)} ${mk("t", name, name)}`;
 			}
 			case "TSUnionType": {
 				const parts = t.types.filter((x: N) => !/TSNullKeyword|TSUndefinedKeyword/.test(x.type));
 				const optional = parts.length < t.types.length;
-				if (parts.every((x: N) => x.type === "TSLiteralType")) return `one of ${listJoin(parts.map((x: N) => this.code(x)), "or")}${optional ? " (or nothing)" : ""}`;
-				return `${listJoin(parts.map((x: N) => this.typeText(x)), "or")}${optional ? " (or nothing)" : ""}`;
+				if (parts.every((x: N) => x.type === "TSLiteralType"))
+					return `one of ${listJoin(
+						parts.map((x: N) => this.code(x)),
+						"or",
+					)}${optional ? " (or nothing)" : ""}`;
+				return `${listJoin(
+					parts.map((x: N) => this.typeText(x)),
+					"or",
+				)}${optional ? " (or nothing)" : ""}`;
 			}
 			case "TSLiteralType":
 				return this.code(t);
@@ -1723,9 +1882,7 @@ export class Engine {
 	}
 
 	typeMembers(members: N[]): string {
-		const names = members
-			.filter((m: N) => m.key)
-			.map((m: N) => `${humanize(m.key.name ?? String(m.key.value))}${m.optional ? " (optional)" : ""}`);
+		const names = members.filter((m: N) => m.key).map((m: N) => `${this.lex.humanize(m.key.name ?? String(m.key.value))}${m.optional ? " (optional)" : ""}`);
 		if (!names.length) return "an object";
 		return listJoin(names);
 	}
@@ -1736,7 +1893,8 @@ export class Engine {
 			if (Array.isArray(x)) return x.forEach(walk);
 			if (x.type === "FunctionDeclaration" && x.id?.name) this.localFns.add(x.id.name);
 			if (x.type === "VariableDeclarator" && x.id?.type === "Identifier" && isFn(unwrap(x.init))) this.localFns.add(x.id.name);
-			if ((x.type === "TSPropertySignature" || x.type === "PropertyDefinition") && x.key?.name && x.typeAnnotation?.typeAnnotation?.type === "TSBooleanKeyword") this.bools.add(x.key.name);
+			if ((x.type === "TSPropertySignature" || x.type === "PropertyDefinition") && x.key?.name && x.typeAnnotation?.typeAnnotation?.type === "TSBooleanKeyword")
+				this.bools.add(x.key.name);
 			if (x.type === "Identifier" && x.typeAnnotation?.typeAnnotation?.type === "TSBooleanKeyword") this.bools.add(x.name);
 			if (x.type === "AssignmentPattern" && x.left?.type === "Identifier" && isBoolLit(x.right)) this.bools.add(x.left.name);
 			if (x.type === "Property" && x.value?.type === "AssignmentPattern" && isBoolLit(x.value.right) && x.key?.name) this.bools.add(x.key.name);

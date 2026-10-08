@@ -1,14 +1,17 @@
 {
-  "name": "@narrate/plugin-drizzle",
-  "version": "0.0.0",
-  "private": true,
-  "description": "TS plugin: Drizzle ORM.",
-  "type": "module",
-  "exports": {
-    ".": "./src/index.ts"
-  },
-  "dependencies": {
-    "@narrate/core": "workspace:*",
-    "@narrate/lang-ts": "workspace:*"
-  }
+	"name": "@narrate/plugin-drizzle",
+	"version": "0.0.0",
+	"private": true,
+	"description": "TS plugin: Drizzle ORM.",
+	"type": "module",
+	"exports": {
+		".": "./src/index.ts"
+	},
+	"dependencies": {
+		"@narrate/core": "workspace:*",
+		"@narrate/lang-ts": "workspace:*"
+	},
+	"devDependencies": {
+		"@narrate/testkit": "workspace:*"
+	}
 }

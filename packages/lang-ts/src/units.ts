@@ -3,7 +3,13 @@ import { type Engine, unwrap } from "./engine";
 
 const declName = (s: N): string | null => {
 	if (s.id?.name) return s.id.name;
-	if (s.type === "VariableDeclaration") return s.declarations.map((d: N) => d.id?.name ?? "").filter(Boolean).join(",") || null;
+	if (s.type === "VariableDeclaration")
+		return (
+			s.declarations
+				.map((d: N) => d.id?.name ?? "")
+				.filter(Boolean)
+				.join(",") || null
+		);
 	return null;
 };
 type N = any;
@@ -52,4 +58,3 @@ export function unitsOf(e: Engine, src: string, filename: string): Unit[] {
 	}
 	return units.filter((u) => u.lines.length);
 }
-

@@ -1,4 +1,3 @@
-import { Glob } from "bun";
 import { type ChangedFile, createNarrator, type Line, toHtml } from "@narrate/core";
 import { autumn } from "@narrate/example-autumn";
 import { type Engine, TypeExplainer, typeRefName, typescript, unwrap } from "@narrate/lang-ts";
@@ -6,6 +5,7 @@ import { oxcParser as parseSync } from "@narrate/lang-ts/oxc";
 import { en } from "@narrate/locale-en";
 import { testing } from "@narrate/plugin-testing";
 import { zod } from "@narrate/plugin-zod";
+import { Glob } from "bun";
 
 /** Teaches the engine a called function's declared return type by following it across files. */
 const crossFileTypes = ({ engine, path }: { engine: Engine; path: string }) => {
@@ -45,7 +45,13 @@ await Promise.all(
 	}),
 );
 
-type Info = { src: string; lineStarts: number[]; decls: Map<string, { start: number; end: number }>; imports: Map<string, string>; returnTypes: Map<string, string> };
+type Info = {
+	src: string;
+	lineStarts: number[];
+	decls: Map<string, { start: number; end: number }>;
+	imports: Map<string, string>;
+	returnTypes: Map<string, string>;
+};
 type Narrated = Info & { lines: Line[] };
 const infoCache = new Map<string, Info>();
 const cache = new Map<string, Narrated>();
@@ -81,8 +87,7 @@ function fileInfo(file: string): Info {
 				const t = fn?.returnType ? typeRefName(fn.returnType.typeAnnotation, code) : null;
 				if (t) returnTypes.set(v.id.name, t);
 			}
-		if (s.type === "ClassDeclaration")
-			for (const m of s.body.body) if (m.key?.name) decls.set(`${s.id.name}.${m.key.name}`, { start: m.start, end: m.end });
+		if (s.type === "ClassDeclaration") for (const m of s.body.body) if (m.key?.name) decls.set(`${s.id.name}.${m.key.name}`, { start: m.start, end: m.end });
 	}
 	const info = { src, lineStarts, decls, imports, returnTypes };
 	infoCache.set(file, info);
@@ -172,7 +177,11 @@ const sharedPrefix = (a: string, b: string) => {
 	return i;
 };
 
-function linesJson(file: string, n: { lines: Line[]; decls: Map<string, unknown>; imports: Map<string, string>; lineStarts: number[] }, range?: { start: number; end: number }) {
+function linesJson(
+	file: string,
+	n: { lines: Line[]; decls: Map<string, unknown>; imports: Map<string, string>; lineStarts: number[] },
+	range?: { start: number; end: number },
+) {
 	const known = (x: string) => n.decls.has(x) || n.imports.has(x) || symbolIndex.has(x);
 	const resolve = (payload: string, kind: string) => {
 		const [name, type] = payload.split("|");
@@ -211,7 +220,6 @@ function sliceLines(n: Narrated, range: { start: number; end: number }) {
 	return out;
 }
 
-
 const git = (...args: string[]) => {
 	const r = Bun.spawnSync(["git", ...args], { cwd: ROOT, stdout: "pipe", stderr: "pipe" });
 	if (r.exitCode !== 0) throw new Error(`git ${args.join(" ")}: ${r.stderr.toString().trim()}`);
@@ -235,7 +243,6 @@ function listCommits(limit = 60) {
 			return { sha, short, subject, author, when };
 		});
 }
-
 
 const diffCache = new Map<string, unknown>();
 
@@ -273,7 +280,15 @@ function diffRange(base: string, head: string) {
 		return kind === "f" && symbolIndex.has(name!) ? `#def:${name}` : null;
 	};
 	const meta = gitMaybe("log", "-1", "--format=%h%x1f%s%x1f%an%x1f%cr", head)?.trim().split("\x1f") ?? [];
-	const out = { base, head, subject: meta[1] ?? "", author: meta[2] ?? "", when: meta[3] ?? "", short: meta[0] ?? head, files: narrator.diff(changed, { resolve }) };
+	const out = {
+		base,
+		head,
+		subject: meta[1] ?? "",
+		author: meta[2] ?? "",
+		when: meta[3] ?? "",
+		short: meta[0] ?? head,
+		files: narrator.diff(changed, { resolve }),
+	};
 	diffCache.set(key, out);
 	return out;
 }
@@ -287,7 +302,8 @@ Bun.serve({
 		const url = new URL(req.url);
 		try {
 			const asset = url.pathname === "/" ? "index.html" : url.pathname.slice(1);
-			if (/^(index\.html|style\.css|app\.js)$/.test(asset)) return new Response(Bun.file(`${import.meta.dir}/public/${asset}`), { headers: { "cache-control": "no-store" } });
+			if (/^(index\.html|style\.css|app\.js)$/.test(asset))
+				return new Response(Bun.file(`${import.meta.dir}/public/${asset}`), { headers: { "cache-control": "no-store" } });
 			if (url.pathname === "/api/files") return Response.json(files);
 			if (url.pathname === "/api/narrate") {
 				const file = url.searchParams.get("file")!;

@@ -1,18 +1,22 @@
 import { D } from "@narrate/core";
 import { definePlugin, type Engine, type N, type TsPlugin, unwrap } from "@narrate/lang-ts";
 
-const bin = (word: string) => ({ obj, args, e }: { obj: N; args: N[]; e: Engine }) => {
-	const a = e.noun(obj);
-	const b = e.noun(args[0]);
-	return D(`${a.t} ${word} ${b.t}`, [...a.kids, ...b.kids]);
-};
+const bin =
+	(word: string) =>
+	({ obj, args, e }: { obj: N; args: N[]; e: Engine }) => {
+		const a = e.noun(obj);
+		const b = e.noun(args[0]);
+		return D(`${a.t} ${word} ${b.t}`, [...a.kids, ...b.kids]);
+	};
 
-const decCmp = (word: string, negWord: string) => ({ obj, args, e, neg }: { obj: N; args: N[]; e: Engine; neg: boolean }) => {
-	if (args.length !== 1 || !obj) return null;
-	const a = e.noun(obj);
-	const b = e.noun(args[0]);
-	return D(`${a.t} ${neg ? negWord : word} ${b.t}`, [...a.kids, ...b.kids]);
-};
+const decCmp =
+	(word: string, negWord: string) =>
+	({ obj, args, e, neg }: { obj: N; args: N[]; e: Engine; neg: boolean }) => {
+		if (args.length !== 1 || !obj) return null;
+		const a = e.noun(obj);
+		const b = e.noun(args[0]);
+		return D(`${a.t} ${neg ? negWord : word} ${b.t}`, [...a.kids, ...b.kids]);
+	};
 
 const decimalUnwrap = ({ obj, e }: { obj: N; e: Engine }) => e.noun(obj);
 

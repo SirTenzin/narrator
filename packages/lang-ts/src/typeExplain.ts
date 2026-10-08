@@ -1,6 +1,5 @@
 import { type Line, mk } from "@narrate/core";
-import { type Engine, type N, listJoin, unwrap } from "./engine";
-import { humanize } from "./names";
+import { type Engine, listJoin, type N, unwrap } from "./engine";
 
 type Comment = { type: string; value: string; start: number; end: number };
 
@@ -56,7 +55,11 @@ export class TypeExplainer {
 	findDecl(name: string): { node: N; stmt: N } | null {
 		for (const st of this.program.body) {
 			const s = (st.type === "ExportNamedDeclaration" || st.type === "ExportDefaultDeclaration") && st.declaration ? st.declaration : st;
-			if ((s.type === "TSInterfaceDeclaration" || s.type === "TSTypeAliasDeclaration" || s.type === "TSEnumDeclaration" || s.type === "ClassDeclaration") && s.id?.name === name) return { node: s, stmt: st };
+			if (
+				(s.type === "TSInterfaceDeclaration" || s.type === "TSTypeAliasDeclaration" || s.type === "TSEnumDeclaration" || s.type === "ClassDeclaration") &&
+				s.id?.name === name
+			)
+				return { node: s, stmt: st };
 			if (s.type === "VariableDeclaration") for (const v of s.declarations) if (v.id?.name === name) return { node: v, stmt: st };
 		}
 		return null;
@@ -84,7 +87,12 @@ export class TypeExplainer {
 				this.emit(0, `${title} is one of:`, node, "head");
 				for (const m of members) {
 					const d = this.docFor(m, node.start);
-					this.emit(1, `• ${mk("l", m.id.name ?? `"${m.id.value}"`)}${m.initializer ? ` (${this.code(m.initializer)})` : ""}${d ? ` — “${d}”` : ""}`, m, "bullet");
+					this.emit(
+						1,
+						`• ${mk("l", m.id.name ?? `"${m.id.value}"`)}${m.initializer ? ` (${this.code(m.initializer)})` : ""}${d ? ` — “${d}”` : ""}`,
+						m,
+						"bullet",
+					);
 				}
 				break;
 			}
@@ -97,7 +105,7 @@ export class TypeExplainer {
 					if (!m.key?.name || m.kind === "constructor") continue;
 					const d = this.docFor(m, node.body.start);
 					const t = m.typeAnnotation ? this.e.typeText(m.typeAnnotation.typeAnnotation) : m.type === "MethodDefinition" ? "a method" : "a field";
-					this.emit(1, `• ${mk("v", humanize(m.key.name), m.key.name)}: ${t}${d ? ` — “${d}”` : ""}`, m, "bullet");
+					this.emit(1, `• ${mk("v", this.e.lex.humanize(m.key.name), m.key.name)}: ${t}${d ? ` — “${d}”` : ""}`, m, "bullet");
 				}
 				break;
 			}
@@ -118,7 +126,7 @@ export class TypeExplainer {
 			const key = m.key?.name ?? (m.key?.value !== undefined ? String(m.key.value) : null);
 			if (!key) continue;
 			const t = m.type === "TSMethodSignature" ? "a function" : this.e.typeText(m.typeAnnotation?.typeAnnotation, false);
-			this.emit(d, `• ${mk("v", humanize(key), key)}${m.optional ? " (optional)" : ""}: ${t}${doc ? ` — “${doc}”` : ""}`, m, "bullet");
+			this.emit(d, `• ${mk("v", this.e.lex.humanize(key), key)}${m.optional ? " (optional)" : ""}: ${t}${doc ? ` — “${doc}”` : ""}`, m, "bullet");
 		}
 	}
 
@@ -169,7 +177,9 @@ export class TypeExplainer {
 		}
 		const from = schemaName ? ` (from the schema ${mk("t", schemaName, schemaName)})` : "";
 		const isZ = cur?.type === "Identifier" && cur.name === "z";
-		const objStep = steps.find((s) => ["object", "strictObject", "looseObject", "extend", "merge"].includes(s.m) && unwrap(s.args[0])?.type === "ObjectExpression");
+		const objStep = steps.find(
+			(s) => ["object", "strictObject", "looseObject", "extend", "merge"].includes(s.m) && unwrap(s.args[0])?.type === "ObjectExpression",
+		);
 		const description = this.metaDescription(steps);
 		if (description) this.emit(d, `“${description}”`, node, "note");
 		if (objStep) {
@@ -190,7 +200,7 @@ export class TypeExplainer {
 					prevEnd = p.end;
 					const f = this.field(p.value);
 					const why = f.description ?? doc;
-					this.emit(d + 1, `• ${mk("v", humanize(key), key)}${f.optional ? " (optional)" : ""}: ${f.type}${why ? ` — “${why}”` : ""}`, p, "bullet");
+					this.emit(d + 1, `• ${mk("v", this.e.lex.humanize(key), key)}${f.optional ? " (optional)" : ""}: ${f.type}${why ? ` — “${why}”` : ""}`, p, "bullet");
 				}
 			}
 			return;
@@ -224,11 +234,19 @@ export class TypeExplainer {
 		const optional = steps.some((s) => s.m === "optional" || s.m === "nullish");
 		const description = this.metaDescription(steps);
 		const z = this.e.schemaText(value);
-		if (z) return { type: z.replace(/optional(, )?/, "").replace(/ \(\)$/, "").replace(/, \)$/, ")"), optional, description };
+		if (z)
+			return {
+				type: z
+					.replace(/optional(, )?/, "")
+					.replace(/ \(\)$/, "")
+					.replace(/, \)$/, ")"),
+				optional,
+				description,
+			};
 		const base = cur?.type === "Identifier" ? this.typeLink(cur) : cur ? this.e.noun(cur).t : "something";
-		const mods = steps.flatMap((s) => (s.m === "nullable" ? ["can be null"] : s.m === "default" ? [`defaults to ${this.e.text(s.args[0])}`] : s.m === "array" ? ["a list"] : []));
+		const mods = steps.flatMap((s) =>
+			s.m === "nullable" ? ["can be null"] : s.m === "default" ? [`defaults to ${this.e.text(s.args[0])}`] : s.m === "array" ? ["a list"] : [],
+		);
 		return { type: `${base}${mods.length ? ` (${mods.join(", ")})` : ""}`, optional, description };
 	}
 }
-
-void humanize;

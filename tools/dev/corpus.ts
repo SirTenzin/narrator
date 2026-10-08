@@ -1,6 +1,5 @@
-import { Glob } from "bun";
-import { $ } from "bun";
 import type { ChangedFile } from "@narrate/core";
+import { $, Glob } from "bun";
 
 export const AUTUMN = process.env.AUTUMN_ROOT ?? "/workspace/autumn";
 export const GOLDEN = `${process.env.HOME}/.capy/work/narrate-golden`;
@@ -22,7 +21,13 @@ export async function commitFiles(sha: string, root = AUTUMN): Promise<ChangedFi
 		const path = b ?? a;
 		const oldPath = st.startsWith("R") ? a : null;
 		const status = st.startsWith("A") ? "added" : st.startsWith("D") ? "deleted" : st.startsWith("R") ? "renamed" : "modified";
-		files.push({ path, oldPath, status, oldSrc: status === "added" ? "" : await show(`${sha}^`, oldPath ?? a), newSrc: status === "deleted" ? "" : await show(sha, path) });
+		files.push({
+			path,
+			oldPath,
+			status,
+			oldSrc: status === "added" ? "" : await show(`${sha}^`, oldPath ?? a),
+			newSrc: status === "deleted" ? "" : await show(sha, path),
+		});
 	}
 	return files;
 }

@@ -9,15 +9,19 @@
     "apps/*"
   ],
   "scripts": {
-    "typecheck": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json && tsc -p apps/extension/tsconfig.json",
     "test": "bun test",
+    "golden": "bun tools/dev/golden.ts",
+    "stress": "bun tools/dev/stress.ts",
+    "format": "biome check --write .",
     "narrate": "bun apps/cli/narrate.ts"
   },
   "devDependencies": {
+    "@biomejs/biome": "2",
+    "@oxc-parser/wasm": "0.60.0",
     "@types/bun": "latest",
     "@types/chrome": "^0.3.4",
-    "typescript": "^5",
     "oxc-parser": "^0.153.0",
-    "@oxc-parser/wasm": "0.60.0"
+    "typescript": "^5"
   }
 }

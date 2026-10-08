@@ -1,0 +1,7 @@
+{
+	"$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+	"files": { "includes": ["**", "!**/dist", "!**/node_modules", "!corpus", "!apps/viewer/public"] },
+	"formatter": { "indentStyle": "tab", "lineWidth": 160 },
+	"linter": { "enabled": false },
+	"assist": { "actions": { "source": { "organizeImports": "on" } } }
+}

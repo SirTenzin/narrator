@@ -1,6 +1,6 @@
 // Parity check against the pre-SDK baseline. `bun tools/dev/golden.ts` compares; `--write` re-snapshots.
 import { narrator } from "@narrate/cli";
-import { commitFiles, corpusFiles, AUTUMN, GOLDEN, TEST_COMMITS } from "./corpus";
+import { AUTUMN, commitFiles, corpusFiles, GOLDEN, TEST_COMMITS } from "./corpus";
 
 const write = process.argv.includes("--write");
 const only = process.argv.find((a) => a.startsWith("--only="))?.slice(7);
@@ -41,15 +41,18 @@ for (const row of narrateRows) {
 	const a = want ? JSON.parse(want) : { lines: [] };
 	const b = JSON.parse(row);
 	const i = (b.lines ?? []).findIndex((l: unknown, k: number) => JSON.stringify(l) !== JSON.stringify(a.lines?.[k]));
-	changed.push(`${f}${b.error ? ` ERROR ${b.error}` : ""}\n   was: ${plain(String(a.lines?.[i]?.[4] ?? a.lines?.[i] ?? "(none)"))}\n   now: ${plain(String(b.lines?.[i]?.[4] ?? "(none)"))}`);
+	changed.push(
+		`${f}${b.error ? ` ERROR ${b.error}` : ""}\n   was: ${plain(String(a.lines?.[i]?.[4] ?? a.lines?.[i] ?? "(none)"))}\n   now: ${plain(String(b.lines?.[i]?.[4] ?? "(none)"))}`,
+	);
 }
 let diffSame = true;
 if (!only) {
 	const goldenDiffs = await Bun.file(`${GOLDEN}/diffs.json`).json();
-	for (const sha of TEST_COMMITS) if (JSON.stringify(goldenDiffs[sha]) !== JSON.stringify(diffs[sha])) {
-		diffSame = false;
-		console.log(`diff report changed for ${sha}`);
-	}
+	for (const sha of TEST_COMMITS)
+		if (JSON.stringify(goldenDiffs[sha]) !== JSON.stringify(diffs[sha])) {
+			diffSame = false;
+			console.log(`diff report changed for ${sha}`);
+		}
 }
 console.log(changed.slice(0, Number(process.env.SHOW ?? 15)).join("\n"));
 console.log({ files: narrateRows.length, same, changed: changed.length, diffReportsSame: diffSame });

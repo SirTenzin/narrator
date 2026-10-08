@@ -1,32 +1,116 @@
 /* Plain English for GitHub: everything below piggybacks on GitHub's own diff classes and colour variables. */
-table.diff-table.pe-hidden { display: none !important; }
+table.diff-table.pe-hidden {
+	display: none !important;
+}
 
-.pe-table .blob-code-inner { white-space: normal; }
-.pe-table .pe-line { display: block; padding-left: calc(var(--pe-d, 0) * 2ch); white-space: pre-wrap; overflow-wrap: anywhere; }
-.pe-table .pe-head { font-weight: 600; }
-.pe-table .pe-sig { font-weight: 400; color: var(--fgColor-muted, #59636e); }
-.pe-table .pe-note .pe-line, .pe-table .pe-line.pe-note { color: var(--fgColor-muted, #59636e); font-style: italic; }
-.pe-table .pe-type { border-radius: 4px; padding: 0 3px; background: var(--bgColor-neutral-muted, rgba(175, 184, 193, 0.2)); }
+.pe-table .blob-code-inner {
+	white-space: normal;
+}
+.pe-table .pe-line {
+	display: block;
+	padding-left: calc(var(--pe-d, 0) * 2ch);
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+}
+.pe-table .pe-head {
+	font-weight: 600;
+}
+.pe-table .pe-sig {
+	font-weight: 400;
+	color: var(--fgColor-muted, #59636e);
+}
+.pe-table .pe-note .pe-line,
+.pe-table .pe-line.pe-note {
+	color: var(--fgColor-muted, #59636e);
+	font-style: italic;
+}
+.pe-table .pe-type {
+	border-radius: 4px;
+	padding: 0 3px;
+	background: var(--bgColor-neutral-muted, rgba(175, 184, 193, 0.2));
+}
 
-.pe-table .pe-hunk .blob-code-hunk { font-family: var(--fontStack-sansSerif, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif); font-size: 12px; }
-.pe-table .pe-unit-title { font-weight: 600; color: var(--fgColor-default, #1f2328); }
-.pe-table .pe-unit-status { margin-left: 4px; padding: 0 6px; border-radius: 2em; font-size: 11px; font-weight: 500; border: 1px solid var(--borderColor-default, #d1d9e0); color: var(--fgColor-muted, #59636e); }
-.pe-table .pe-unit-status.pe-added { color: var(--fgColor-success, #1a7f37); border-color: var(--borderColor-success-muted, #4ac26b66); }
-.pe-table .pe-unit-status.pe-removed, .pe-table .pe-unit-status.pe-moved-away { color: var(--fgColor-danger, #d1242f); border-color: var(--borderColor-danger-muted, #ff818266); }
-.pe-table .pe-unit-status.pe-moved, .pe-table .pe-unit-status.pe-renamed { color: var(--fgColor-accent, #0969da); border-color: var(--borderColor-accent-muted, #54aeff66); }
-.pe-table .pe-note { color: var(--fgColor-muted, #59636e); }
-.pe-table .pe-show-code { margin-left: 6px; font-size: 12px; }
+.pe-table .pe-hunk .blob-code-hunk {
+	font-family: var(--fontStack-sansSerif, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif);
+	font-size: 12px;
+}
+.pe-table .pe-unit-title {
+	font-weight: 600;
+	color: var(--fgColor-default, #1f2328);
+}
+.pe-table .pe-unit-status {
+	margin-left: 4px;
+	padding: 0 6px;
+	border-radius: 2em;
+	font-size: 11px;
+	font-weight: 500;
+	border: 1px solid var(--borderColor-default, #d1d9e0);
+	color: var(--fgColor-muted, #59636e);
+}
+.pe-table .pe-unit-status.pe-added {
+	color: var(--fgColor-success, #1a7f37);
+	border-color: var(--borderColor-success-muted, #4ac26b66);
+}
+.pe-table .pe-unit-status.pe-removed,
+.pe-table .pe-unit-status.pe-moved-away {
+	color: var(--fgColor-danger, #d1242f);
+	border-color: var(--borderColor-danger-muted, #ff818266);
+}
+.pe-table .pe-unit-status.pe-moved,
+.pe-table .pe-unit-status.pe-renamed {
+	color: var(--fgColor-accent, #0969da);
+	border-color: var(--borderColor-accent-muted, #54aeff66);
+}
+.pe-table .pe-note {
+	color: var(--fgColor-muted, #59636e);
+}
+.pe-table .pe-show-code {
+	margin-left: 6px;
+	font-size: 12px;
+}
 
-.pe-table tr.pe-fold { cursor: pointer; }
-.pe-table tr.pe-fold:hover .blob-code-hunk { color: var(--fgColor-accent, #0969da); }
-.pe-table .pe-expander { display: block; text-align: center; color: var(--fgColor-muted, #59636e); }
+.pe-table tr.pe-fold {
+	cursor: pointer;
+}
+.pe-table tr.pe-fold:hover .blob-code-hunk {
+	color: var(--fgColor-accent, #0969da);
+}
+.pe-table .pe-expander {
+	display: block;
+	text-align: center;
+	color: var(--fgColor-muted, #59636e);
+}
 
 /* React diff (logged-in "Files changed" UI) */
-table[data-pe-hidden] { display: none !important; }
-.pe-table .diff-text-inner { white-space: normal; }
-.pe-table .diff-hunk-cell .diff-text-inner { font-family: var(--fontStack-sansSerif, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif); font-size: 12px; padding: 4px 8px; }
-.pe-table tr.pe-fold:hover .diff-text-inner { color: var(--fgColor-accent, #0969da) !important; }
-.pe-table .new-diff-line-number { text-align: right; padding-right: 8px; color: var(--fgColor-muted, #59636e); font-family: var(--fontStack-monospace, ui-monospace, monospace); font-size: 12px; vertical-align: top; }
-.pe-table .diff-text-cell code.diff-text { display: flex; }
-.pe-table .diff-text-marker { flex-shrink: 0; padding-right: 4px; }
-.pe-table td { vertical-align: top; }
+table[data-pe-hidden] {
+	display: none !important;
+}
+.pe-table .diff-text-inner {
+	white-space: normal;
+}
+.pe-table .diff-hunk-cell .diff-text-inner {
+	font-family: var(--fontStack-sansSerif, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif);
+	font-size: 12px;
+	padding: 4px 8px;
+}
+.pe-table tr.pe-fold:hover .diff-text-inner {
+	color: var(--fgColor-accent, #0969da) !important;
+}
+.pe-table .new-diff-line-number {
+	text-align: right;
+	padding-right: 8px;
+	color: var(--fgColor-muted, #59636e);
+	font-family: var(--fontStack-monospace, ui-monospace, monospace);
+	font-size: 12px;
+	vertical-align: top;
+}
+.pe-table .diff-text-cell code.diff-text {
+	display: flex;
+}
+.pe-table .diff-text-marker {
+	flex-shrink: 0;
+	padding-right: 4px;
+}
+.pe-table td {
+	vertical-align: top;
+}

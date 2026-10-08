@@ -1,5 +1,6 @@
 export * from "./diff";
 export * from "./language";
+export * from "./lexicon";
 export * from "./lines";
 export * from "./locale";
 export * from "./markup";
