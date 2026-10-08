@@ -134,6 +134,17 @@
         "@narrate/testkit": "workspace:*",
       },
     },
+    "plugins/effect": {
+      "name": "@narrate/plugin-effect",
+      "version": "0.0.0",
+      "dependencies": {
+        "@narrate/core": "workspace:*",
+        "@narrate/lang-ts": "workspace:*",
+      },
+      "devDependencies": {
+        "@narrate/testkit": "workspace:*",
+      },
+    },
     "plugins/testing": {
       "name": "@narrate/plugin-testing",
       "version": "0.0.0",
@@ -193,6 +204,8 @@
     "@narrate/plugin-decimal": ["@narrate/plugin-decimal@workspace:plugins/decimal"],
 
     "@narrate/plugin-drizzle": ["@narrate/plugin-drizzle@workspace:plugins/drizzle"],
+
+    "@narrate/plugin-effect": ["@narrate/plugin-effect@workspace:plugins/effect"],
 
     "@narrate/plugin-testing": ["@narrate/plugin-testing@workspace:plugins/testing"],
 
