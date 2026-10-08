@@ -2,6 +2,10 @@ import { D } from "@narrate/core";
 import { definePlugin, type TsPlugin, unwrap } from "@narrate/lang-ts";
 import { decimal } from "@narrate/plugin-decimal";
 import { drizzle } from "@narrate/plugin-drizzle";
+import { en } from "./en";
+
+export type { AutumnPhrases } from "./phrases";
+export { en as autumnEn };
 
 /** Autumn's codebase conventions: vocabulary, plumbing names, error classes and in-house helpers. */
 export const autumn = (): TsPlugin[] => [
@@ -9,35 +13,9 @@ export const autumn = (): TsPlugin[] => [
 	decimal(),
 	definePlugin({
 		name: "autumn",
+		phrases: { en },
 		vocabulary: {
-			glossary: {
-				cus: "customer",
-				cp: "customer product",
-				cps: "customer products",
-				atmn: "Autumn",
-				prod: "product",
-				prods: "products",
-				stripe: "Stripe",
-				autumn: "Autumn",
-				redis: "Redis",
-				sub: "subscription",
-				subs: "subscriptions",
-				sched: "schedule",
-				inv: "invoice",
-				ent: "entitlement",
-				ents: "entitlements",
-				cus_ent: "customer entitlement",
-				svix: "Svix",
-				posthog: "PostHog",
-				clickhouse: "ClickHouse",
-				tinybird: "Tinybird",
-				upstash: "Upstash",
-				trigger: "Trigger",
-				drizzle: "Drizzle",
-				rp: "replay",
-				intvl: "interval",
-				ttl: "TTL",
-			},
+			glossary: en.glossary,
 			verbs: [
 				"arbitrate",
 				"route",
@@ -66,20 +44,21 @@ export const autumn = (): TsPlugin[] => [
 		},
 		ambient: ["db", "logger", "tx"],
 		errors: /Error$/,
-		errorLabels: { RecaseError: "an error", AutumnError: "an error" },
+		errorLabels: en.errorLabels,
 		calls: {
-			"ms.*": ({ node, args, e }) => (args.length === 1 ? D(`${e.text(args[0])} ${unwrap(node.callee).property.name}, in milliseconds`) : null),
-			deduplicateArray: ({ args, e }) => {
+			"ms.*": ({ node, args, e, say }) =>
+				args.length === 1 ? D(say.inMilliseconds({ amount: e.text(args[0]), unit: unwrap(node.callee).property.name })) : null,
+			deduplicateArray: ({ args, e, say }) => {
 				const a = e.noun(args[0]);
-				return D(`${a.t} without duplicates`, a.kids);
+				return D(say.withoutDuplicates({ value: a.t }), a.kids);
 			},
-			notNullish: ({ args, e }) => {
+			notNullish: ({ args, e, say }) => {
 				const c = e.cond(args[0]);
-				return D(`whether ${c.t}`, c.kids);
+				return D(say.whether({ cond: c.t }), c.kids);
 			},
-			nullish: ({ args, e }) => {
+			nullish: ({ args, e, say }) => {
 				const c = e.cond(args[0], true);
-				return D(`whether ${c.t}`, c.kids);
+				return D(say.whether({ cond: c.t }), c.kids);
 			},
 		},
 		conditions: {
