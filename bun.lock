@@ -98,6 +98,17 @@
         "@narrate/locale-en": "workspace:*",
       },
     },
+    "plugins/better-auth": {
+      "name": "@narrate/plugin-better-auth",
+      "version": "0.0.0",
+      "dependencies": {
+        "@narrate/core": "workspace:*",
+        "@narrate/lang-ts": "workspace:*",
+      },
+      "devDependencies": {
+        "@narrate/testkit": "workspace:*",
+      },
+    },
     "plugins/decimal": {
       "name": "@narrate/plugin-decimal",
       "version": "0.0.0",
@@ -173,6 +184,8 @@
     "@narrate/lang-ts": ["@narrate/lang-ts@workspace:packages/lang-ts"],
 
     "@narrate/locale-en": ["@narrate/locale-en@workspace:packages/locale-en"],
+
+    "@narrate/plugin-better-auth": ["@narrate/plugin-better-auth@workspace:plugins/better-auth"],
 
     "@narrate/plugin-decimal": ["@narrate/plugin-decimal@workspace:plugins/decimal"],
 
