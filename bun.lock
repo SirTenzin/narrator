@@ -3,20 +3,147 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "ast-english",
-      "dependencies": {
-        "oxc-parser": "^0.153.0",
-      },
+      "name": "narrate-monorepo",
       "devDependencies": {
+        "@oxc-parser/wasm": "0.60.0",
         "@types/bun": "latest",
         "@types/chrome": "^0.3.4",
+        "oxc-parser": "^0.153.0",
+        "typescript": "^5",
+      },
+    },
+    "apps/cli": {
+      "name": "@narrate/cli",
+      "version": "0.0.0",
+      "bin": {
+        "narrate": "./narrate.ts",
+      },
+      "dependencies": {
+        "@narrate/core": "workspace:*",
+        "@narrate/example-autumn": "workspace:*",
+        "@narrate/lang-ts": "workspace:*",
+        "@narrate/locale-en": "workspace:*",
+        "@narrate/plugin-testing": "workspace:*",
+        "@narrate/plugin-zod": "workspace:*",
+      },
+    },
+    "apps/extension": {
+      "name": "@narrate/extension",
+      "version": "0.0.0",
+      "dependencies": {
+        "@narrate/core": "workspace:*",
+        "@narrate/example-autumn": "workspace:*",
+        "@narrate/lang-ts": "workspace:*",
+        "@narrate/locale-en": "workspace:*",
+        "@narrate/plugin-testing": "workspace:*",
+        "@narrate/plugin-zod": "workspace:*",
+        "@oxc-parser/wasm": "0.60.0",
+      },
+    },
+    "apps/viewer": {
+      "name": "@narrate/viewer",
+      "version": "0.0.0",
+      "dependencies": {
+        "@narrate/cli": "workspace:*",
+        "@narrate/core": "workspace:*",
+        "@narrate/example-autumn": "workspace:*",
+        "@narrate/lang-ts": "workspace:*",
+        "@narrate/locale-en": "workspace:*",
+        "@narrate/plugin-testing": "workspace:*",
+        "@narrate/plugin-zod": "workspace:*",
+      },
+    },
+    "examples/autumn": {
+      "name": "@narrate/example-autumn",
+      "version": "0.0.0",
+      "dependencies": {
+        "@narrate/core": "workspace:*",
+        "@narrate/lang-ts": "workspace:*",
+        "@narrate/plugin-decimal": "workspace:*",
+        "@narrate/plugin-drizzle": "workspace:*",
+      },
+    },
+    "packages/core": {
+      "name": "@narrate/core",
+      "version": "0.0.0",
+    },
+    "packages/lang-ts": {
+      "name": "@narrate/lang-ts",
+      "version": "0.0.0",
+      "dependencies": {
+        "@narrate/core": "workspace:*",
+        "oxc-parser": "^0.153.0",
       },
       "peerDependencies": {
-        "typescript": "^5",
+        "@oxc-parser/wasm": "0.60.0",
+      },
+      "optionalPeers": [
+        "@oxc-parser/wasm",
+      ],
+    },
+    "packages/locale-en": {
+      "name": "@narrate/locale-en",
+      "version": "0.0.0",
+      "dependencies": {
+        "@narrate/core": "workspace:*",
+      },
+    },
+    "plugins/decimal": {
+      "name": "@narrate/plugin-decimal",
+      "version": "0.0.0",
+      "dependencies": {
+        "@narrate/core": "workspace:*",
+        "@narrate/lang-ts": "workspace:*",
+      },
+    },
+    "plugins/drizzle": {
+      "name": "@narrate/plugin-drizzle",
+      "version": "0.0.0",
+      "dependencies": {
+        "@narrate/core": "workspace:*",
+        "@narrate/lang-ts": "workspace:*",
+      },
+    },
+    "plugins/testing": {
+      "name": "@narrate/plugin-testing",
+      "version": "0.0.0",
+      "dependencies": {
+        "@narrate/core": "workspace:*",
+        "@narrate/lang-ts": "workspace:*",
+      },
+    },
+    "plugins/zod": {
+      "name": "@narrate/plugin-zod",
+      "version": "0.0.0",
+      "dependencies": {
+        "@narrate/core": "workspace:*",
+        "@narrate/lang-ts": "workspace:*",
       },
     },
   },
   "packages": {
+    "@narrate/cli": ["@narrate/cli@workspace:apps/cli"],
+
+    "@narrate/core": ["@narrate/core@workspace:packages/core"],
+
+    "@narrate/example-autumn": ["@narrate/example-autumn@workspace:examples/autumn"],
+
+    "@narrate/extension": ["@narrate/extension@workspace:apps/extension"],
+
+    "@narrate/lang-ts": ["@narrate/lang-ts@workspace:packages/lang-ts"],
+
+    "@narrate/locale-en": ["@narrate/locale-en@workspace:packages/locale-en"],
+
+    "@narrate/plugin-decimal": ["@narrate/plugin-decimal@workspace:plugins/decimal"],
+
+    "@narrate/plugin-drizzle": ["@narrate/plugin-drizzle@workspace:plugins/drizzle"],
+
+    "@narrate/plugin-testing": ["@narrate/plugin-testing@workspace:plugins/testing"],
+
+    "@narrate/plugin-zod": ["@narrate/plugin-zod@workspace:plugins/zod"],
+
+    "@narrate/viewer": ["@narrate/viewer@workspace:apps/viewer"],
+
     "@oxc-parser/binding-android-arm-eabi": ["@oxc-parser/binding-android-arm-eabi@0.153.0", "", { "os": "android", "cpu": "arm" }, "sha512-BcWu25dMwMjHpaDCEidmpAi7rGg1qZoihJeUUH9bD55pVZ0z4Wa5CQgqSTo0R41H81oozisQKW3WqvAN2m77IQ=="],
 
     "@oxc-parser/binding-android-arm64": ["@oxc-parser/binding-android-arm64@0.153.0", "", { "os": "android", "cpu": "arm64" }, "sha512-9l5rdp2DhRqVriBHsNpu5cEf+hizZ4B58rt93HzyQEBUgZiC6qe2oFpaAAnXGCxHGnQExI1s7S2G0QhFacUZ6w=="],
@@ -55,7 +182,9 @@
 
     "@oxc-parser/binding-win32-x64-msvc": ["@oxc-parser/binding-win32-x64-msvc@0.153.0", "", { "os": "win32", "cpu": "x64" }, "sha512-gxQz7G96Up136fd+2zWrP+o6FYGs9NO4Dyv55IoeJFJUDwLFHcLYY11hhA5wQKs0HoM57Q8esQ3nEVhnCdsjAQ=="],
 
-    "@oxc-project/types": ["@oxc-project/types@0.153.0", "", {}, "sha512-jSNrRIyvPVLL5E1z/tS5zLAprosGz/FuI1PWwEOz59j3E4TTTzSpqKb/RDGqJhhW0QHYISGXxq582wGx6T11Tw=="],
+    "@oxc-parser/wasm": ["@oxc-parser/wasm@0.60.0", "", { "dependencies": { "@oxc-project/types": "^0.60.0" } }, "sha512-Dkf9/D87WGBCW3L0+1DtpAfL4SrNsgeRvxwjpKCtbH7Kf6K+pxrT0IridaJfmWKu1Ml+fDvj+7HEyBcfUC/TXQ=="],
+
+    "@oxc-project/types": ["@oxc-project/types@0.60.0", "", {}, "sha512-prhfNnb3ATFHOCv7mzKFfwLij5RzoUz6Y1n525ZhCEqfq5wreCXL+DyVoq3ShukPo7q45ZjYIdjFUgjj+WKzng=="],
 
     "@types/bun": ["@types/bun@1.4.2", "", { "dependencies": { "bun-types": "1.4.2" } }, "sha512-GimotNn7+ZV0uVArItBbriZsR1oNf0+WTzPkdcFrzShI7k2norL0uzEaJT8T33dWr7O/c9ZDuAFQrctKCi72oQ=="],
 
@@ -76,5 +205,7 @@
     "typescript": ["typescript@5.9.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw=="],
 
     "undici-types": ["undici-types@8.9.0", "", {}, "sha512-KTDyRTYX8sWmKXAikPHHSyc63CRPETMctyjKFupcC6OBLXT3xsN0e9aF7m+mIXutFWpUXuedtowG7iLOzp0kQg=="],
+
+    "oxc-parser/@oxc-project/types": ["@oxc-project/types@0.153.0", "", {}, "sha512-jSNrRIyvPVLL5E1z/tS5zLAprosGz/FuI1PWwEOz59j3E4TTTzSpqKb/RDGqJhhW0QHYISGXxq582wGx6T11Tw=="],
   }
 }

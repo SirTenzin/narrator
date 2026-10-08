@@ -1,15 +1,22 @@
 {
-  "name": "english-ast",
-  "type": "module",
+  "name": "narrate-monorepo",
   "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "plugins/*",
+    "examples/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "bun test",
+    "narrate": "bun apps/cli/narrate.ts"
+  },
   "devDependencies": {
     "@types/bun": "latest",
-    "@types/chrome": "^0.3.4"
-  },
-  "peerDependencies": {
-    "typescript": "^5"
-  },
-  "dependencies": {
+    "@types/chrome": "^0.3.4",
+    "typescript": "^5",
     "oxc-parser": "^0.153.0",
     "@oxc-parser/wasm": "0.60.0"
   }

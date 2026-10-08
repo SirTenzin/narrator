@@ -1,0 +1,14 @@
+{
+  "name": "@narrate/plugin-decimal",
+  "version": "0.0.0",
+  "private": true,
+  "description": "TS plugin: decimal.js arithmetic.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@narrate/core": "workspace:*",
+    "@narrate/lang-ts": "workspace:*"
+  }
+}

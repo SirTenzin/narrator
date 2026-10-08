@@ -15,6 +15,18 @@
     "verbatimModuleSyntax": true,
     "noEmit": true,
 
+    "paths": {
+      "@narrate/core": ["./packages/core/src/index.ts"],
+      "@narrate/lang-ts": ["./packages/lang-ts/src/index.ts"],
+      "@narrate/lang-ts/oxc": ["./packages/lang-ts/src/oxc.ts"],
+      "@narrate/lang-ts/wasm": ["./packages/lang-ts/src/wasm.ts"],
+      "@narrate/locale-en": ["./packages/locale-en/src/index.ts"],
+      "@narrate/testkit": ["./packages/testkit/src/index.ts"],
+      "@narrate/plugin-*": ["./plugins/*/src/index.ts"],
+      "@narrate/example-autumn": ["./examples/autumn/src/index.ts"],
+      "@narrate/cli": ["./apps/cli/narrate.ts"]
+    },
+
     // Best practices
     "strict": true,
     "skipLibCheck": true,
@@ -27,4 +39,6 @@
     "noUnusedParameters": false,
     "noPropertyAccessFromIndexSignature": false
   }
+,
+  "exclude": ["node_modules", "**/dist", "apps/extension"]
 }

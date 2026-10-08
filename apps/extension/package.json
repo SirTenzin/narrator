@@ -1,0 +1,15 @@
+{
+  "name": "@narrate/extension",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@narrate/core": "workspace:*",
+    "@narrate/lang-ts": "workspace:*",
+    "@narrate/locale-en": "workspace:*",
+    "@narrate/plugin-zod": "workspace:*",
+    "@narrate/plugin-testing": "workspace:*",
+    "@narrate/example-autumn": "workspace:*",
+    "@oxc-parser/wasm": "0.60.0"
+  }
+}
