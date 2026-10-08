@@ -15,7 +15,7 @@ import {
 	vlen,
 } from "@narrate/core";
 import type { Parser } from "./parser";
-import type { CallRule, CondRule, StmtRule, TsPlugin } from "./plugin";
+import type { CallRule, CondRule, DisplayText, StmtRule, TsPlugin } from "./plugin";
 
 export type N = any;
 
@@ -133,15 +133,16 @@ export class Engine {
 
 	use(d: TsPlugin) {
 		this.dialects.push(d);
-		const say = this.phrasesFor(d);
+		const say = this.phrasesFor(d) as DisplayText | undefined;
 		const bind =
 			<R extends (ctx: any) => any>(r: R): Bound<R> =>
 			(ctx) =>
 				r({ ...ctx, say });
 		if (d.vocabulary) this.lex.extend(d.vocabulary);
+		if (say?.glossary) this.lex.extend({ glossary: say.glossary });
 		for (const a of d.ambient ?? []) this.ambient.add(a);
-		Object.assign(this.errorLabels, d.errorLabels ?? {});
-		Object.assign(this.constants, d.constants ?? {});
+		Object.assign(this.errorLabels, d.errorLabels, say?.errorLabels);
+		Object.assign(this.constants, d.constants, say?.constants);
 		if (d.errors instanceof RegExp) this.errorPattern = d.errors;
 		else for (const x of d.errors ?? []) this.errorNames.add(x);
 		for (const [k, r] of Object.entries(d.calls ?? {})) (this.calls[k] ??= []).unshift(bind(r));

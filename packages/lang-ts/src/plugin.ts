@@ -10,6 +10,14 @@ export type CondRule<P = any> = (ctx: { node: N; args: N[]; obj: N | null; e: En
 /** Takes over a whole statement; return true once you've emitted lines for it. */
 export type StmtRule<P = any> = (ctx: { node: N; e: Engine; d: number; say: P }) => boolean;
 
+/** Optional display text a phrasebook can carry; the engine merges it over the plugin's own fields. */
+export type DisplayText = {
+	constants?: Record<string, string>;
+	errorLabels?: Record<string, string>;
+	/** Abbreviation -> display words in this locale, e.g. `{ cus: "cliente" }`. */
+	glossary?: Record<string, string>;
+};
+
 /** Phrasebooks keyed by locale id. English is required: it's the fallback and the reference for translators. */
 export type Phrasebooks<P> = { en: P } & { [locale: string]: P };
 

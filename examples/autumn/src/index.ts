@@ -15,7 +15,6 @@ export const autumn = (): TsPlugin[] => [
 		name: "autumn",
 		phrases: { en },
 		vocabulary: {
-			glossary: en.glossary,
 			verbs: [
 				"arbitrate",
 				"route",
@@ -44,7 +43,6 @@ export const autumn = (): TsPlugin[] => [
 		},
 		ambient: ["db", "logger", "tx"],
 		errors: /Error$/,
-		errorLabels: en.errorLabels,
 		calls: {
 			"ms.*": ({ node, args, e, say }) =>
 				args.length === 1 ? D(say.inMilliseconds({ amount: e.text(args[0]), unit: unwrap(node.callee).property.name })) : null,

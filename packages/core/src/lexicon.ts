@@ -159,8 +159,6 @@ unset unsubscribe unwind update upgrade validate verify view visit void walk war
 write overlap cover exceed fit belong conflict differ qualify fork unref ref ping del exec spy`.split(/\s+/),
 );
 
-const TIME_WORDS = /(^|\s)(at|date|time|timestamp|until|since|deadline|expiry|expires|ends|starts|now|period end|period start|anchor)$/i;
-
 /** Per-narrator identifier knowledge; plugins extend it through their `vocabulary`. */
 export class Lexicon {
 	glossary: Record<string, string> = { ...DEFAULT_GLOSSARY };
@@ -207,6 +205,4 @@ export class Lexicon {
 		if (this.verbs.has(w[0]!)) return null;
 		return [w.slice(0, i), w.slice(i + 1)];
 	};
-
-	looksLikeTime = (s: string) => TIME_WORDS.test(s) || /\b(now|date)\b/i.test(s);
 }

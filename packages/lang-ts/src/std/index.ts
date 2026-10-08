@@ -19,7 +19,6 @@ export const std = definePlugin<StdPhrases>({
 	phrases: { en },
 	ambient: ["ctx"],
 	errors: /Error$/,
-	constants: en.constants,
 	calls: {
 		...withPipelines(arrayRules),
 		...valueRules,
