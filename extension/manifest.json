@@ -1,0 +1,21 @@
+{
+	"manifest_version": 3,
+	"name": "Plain English for GitHub",
+	"version": "0.2.0",
+	"description": "Read pull request and commit diffs as plain English, generated deterministically from the code's syntax tree.",
+	"permissions": ["storage"],
+	"host_permissions": ["https://github.com/*", "https://api.github.com/*", "https://raw.githubusercontent.com/*"],
+	"background": { "service_worker": "background.js", "type": "module" },
+	"content_scripts": [
+		{
+			"matches": ["https://github.com/*"],
+			"js": ["content.js"],
+			"run_at": "document_idle"
+		}
+	],
+	"content_security_policy": {
+		"extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
+	},
+	"web_accessible_resources": [],
+	"icons": { "128": "icon128.png" }
+}
