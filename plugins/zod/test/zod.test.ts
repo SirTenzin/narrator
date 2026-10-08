@@ -1,8 +1,31 @@
 import { expect, test } from "bun:test";
-import { narrate } from "@narrate/testkit";
-import { zod } from "../src";
+import { narrate, narrateWithStats, phrasebookGaps } from "@narrate/testkit";
+import { zod, zodEn } from "../src";
+
+const reads = (code: string, text: string) => {
+	const r = narrateWithStats(code, { plugins: [zod()] });
+	expect(r.text).toBe(text);
+	expect(r.fallbacks).toBe(0);
+};
 
 test("an object schema lists its fields and modifiers", () => {
 	const text = narrate(`const User = z.object({ email: z.string().email(), age: z.number().int().optional() });`, { plugins: [zod()] });
 	expect(text).toContain("a schema for an object with email and age");
+});
+
+test("enums, arrays and records", () => {
+	reads(`const Role = z.enum(["admin", "member"]);`, `Let role be a schema for one of "admin" or "member".`);
+	reads(`const Tags = z.array(z.string()).max(5);`, "Let tags be a schema for a list of text (at most 5).");
+	reads(`const Ids = z.record(z.string(), z.number()).default({});`, "Let IDs be a schema for a lookup of a number (defaults to an empty object).");
+});
+
+test("modifiers stack in order", () =>
+	reads(`const Age = z.number().int().positive().nullable();`, "Let age be a schema for a number (whole number, positive, can be null)."));
+
+test("a partial translation reports what it is missing", () => {
+	const gaps = phrasebookGaps(zodEn, { schema: () => "", base: { string: "texto" } });
+	expect(gaps.missing).toContain("base.number");
+	expect(gaps.missing).toContain("modifiers.optional");
+	expect(gaps.missing).not.toContain("schema");
+	expect(gaps.extra).toEqual([]);
 });
