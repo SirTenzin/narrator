@@ -54,7 +54,7 @@ export function unitsOf(e: Engine, src: string, filename: string): Unit[] {
 	}
 	for (const u of units) {
 		const head = u.lines.find((l) => l.kind === "head");
-		if (head && !u.title.includes(" › ")) u.title = plain(head.text).split(" — ")[0]!.replace(/:$/, "");
+		if (head && !u.title.includes(" › ")) u.title = plain(e.headTitles.get(head.text) ?? head.text.replace(/:$/, ""));
 	}
 	return units.filter((u) => u.lines.length);
 }
