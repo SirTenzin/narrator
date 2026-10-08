@@ -1,5 +1,5 @@
 import { type Line, mk } from "@narrate/core";
-import { type Engine, listJoin, type N, unwrap } from "./engine";
+import { type Engine, type N, unwrap } from "./engine";
 
 type Comment = { type: string; value: string; start: number; end: number };
 
@@ -71,11 +71,12 @@ export class TypeExplainer {
 		const { node, stmt } = hit;
 		const doc = this.docFor(stmt, 0);
 		const title = mk("t", name, name);
-		if (doc) this.emit(0, `“${doc}”`, stmt, "note");
+		const x = this.e.say.types.explain;
+		if (doc) this.emit(0, this.e.say.statements.comment({ text: doc }), stmt, "note");
 		switch (node.type) {
 			case "TSInterfaceDeclaration": {
 				const ext = (node.extends ?? []).map((x: N) => this.typeLink(x.expression ?? x));
-				this.emit(0, `${title} is an object${ext.length ? ` (plus everything in ${listJoin(ext)})` : ""} with:`, node, "head");
+				this.emit(0, `${x.object({ name: title, bases: ext.length ? this.e.g.list(ext) : null })}:`, node, "head");
 				this.members(node.body.body, node.body.start, 1);
 				break;
 			}
@@ -84,15 +85,11 @@ export class TypeExplainer {
 				break;
 			case "TSEnumDeclaration": {
 				const members = node.body?.members ?? node.members ?? [];
-				this.emit(0, `${title} is one of:`, node, "head");
+				this.emit(0, `${x.oneOf({ name: title })}:`, node, "head");
 				for (const m of members) {
-					const d = this.docFor(m, node.start);
-					this.emit(
-						1,
-						`• ${mk("l", m.id.name ?? `"${m.id.value}"`)}${m.initializer ? ` (${this.code(m.initializer)})` : ""}${d ? ` — “${d}”` : ""}`,
-						m,
-						"bullet",
-					);
+					const doc = this.docFor(m, node.start);
+					const value = m.initializer ? this.code(m.initializer) : null;
+					this.emit(1, `• ${x.enumMember({ name: mk("l", m.id.name ?? `"${m.id.value}"`), value, doc })}`, m, "bullet");
 				}
 				break;
 			}
@@ -100,12 +97,12 @@ export class TypeExplainer {
 				this.schema(title, node.init, node, 0);
 				break;
 			case "ClassDeclaration": {
-				this.emit(0, `${title} is a class with:`, node, "head");
+				this.emit(0, `${x.class({ name: title })}:`, node, "head");
 				for (const m of node.body.body) {
 					if (!m.key?.name || m.kind === "constructor") continue;
-					const d = this.docFor(m, node.body.start);
-					const t = m.typeAnnotation ? this.e.typeText(m.typeAnnotation.typeAnnotation) : m.type === "MethodDefinition" ? "a method" : "a field";
-					this.emit(1, `• ${mk("v", this.e.lex.humanize(m.key.name), m.key.name)}: ${t}${d ? ` — “${d}”` : ""}`, m, "bullet");
+					const doc = this.docFor(m, node.body.start);
+					const type = m.typeAnnotation ? this.e.typeText(m.typeAnnotation.typeAnnotation) : m.type === "MethodDefinition" ? x.method : x.field;
+					this.emit(1, `• ${x.member({ name: mk("v", this.e.lex.humanize(m.key.name), m.key.name), type, optional: false, doc })}`, m, "bullet");
 				}
 				break;
 			}
@@ -125,16 +122,18 @@ export class TypeExplainer {
 			prevEnd = m.end;
 			const key = m.key?.name ?? (m.key?.value !== undefined ? String(m.key.value) : null);
 			if (!key) continue;
-			const t = m.type === "TSMethodSignature" ? "a function" : this.e.typeText(m.typeAnnotation?.typeAnnotation, false);
-			this.emit(d, `• ${mk("v", this.e.lex.humanize(key), key)}${m.optional ? " (optional)" : ""}: ${t}${doc ? ` — “${doc}”` : ""}`, m, "bullet");
+			const type = m.type === "TSMethodSignature" ? this.e.say.types.function : this.e.typeText(m.typeAnnotation?.typeAnnotation, false);
+			const line = this.e.say.types.explain.member({ name: mk("v", this.e.lex.humanize(key), key), type, optional: !!m.optional, doc });
+			this.emit(d, `• ${line}`, m, "bullet");
 		}
 	}
 
 	alias(name: string, t: N, node: N) {
+		const x = this.e.say.types.explain;
 		const title = mk("t", name, name);
 		const u = t.type === "TSParenthesizedType" ? t.typeAnnotation : t;
 		if (u.type === "TSTypeLiteral") {
-			this.emit(0, `${title} is an object with:`, node, "head");
+			this.emit(0, `${x.object({ name: title, bases: null })}:`, node, "head");
 			return this.members(u.members, u.start, 1);
 		}
 		if (u.type === "TSTypeReference") {
@@ -144,26 +143,26 @@ export class TypeExplainer {
 				const schemaName = this.code(arg.exprName);
 				const local = this.findDecl(schemaName);
 				if (local?.node.type === "VariableDeclarator") return this.schema(title, local.node.init, node, 0, schemaName);
-				return this.emit(0, `${title} is the shape of the schema ${mk("t", schemaName, schemaName)}.`, node, "head");
+				return this.emit(0, `${x.schemaShape({ name: title, schema: mk("t", schemaName, schemaName) })}.`, node, "head");
 			}
 		}
 		if (u.type === "TSIntersectionType") {
 			const refs = u.types.filter((x: N) => x.type !== "TSTypeLiteral").map((x: N) => this.typeLink(x));
-			this.emit(0, `${title} is ${refs.length ? `everything in ${listJoin(refs)}, plus` : "an object with"}:`, node, "head");
+			this.emit(0, `${x.intersection({ name: title, bases: refs.length ? this.e.g.list(refs) : null })}:`, node, "head");
 			for (const lit of u.types.filter((x: N) => x.type === "TSTypeLiteral")) this.members(lit.members, lit.start, 1);
 			return;
 		}
 		if (u.type === "TSUnionType" && u.types.every((x: N) => x.type === "TSLiteralType")) {
-			this.emit(0, `${title} is one of:`, node, "head");
+			this.emit(0, `${x.oneOf({ name: title })}:`, node, "head");
 			let prevEnd = u.start;
-			for (const x of u.types) {
-				const d = this.docFor(x, prevEnd);
-				prevEnd = x.end;
-				this.emit(1, `• ${mk("l", this.code(x))}${d ? ` — “${d}”` : ""}`, x, "bullet");
+			for (const opt of u.types) {
+				const doc = this.docFor(opt, prevEnd);
+				prevEnd = opt.end;
+				this.emit(1, `• ${x.option({ value: mk("l", this.code(opt)), doc })}`, opt, "bullet");
 			}
 			return;
 		}
-		this.emit(0, `${title} is ${this.e.typeText(u, true)}.`, node, "head");
+		this.emit(0, `${x.is({ name: title, type: this.e.typeText(u, true) })}.`, node, "head");
 	}
 
 	/** zod: `z.object({...})`, `Base.extend({...})`, `z.enum([...])`, ... */
@@ -175,38 +174,39 @@ export class TypeExplainer {
 			steps.unshift({ m: c.property.name, args: cur.arguments });
 			cur = unwrap(c.object);
 		}
-		const from = schemaName ? ` (from the schema ${mk("t", schemaName, schemaName)})` : "";
+		const x = this.e.say.types.explain;
+		const name = schemaName ? x.fromSchema({ name: title, schema: mk("t", schemaName, schemaName) }) : title;
 		const isZ = cur?.type === "Identifier" && cur.name === "z";
 		const objStep = steps.find(
 			(s) => ["object", "strictObject", "looseObject", "extend", "merge"].includes(s.m) && unwrap(s.args[0])?.type === "ObjectExpression",
 		);
 		const description = this.metaDescription(steps);
-		if (description) this.emit(d, `“${description}”`, node, "note");
+		if (description) this.emit(d, this.e.say.statements.comment({ text: description }), node, "note");
 		if (objStep) {
 			const bases = !isZ && cur ? [this.typeLink(cur)] : [];
 			for (const s of steps) if ((s.m === "merge" || s.m === "extend") && unwrap(s.args[0])?.type !== "ObjectExpression") bases.push(this.typeLink(s.args[0]));
-			this.emit(d, `${title}${from} is an object${bases.length ? ` (plus everything in ${listJoin(bases)})` : ""} with:`, node, "head");
+			this.emit(d, `${x.object({ name, bases: bases.length ? this.e.g.list(bases) : null })}:`, node, "head");
 			for (const s of steps) {
 				const o = unwrap(s.args[0]);
 				if (o?.type !== "ObjectExpression") continue;
 				let prevEnd = o.start;
 				for (const p of o.properties) {
 					if (p.type === "SpreadElement") {
-						this.emit(d + 1, `• everything in ${this.typeLink(unwrap(p.argument).object ?? p.argument)}`, p, "bullet");
+						this.emit(d + 1, `• ${this.e.say.expressions.everythingIn({ value: this.typeLink(unwrap(p.argument).object ?? p.argument) })}`, p, "bullet");
 						continue;
 					}
 					const key = p.key?.name ?? String(p.key?.value);
 					const doc = this.docFor(p, prevEnd);
 					prevEnd = p.end;
 					const f = this.field(p.value);
-					const why = f.description ?? doc;
-					this.emit(d + 1, `• ${mk("v", this.e.lex.humanize(key), key)}${f.optional ? " (optional)" : ""}: ${f.type}${why ? ` — “${why}”` : ""}`, p, "bullet");
+					const line = x.member({ name: mk("v", this.e.lex.humanize(key), key), type: f.type, optional: f.optional, doc: f.description ?? doc });
+					this.emit(d + 1, `• ${line}`, p, "bullet");
 				}
 			}
 			return;
 		}
 		const t = this.e.schemaText(init);
-		this.emit(d, `${title}${from} is ${t ?? this.e.noun(init).t}.`, node, "head");
+		this.emit(d, `${x.is({ name, type: t ?? this.e.noun(init).t })}.`, node, "head");
 	}
 
 	metaDescription(steps: { m: string; args: N[] }[]): string | null {
@@ -233,20 +233,13 @@ export class TypeExplainer {
 		}
 		const optional = steps.some((s) => s.m === "optional" || s.m === "nullish");
 		const description = this.metaDescription(steps);
+		const x = this.e.say.types.explain;
 		const z = this.e.schemaText(value);
-		if (z)
-			return {
-				type: z
-					.replace(/optional(, )?/, "")
-					.replace(/ \(\)$/, "")
-					.replace(/, \)$/, ")"),
-				optional,
-				description,
-			};
-		const base = cur?.type === "Identifier" ? this.typeLink(cur) : cur ? this.e.noun(cur).t : "something";
-		const mods = steps.flatMap((s) =>
-			s.m === "nullable" ? ["can be null"] : s.m === "default" ? [`defaults to ${this.e.text(s.args[0])}`] : s.m === "array" ? ["a list"] : [],
+		if (z) return { type: x.schemaField({ described: z }), optional, description };
+		const base = cur?.type === "Identifier" ? this.typeLink(cur) : cur ? this.e.noun(cur).t : this.e.say.types.unknown;
+		const modifiers = steps.flatMap((s) =>
+			s.m === "nullable" ? [x.nullable] : s.m === "default" ? [x.defaultsTo({ value: this.e.text(s.args[0]) })] : s.m === "array" ? [x.list] : [],
 		);
-		return { type: `${base}${mods.length ? ` (${mods.join(", ")})` : ""}`, optional, description };
+		return { type: x.modified({ base, modifiers }), optional, description };
 	}
 }

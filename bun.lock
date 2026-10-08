@@ -88,6 +88,9 @@
       "dependencies": {
         "@narrate/core": "workspace:*",
       },
+      "devDependencies": {
+        "@narrate/testkit": "workspace:*",
+      },
     },
     "packages/testkit": {
       "name": "@narrate/testkit",

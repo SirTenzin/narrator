@@ -9,5 +9,8 @@
 	},
 	"dependencies": {
 		"@narrate/core": "workspace:*"
+	},
+	"devDependencies": {
+		"@narrate/testkit": "workspace:*"
 	}
 }
