@@ -1,4 +1,4 @@
-import { plain, type Unit } from "@narrate/core";
+import { plain, type Unit } from "@usenarrator/core";
 import { type Engine, unwrap } from "./engine";
 
 const declName = (s: N): string | null => {

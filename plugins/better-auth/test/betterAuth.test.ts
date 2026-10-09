@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { en as english } from "@narrate/locale-en";
-import { narrate, narrateWithStats, phrasebookGaps } from "@narrate/testkit";
+import { en as english } from "@usenarrator/locale-en";
+import { narrate, narrateWithStats, phrasebookGaps } from "@usenarrator/testkit";
 import { type BetterAuthPhrases, betterAuth, en } from "../src";
 
 const plugins = [betterAuth()];

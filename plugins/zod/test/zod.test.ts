@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { narrate, narrateWithStats, phrasebookGaps } from "@narrate/testkit";
+import { narrate, narrateWithStats, phrasebookGaps } from "@usenarrator/testkit";
 import { zod, zodEn } from "../src";
 
 const reads = (code: string, text: string) => {

@@ -1,5 +1,5 @@
-import { D, type Doc, mk } from "@narrate/core";
-import { type Engine, type N, unwrap } from "@narrate/lang-ts";
+import { D, type Doc, mk } from "@usenarrator/core";
+import { type Engine, type N, unwrap } from "@usenarrator/lang-ts";
 import type { DrizzlePhrases } from "./phrases";
 
 export type Ctx = { e: Engine; say: DrizzlePhrases };

@@ -1,5 +1,5 @@
-import { D } from "@narrate/core";
-import { type CallRule, type CondRule, definePlugin, type Engine, type StmtRule, type TsPlugin } from "@narrate/lang-ts";
+import { D } from "@usenarrator/core";
+import { type CallRule, type CondRule, definePlugin, type Engine, type StmtRule, type TsPlugin } from "@usenarrator/lang-ts";
 import { type Ctx, type FileState, type Mode, type OpTable, pipeline, pipeStep, resetState, type Version } from "./context";
 import { en } from "./en";
 import { dataConditions, dataOps } from "./ops/data";

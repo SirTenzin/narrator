@@ -1,4 +1,4 @@
-import type { Grammar } from "@narrate/core";
+import type { Grammar } from "@usenarrator/core";
 
 const NEGATED_PREFIX: Record<string, string> = {
 	is: "is not",

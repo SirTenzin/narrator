@@ -1,5 +1,5 @@
 // Every changed line vs the golden baseline, bucketed by a rough reason, for reviewing intentional re-baselines.
-import { narrator } from "@narrate/cli";
+import { narrator } from "@usenarrator/cli";
 import { AUTUMN, corpusFiles, GOLDEN } from "./corpus";
 
 const plain = (s: string) => s.replace(/\uE000\w\uE001[^\uE001]*\uE001([^\uE002]*)\uE002/g, "$1");

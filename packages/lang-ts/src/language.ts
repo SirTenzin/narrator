@@ -1,4 +1,4 @@
-import type { FileNarrator, SourceLanguage } from "@narrate/core";
+import type { FileNarrator, SourceLanguage } from "@usenarrator/core";
 import { Engine } from "./engine";
 import type { Parser } from "./parser";
 import type { TsPlugin } from "./plugin";

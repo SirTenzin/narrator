@@ -16,15 +16,15 @@
 		"noEmit": true,
 
 		"paths": {
-			"@narrate/core": ["./packages/core/src/index.ts"],
-			"@narrate/lang-ts": ["./packages/lang-ts/src/index.ts"],
-			"@narrate/lang-ts/oxc": ["./packages/lang-ts/src/oxc.ts"],
-			"@narrate/lang-ts/wasm": ["./packages/lang-ts/src/wasm.ts"],
-			"@narrate/locale-en": ["./packages/locale-en/src/index.ts"],
-			"@narrate/testkit": ["./packages/testkit/src/index.ts"],
-			"@narrate/plugin-*": ["./plugins/*/src/index.ts"],
-			"@narrate/example-autumn": ["./examples/autumn/src/index.ts"],
-			"@narrate/cli": ["./apps/cli/narrate.ts"]
+			"@usenarrator/core": ["./packages/core/src/index.ts"],
+			"@usenarrator/lang-ts": ["./packages/lang-ts/src/index.ts"],
+			"@usenarrator/lang-ts/oxc": ["./packages/lang-ts/src/oxc.ts"],
+			"@usenarrator/lang-ts/wasm": ["./packages/lang-ts/src/wasm.ts"],
+			"@usenarrator/locale-en": ["./packages/locale-en/src/index.ts"],
+			"@usenarrator/testkit": ["./packages/testkit/src/index.ts"],
+			"@usenarrator/plugin-*": ["./plugins/*/src/index.ts"],
+			"@usenarrator/example-autumn": ["./examples/autumn/src/index.ts"],
+			"@usenarrator/cli": ["./apps/cli/narrate.ts"]
 		},
 
 		// Best practices

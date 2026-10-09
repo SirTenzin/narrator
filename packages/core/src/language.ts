@@ -13,7 +13,7 @@ export interface FileNarrator {
 	units(src: string, path: string): Unit[];
 }
 
-/** A programming language the SDK can read. See `@narrate/lang-ts` for the TS/JS implementation. */
+/** A programming language the SDK can read. See `@usenarrator/lang-ts` for the TS/JS implementation. */
 export interface SourceLanguage {
 	id: string;
 	handles(path: string): boolean;

@@ -1,5 +1,5 @@
-import { D, type Doc, mk } from "@narrate/core";
-import { type CallRule, type CondRule, definePlugin, type N, type StmtRule, type TsPlugin, unwrap } from "@narrate/lang-ts";
+import { D, type Doc, mk } from "@usenarrator/core";
+import { type CallRule, type CondRule, definePlugin, type N, type StmtRule, type TsPlugin, unwrap } from "@usenarrator/lang-ts";
 import { clientSpecs, pluginDoc, serverSpecs } from "./config";
 import { en } from "./en";
 import { endpointCalls, fieldSpecs } from "./endpoints";

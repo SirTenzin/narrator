@@ -13,7 +13,7 @@ import {
 	mk,
 	plain,
 	vlen,
-} from "@narrate/core";
+} from "@usenarrator/core";
 import type { Parser } from "./parser";
 import type { CallRule, CondRule, DisplayText, StmtRule, TsPlugin } from "./plugin";
 

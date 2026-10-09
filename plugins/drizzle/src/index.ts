@@ -1,5 +1,5 @@
-import type { Doc } from "@narrate/core";
-import { type CallRule, type CondRule, definePlugin, type N, type TsPlugin } from "@narrate/lang-ts";
+import type { Doc } from "@usenarrator/core";
+import { type CallRule, type CondRule, definePlugin, type N, type TsPlugin } from "@usenarrator/lang-ts";
 import { en } from "./en";
 import { operatorCalls, operatorConds, sqlMethod } from "./operators";
 import type { DrizzlePhrases } from "./phrases";

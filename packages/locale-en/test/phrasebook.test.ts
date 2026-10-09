@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { narrate, phrasebookGaps } from "@narrate/testkit";
+import { narrate, phrasebookGaps } from "@usenarrator/testkit";
 import { en } from "../src";
 
 test("phrasebookGaps reports the keys a partial translation is missing", () => {

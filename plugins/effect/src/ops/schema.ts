@@ -1,5 +1,5 @@
-import { D, mk } from "@narrate/core";
-import { type N, unwrap } from "@narrate/lang-ts";
+import { D, mk } from "@usenarrator/core";
+import { type N, unwrap } from "@usenarrator/lang-ts";
 import { type Ctx, calleeKey, curried, form, isFn, isObj, type Mode, make, memberKey, noun, type OpTable, objProp } from "../context";
 import type { EffectPhrases } from "../phrases";
 

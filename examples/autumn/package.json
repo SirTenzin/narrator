@@ -1,5 +1,5 @@
 {
-	"name": "@narrate/example-autumn",
+	"name": "@usenarrator/example-autumn",
 	"version": "0.0.0",
 	"private": true,
 	"description": "Example codebase preset: Autumn's vocabulary and helpers.",
@@ -8,9 +8,9 @@
 		".": "./src/index.ts"
 	},
 	"dependencies": {
-		"@narrate/core": "workspace:*",
-		"@narrate/lang-ts": "workspace:*",
-		"@narrate/plugin-drizzle": "workspace:*",
-		"@narrate/plugin-decimal": "workspace:*"
+		"@usenarrator/core": "workspace:*",
+		"@usenarrator/lang-ts": "workspace:*",
+		"@usenarrator/plugin-drizzle": "workspace:*",
+		"@usenarrator/plugin-decimal": "workspace:*"
 	}
 }

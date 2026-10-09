@@ -1,5 +1,5 @@
-import { D, type Doc, mk, plain } from "@narrate/core";
-import { type N, unwrap } from "@narrate/lang-ts";
+import { D, type Doc, mk, plain } from "@usenarrator/core";
+import { type N, unwrap } from "@usenarrator/lang-ts";
 import type { ColumnType, DrizzlePhrases, ReferentialAction } from "./phrases";
 import {
 	type Ctx,

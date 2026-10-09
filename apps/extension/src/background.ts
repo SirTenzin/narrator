@@ -1,12 +1,12 @@
-import { type ChangedFile, createNarrator, type FileJson, type Narrator } from "@narrate/core";
-import { autumn } from "@narrate/example-autumn";
-import { typescript } from "@narrate/lang-ts";
-import { oxcWasmParser } from "@narrate/lang-ts/wasm";
-import { en } from "@narrate/locale-en";
-import { betterAuth } from "@narrate/plugin-better-auth";
-import { effect } from "@narrate/plugin-effect";
-import { testing } from "@narrate/plugin-testing";
-import { zod } from "@narrate/plugin-zod";
+import { type ChangedFile, createNarrator, type FileJson, type Narrator } from "@usenarrator/core";
+import { autumn } from "@usenarrator/example-autumn";
+import { typescript } from "@usenarrator/lang-ts";
+import { oxcWasmParser } from "@usenarrator/lang-ts/wasm";
+import { en } from "@usenarrator/locale-en";
+import { betterAuth } from "@usenarrator/plugin-better-auth";
+import { effect } from "@usenarrator/plugin-effect";
+import { testing } from "@usenarrator/plugin-testing";
+import { zod } from "@usenarrator/plugin-zod";
 import initWasm, { parseSync } from "@oxc-parser/wasm/web/oxc_parser_wasm.js";
 
 export type DiffRequest = { kind: "pull"; owner: string; repo: string; number: string } | { kind: "commit"; owner: string; repo: string; sha: string };

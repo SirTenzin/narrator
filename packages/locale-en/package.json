@@ -1,5 +1,5 @@
 {
-	"name": "@narrate/locale-en",
+	"name": "@usenarrator/locale-en",
 	"version": "0.0.0",
 	"private": true,
 	"description": "English output locale.",
@@ -8,9 +8,9 @@
 		".": "./src/index.ts"
 	},
 	"dependencies": {
-		"@narrate/core": "workspace:*"
+		"@usenarrator/core": "workspace:*"
 	},
 	"devDependencies": {
-		"@narrate/testkit": "workspace:*"
+		"@usenarrator/testkit": "workspace:*"
 	}
 }

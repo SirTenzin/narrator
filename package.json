@@ -1,5 +1,5 @@
 {
-	"name": "narrate-monorepo",
+	"name": "narrator",
 	"private": true,
 	"type": "module",
 	"workspaces": [

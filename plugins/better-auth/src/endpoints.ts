@@ -1,5 +1,5 @@
-import { D, type Doc } from "@narrate/core";
-import { type CallRule, type N, unwrap } from "@narrate/lang-ts";
+import { D, type Doc } from "@usenarrator/core";
+import { type CallRule, type N, unwrap } from "@usenarrator/lang-ts";
 import type { BetterAuthPhrases, DoEndpoint, GetEndpoint } from "./phrases";
 import { type Ctx, callback, findProp, flag, group, literal, objectArg, optionDocs, plainOption, type Spec, type Specs, value } from "./render";
 

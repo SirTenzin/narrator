@@ -1,12 +1,12 @@
-import { createNarrator, renderText, toAnsi } from "@narrate/core";
-import { autumn } from "@narrate/example-autumn";
-import { typescript } from "@narrate/lang-ts";
-import { oxcParser } from "@narrate/lang-ts/oxc";
-import { en } from "@narrate/locale-en";
-import { betterAuth } from "@narrate/plugin-better-auth";
-import { effect } from "@narrate/plugin-effect";
-import { testing } from "@narrate/plugin-testing";
-import { zod } from "@narrate/plugin-zod";
+import { createNarrator, renderText, toAnsi } from "@usenarrator/core";
+import { autumn } from "@usenarrator/example-autumn";
+import { typescript } from "@usenarrator/lang-ts";
+import { oxcParser } from "@usenarrator/lang-ts/oxc";
+import { en } from "@usenarrator/locale-en";
+import { betterAuth } from "@usenarrator/plugin-better-auth";
+import { effect } from "@usenarrator/plugin-effect";
+import { testing } from "@usenarrator/plugin-testing";
+import { zod } from "@usenarrator/plugin-zod";
 
 /** The narrator the CLI and dev tools use: TS/JS in, English out, with Autumn's conventions. */
 export const narrator = createNarrator({

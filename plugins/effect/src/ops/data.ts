@@ -1,5 +1,5 @@
-import { D } from "@narrate/core";
-import type { N } from "@narrate/lang-ts";
+import { D } from "@usenarrator/core";
+import type { N } from "@usenarrator/lang-ts";
 import { type Ctx, callbackStep, fixed, make, noun, type OpTable, step } from "../context";
 import type { EffectPhrases } from "../phrases";
 import { matchFirst, thunkValue } from "./effect";

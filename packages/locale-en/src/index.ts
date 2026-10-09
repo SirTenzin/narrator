@@ -1,4 +1,4 @@
-import type { Locale } from "@narrate/core";
+import type { Locale } from "@usenarrator/core";
 import { grammar } from "./grammar";
 import { phrases } from "./phrasebook";
 

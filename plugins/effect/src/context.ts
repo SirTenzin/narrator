@@ -1,5 +1,5 @@
-import { capFirst, D, type Doc, type Line, mk } from "@narrate/core";
-import { type Engine, type N, unwrap } from "@narrate/lang-ts";
+import { capFirst, D, type Doc, type Line, mk } from "@usenarrator/core";
+import { type Engine, type N, unwrap } from "@usenarrator/lang-ts";
 import type { EffectPhrases } from "./phrases";
 
 export type Version = 3 | 4 | "auto";

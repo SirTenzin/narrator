@@ -1,4 +1,4 @@
-import { D } from "@narrate/core";
+import { D } from "@usenarrator/core";
 import type { CondRule } from "../plugin";
 import { includes, isIn, someEvery } from "./arrayRules";
 import type { StdPhrases } from "./phrases";

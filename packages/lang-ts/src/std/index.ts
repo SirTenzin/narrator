@@ -1,4 +1,4 @@
-import { D } from "@narrate/core";
+import { D } from "@usenarrator/core";
 import type { Engine, N } from "../engine";
 import { definePlugin } from "../plugin";
 import { arrayRules } from "./arrayRules";

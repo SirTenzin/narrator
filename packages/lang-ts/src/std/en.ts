@@ -1,4 +1,4 @@
-import { plain } from "@narrate/core";
+import { plain } from "@usenarrator/core";
 import type { StdPhrases } from "./phrases";
 
 const not = (neg: boolean) => (neg ? "not " : "");

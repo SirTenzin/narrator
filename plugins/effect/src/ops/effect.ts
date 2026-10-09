@@ -1,5 +1,5 @@
-import { capFirst, D, type Doc, type Line } from "@narrate/core";
-import { type N, unwrap } from "@narrate/lang-ts";
+import { capFirst, D, type Doc, type Line } from "@usenarrator/core";
+import { type N, unwrap } from "@usenarrator/lang-ts";
 import {
 	act,
 	type Ctx,

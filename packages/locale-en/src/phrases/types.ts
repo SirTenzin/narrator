@@ -1,4 +1,4 @@
-import type { TypePhrases } from "@narrate/core";
+import type { TypePhrases } from "@usenarrator/core";
 import { grammar } from "../grammar";
 
 const orNothing = (optional: boolean) => (optional ? " (or nothing)" : "");

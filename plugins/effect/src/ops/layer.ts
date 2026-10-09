@@ -1,5 +1,5 @@
-import { D, mk } from "@narrate/core";
-import { unwrap } from "@narrate/lang-ts";
+import { D, mk } from "@usenarrator/core";
+import { unwrap } from "@usenarrator/lang-ts";
 import { type Ctx, curried, form, make, noun, type OpTable, step, strLit } from "../context";
 import type { EffectPhrases } from "../phrases";
 import { serviceName, thunkValue } from "./effect";

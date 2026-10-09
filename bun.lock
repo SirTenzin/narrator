@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "narrate-monorepo",
+      "name": "narrator",
       "devDependencies": {
         "@biomejs/biome": "2",
         "@oxc-parser/wasm": "0.60.0",
@@ -14,74 +14,74 @@
       },
     },
     "apps/cli": {
-      "name": "@narrate/cli",
+      "name": "@usenarrator/cli",
       "version": "0.0.0",
       "bin": {
         "narrate": "./narrate.ts",
       },
       "dependencies": {
-        "@narrate/core": "workspace:*",
-        "@narrate/example-autumn": "workspace:*",
-        "@narrate/lang-ts": "workspace:*",
-        "@narrate/locale-en": "workspace:*",
-        "@narrate/plugin-better-auth": "workspace:*",
-        "@narrate/plugin-drizzle": "workspace:*",
-        "@narrate/plugin-effect": "workspace:*",
-        "@narrate/plugin-testing": "workspace:*",
-        "@narrate/plugin-zod": "workspace:*",
+        "@usenarrator/core": "workspace:*",
+        "@usenarrator/example-autumn": "workspace:*",
+        "@usenarrator/lang-ts": "workspace:*",
+        "@usenarrator/locale-en": "workspace:*",
+        "@usenarrator/plugin-better-auth": "workspace:*",
+        "@usenarrator/plugin-drizzle": "workspace:*",
+        "@usenarrator/plugin-effect": "workspace:*",
+        "@usenarrator/plugin-testing": "workspace:*",
+        "@usenarrator/plugin-zod": "workspace:*",
       },
     },
     "apps/extension": {
-      "name": "@narrate/extension",
+      "name": "@usenarrator/extension",
       "version": "0.0.0",
       "dependencies": {
-        "@narrate/core": "workspace:*",
-        "@narrate/example-autumn": "workspace:*",
-        "@narrate/lang-ts": "workspace:*",
-        "@narrate/locale-en": "workspace:*",
-        "@narrate/plugin-better-auth": "workspace:*",
-        "@narrate/plugin-drizzle": "workspace:*",
-        "@narrate/plugin-effect": "workspace:*",
-        "@narrate/plugin-testing": "workspace:*",
-        "@narrate/plugin-zod": "workspace:*",
         "@oxc-parser/wasm": "0.60.0",
+        "@usenarrator/core": "workspace:*",
+        "@usenarrator/example-autumn": "workspace:*",
+        "@usenarrator/lang-ts": "workspace:*",
+        "@usenarrator/locale-en": "workspace:*",
+        "@usenarrator/plugin-better-auth": "workspace:*",
+        "@usenarrator/plugin-drizzle": "workspace:*",
+        "@usenarrator/plugin-effect": "workspace:*",
+        "@usenarrator/plugin-testing": "workspace:*",
+        "@usenarrator/plugin-zod": "workspace:*",
       },
     },
     "apps/viewer": {
-      "name": "@narrate/viewer",
+      "name": "@usenarrator/viewer",
       "version": "0.0.0",
       "dependencies": {
-        "@narrate/cli": "workspace:*",
-        "@narrate/core": "workspace:*",
-        "@narrate/example-autumn": "workspace:*",
-        "@narrate/lang-ts": "workspace:*",
-        "@narrate/locale-en": "workspace:*",
-        "@narrate/plugin-better-auth": "workspace:*",
-        "@narrate/plugin-drizzle": "workspace:*",
-        "@narrate/plugin-effect": "workspace:*",
-        "@narrate/plugin-testing": "workspace:*",
-        "@narrate/plugin-zod": "workspace:*",
+        "@usenarrator/cli": "workspace:*",
+        "@usenarrator/core": "workspace:*",
+        "@usenarrator/example-autumn": "workspace:*",
+        "@usenarrator/lang-ts": "workspace:*",
+        "@usenarrator/locale-en": "workspace:*",
+        "@usenarrator/plugin-better-auth": "workspace:*",
+        "@usenarrator/plugin-drizzle": "workspace:*",
+        "@usenarrator/plugin-effect": "workspace:*",
+        "@usenarrator/plugin-testing": "workspace:*",
+        "@usenarrator/plugin-zod": "workspace:*",
       },
     },
     "examples/autumn": {
-      "name": "@narrate/example-autumn",
+      "name": "@usenarrator/example-autumn",
       "version": "0.0.0",
       "dependencies": {
-        "@narrate/core": "workspace:*",
-        "@narrate/lang-ts": "workspace:*",
-        "@narrate/plugin-decimal": "workspace:*",
-        "@narrate/plugin-drizzle": "workspace:*",
+        "@usenarrator/core": "workspace:*",
+        "@usenarrator/lang-ts": "workspace:*",
+        "@usenarrator/plugin-decimal": "workspace:*",
+        "@usenarrator/plugin-drizzle": "workspace:*",
       },
     },
     "packages/core": {
-      "name": "@narrate/core",
+      "name": "@usenarrator/core",
       "version": "0.0.0",
     },
     "packages/lang-ts": {
-      "name": "@narrate/lang-ts",
+      "name": "@usenarrator/lang-ts",
       "version": "0.0.0",
       "dependencies": {
-        "@narrate/core": "workspace:*",
+        "@usenarrator/core": "workspace:*",
         "oxc-parser": "^0.153.0",
       },
       "peerDependencies": {
@@ -92,88 +92,88 @@
       ],
     },
     "packages/locale-en": {
-      "name": "@narrate/locale-en",
+      "name": "@usenarrator/locale-en",
       "version": "0.0.0",
       "dependencies": {
-        "@narrate/core": "workspace:*",
+        "@usenarrator/core": "workspace:*",
       },
       "devDependencies": {
-        "@narrate/testkit": "workspace:*",
+        "@usenarrator/testkit": "workspace:*",
       },
     },
     "packages/testkit": {
-      "name": "@narrate/testkit",
+      "name": "@usenarrator/testkit",
       "version": "0.0.0",
       "dependencies": {
-        "@narrate/core": "workspace:*",
-        "@narrate/lang-ts": "workspace:*",
-        "@narrate/locale-en": "workspace:*",
+        "@usenarrator/core": "workspace:*",
+        "@usenarrator/lang-ts": "workspace:*",
+        "@usenarrator/locale-en": "workspace:*",
       },
     },
     "plugins/better-auth": {
-      "name": "@narrate/plugin-better-auth",
+      "name": "@usenarrator/plugin-better-auth",
       "version": "0.0.0",
       "dependencies": {
-        "@narrate/core": "workspace:*",
-        "@narrate/lang-ts": "workspace:*",
+        "@usenarrator/core": "workspace:*",
+        "@usenarrator/lang-ts": "workspace:*",
       },
       "devDependencies": {
-        "@narrate/testkit": "workspace:*",
+        "@usenarrator/testkit": "workspace:*",
       },
     },
     "plugins/decimal": {
-      "name": "@narrate/plugin-decimal",
+      "name": "@usenarrator/plugin-decimal",
       "version": "0.0.0",
       "dependencies": {
-        "@narrate/core": "workspace:*",
-        "@narrate/lang-ts": "workspace:*",
+        "@usenarrator/core": "workspace:*",
+        "@usenarrator/lang-ts": "workspace:*",
       },
       "devDependencies": {
-        "@narrate/testkit": "workspace:*",
+        "@usenarrator/testkit": "workspace:*",
       },
     },
     "plugins/drizzle": {
-      "name": "@narrate/plugin-drizzle",
+      "name": "@usenarrator/plugin-drizzle",
       "version": "0.0.0",
       "dependencies": {
-        "@narrate/core": "workspace:*",
-        "@narrate/lang-ts": "workspace:*",
+        "@usenarrator/core": "workspace:*",
+        "@usenarrator/lang-ts": "workspace:*",
       },
       "devDependencies": {
-        "@narrate/testkit": "workspace:*",
+        "@usenarrator/testkit": "workspace:*",
       },
     },
     "plugins/effect": {
-      "name": "@narrate/plugin-effect",
+      "name": "@usenarrator/plugin-effect",
       "version": "0.0.0",
       "dependencies": {
-        "@narrate/core": "workspace:*",
-        "@narrate/lang-ts": "workspace:*",
+        "@usenarrator/core": "workspace:*",
+        "@usenarrator/lang-ts": "workspace:*",
       },
       "devDependencies": {
-        "@narrate/testkit": "workspace:*",
+        "@usenarrator/testkit": "workspace:*",
       },
     },
     "plugins/testing": {
-      "name": "@narrate/plugin-testing",
+      "name": "@usenarrator/plugin-testing",
       "version": "0.0.0",
       "dependencies": {
-        "@narrate/core": "workspace:*",
-        "@narrate/lang-ts": "workspace:*",
+        "@usenarrator/core": "workspace:*",
+        "@usenarrator/lang-ts": "workspace:*",
       },
       "devDependencies": {
-        "@narrate/testkit": "workspace:*",
+        "@usenarrator/testkit": "workspace:*",
       },
     },
     "plugins/zod": {
-      "name": "@narrate/plugin-zod",
+      "name": "@usenarrator/plugin-zod",
       "version": "0.0.0",
       "dependencies": {
-        "@narrate/core": "workspace:*",
-        "@narrate/lang-ts": "workspace:*",
+        "@usenarrator/core": "workspace:*",
+        "@usenarrator/lang-ts": "workspace:*",
       },
       "devDependencies": {
-        "@narrate/testkit": "workspace:*",
+        "@usenarrator/testkit": "workspace:*",
       },
     },
   },
@@ -195,34 +195,6 @@
     "@biomejs/cli-win32-arm64": ["@biomejs/cli-win32-arm64@2.5.15", "", { "os": "win32", "cpu": "arm64" }, "sha512-2kPKzhNlm8C+Ru3GcO0Me2ODkCBLrVOUNuyi84RJyWDVKAA4+Kjj3jMjL938lF6BRfvltC4vB2nPY9SvN51Ovg=="],
 
     "@biomejs/cli-win32-x64": ["@biomejs/cli-win32-x64@2.5.15", "", { "os": "win32", "cpu": "x64" }, "sha512-yAzh4UqEImV6Hcy0zjUqNfJAsUhoD64FBQCdTG8Md/Z2wQeVP/ZmJ3XRYAs1g8J9fjTFyl2fCtc5FB5til47+g=="],
-
-    "@narrate/cli": ["@narrate/cli@workspace:apps/cli"],
-
-    "@narrate/core": ["@narrate/core@workspace:packages/core"],
-
-    "@narrate/example-autumn": ["@narrate/example-autumn@workspace:examples/autumn"],
-
-    "@narrate/extension": ["@narrate/extension@workspace:apps/extension"],
-
-    "@narrate/lang-ts": ["@narrate/lang-ts@workspace:packages/lang-ts"],
-
-    "@narrate/locale-en": ["@narrate/locale-en@workspace:packages/locale-en"],
-
-    "@narrate/plugin-better-auth": ["@narrate/plugin-better-auth@workspace:plugins/better-auth"],
-
-    "@narrate/plugin-decimal": ["@narrate/plugin-decimal@workspace:plugins/decimal"],
-
-    "@narrate/plugin-drizzle": ["@narrate/plugin-drizzle@workspace:plugins/drizzle"],
-
-    "@narrate/plugin-effect": ["@narrate/plugin-effect@workspace:plugins/effect"],
-
-    "@narrate/plugin-testing": ["@narrate/plugin-testing@workspace:plugins/testing"],
-
-    "@narrate/plugin-zod": ["@narrate/plugin-zod@workspace:plugins/zod"],
-
-    "@narrate/testkit": ["@narrate/testkit@workspace:packages/testkit"],
-
-    "@narrate/viewer": ["@narrate/viewer@workspace:apps/viewer"],
 
     "@oxc-parser/binding-android-arm-eabi": ["@oxc-parser/binding-android-arm-eabi@0.153.0", "", { "os": "android", "cpu": "arm" }, "sha512-BcWu25dMwMjHpaDCEidmpAi7rGg1qZoihJeUUH9bD55pVZ0z4Wa5CQgqSTo0R41H81oozisQKW3WqvAN2m77IQ=="],
 
@@ -268,7 +240,7 @@
 
     "@types/bun": ["@types/bun@1.4.2", "", { "dependencies": { "bun-types": "1.4.2" } }, "sha512-GimotNn7+ZV0uVArItBbriZsR1oNf0+WTzPkdcFrzShI7k2norL0uzEaJT8T33dWr7O/c9ZDuAFQrctKCi72oQ=="],
 
-    "@types/chrome": ["@types/chrome@0.3.4", "", { "dependencies": { "@types/filesystem": "*", "@types/har-format": "*" } }, "sha512-dcySM5R3WAUVYFjylu6tvI4D03hPKjgAqk+tKZ/tm/vxL4mLgbnSsOEQ3J7V99qP/U3Oo9IORstJLmX2hPaDlA=="],
+    "@types/chrome": ["@types/chrome@0.3.5", "", { "dependencies": { "@types/filesystem": "*", "@types/har-format": "*" } }, "sha512-7HYsK7xalNxzLwGrP9lkCQPAA6V56VtPpOmv2CQnBnMzX5/Hpr+Iv5fqaIOIY/H/Q6ZBksLmurWh7zXPcZ4B7Q=="],
 
     "@types/filesystem": ["@types/filesystem@0.0.36", "", { "dependencies": { "@types/filewriter": "*" } }, "sha512-vPDXOZuannb9FZdxgHnqSwAG/jvdGM8Wq+6N4D/d80z+D4HWH+bItqsZaVRQykAn6WEVeEkLm2oQigyHtgb0RA=="],
 
@@ -276,7 +248,35 @@
 
     "@types/har-format": ["@types/har-format@1.2.16", "", {}, "sha512-fluxdy7ryD3MV6h8pTfTYpy/xQzCFC7m89nOH9y94cNqJ1mDIDPut7MnRHI3F6qRmh/cT2fUjG1MLdCNb4hE9A=="],
 
-    "@types/node": ["@types/node@26.6.4", "", { "dependencies": { "undici-types": "~8.9.0" } }, "sha512-ldVPDCzj7fsaGZrLB0NuHuTvJcsNasysBAqMolr/cgxrLd1xbqxIr3XJiPnHHJUCxj5sNF1vnRj9aWnrVh5Jcg=="],
+    "@types/node": ["@types/node@26.6.5", "", { "dependencies": { "undici-types": "~8.9.0" } }, "sha512-uMzsv9stDdofIZBx4UGh4Z9ZgXnGC9seRDscilBcTHAeOFk67MZg/k9bWVfO+bk4qZmG+l52hRnLwUiH2LnJTg=="],
+
+    "@usenarrator/cli": ["@usenarrator/cli@workspace:apps/cli"],
+
+    "@usenarrator/core": ["@usenarrator/core@workspace:packages/core"],
+
+    "@usenarrator/example-autumn": ["@usenarrator/example-autumn@workspace:examples/autumn"],
+
+    "@usenarrator/extension": ["@usenarrator/extension@workspace:apps/extension"],
+
+    "@usenarrator/lang-ts": ["@usenarrator/lang-ts@workspace:packages/lang-ts"],
+
+    "@usenarrator/locale-en": ["@usenarrator/locale-en@workspace:packages/locale-en"],
+
+    "@usenarrator/plugin-better-auth": ["@usenarrator/plugin-better-auth@workspace:plugins/better-auth"],
+
+    "@usenarrator/plugin-decimal": ["@usenarrator/plugin-decimal@workspace:plugins/decimal"],
+
+    "@usenarrator/plugin-drizzle": ["@usenarrator/plugin-drizzle@workspace:plugins/drizzle"],
+
+    "@usenarrator/plugin-effect": ["@usenarrator/plugin-effect@workspace:plugins/effect"],
+
+    "@usenarrator/plugin-testing": ["@usenarrator/plugin-testing@workspace:plugins/testing"],
+
+    "@usenarrator/plugin-zod": ["@usenarrator/plugin-zod@workspace:plugins/zod"],
+
+    "@usenarrator/testkit": ["@usenarrator/testkit@workspace:packages/testkit"],
+
+    "@usenarrator/viewer": ["@usenarrator/viewer@workspace:apps/viewer"],
 
     "bun-types": ["bun-types@1.4.2", "", { "dependencies": { "@types/node": "*" } }, "sha512-bxV1FgK7yBIzjRe5zBozIM4Bem11ZJcCXSrjWRG3YWLt8yFDePu4cLjpebO8OvPeIE9trbyPF4fuj3Cia4Fj3w=="],
 

@@ -1,4 +1,4 @@
-import { plain } from "@narrate/core";
+import { plain } from "@usenarrator/core";
 import type { EffectPhrases } from "./phrases";
 
 const count = (n: string, noun: string) => (plain(n) === "1" ? noun : `${noun}s`);

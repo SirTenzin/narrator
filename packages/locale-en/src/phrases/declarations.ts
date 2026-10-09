@@ -1,4 +1,4 @@
-import type { DeclarationPhrases } from "@narrate/core";
+import type { DeclarationPhrases } from "@usenarrator/core";
 
 export const declarations: DeclarationPhrases = {
 	names: { defaultExport: "default export", anonymous: "anonymous", anonymousClass: "anonymous class" },

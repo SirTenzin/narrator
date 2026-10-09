@@ -1,4 +1,4 @@
-import { D, type Doc, mk } from "@narrate/core";
+import { D, type Doc, mk } from "@usenarrator/core";
 import { type Engine, type N, unwrap } from "../engine";
 import type { StdPhrases } from "./phrases";
 

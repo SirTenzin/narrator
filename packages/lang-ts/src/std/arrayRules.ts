@@ -1,4 +1,4 @@
-import { D, type Doc, mk, plain } from "@narrate/core";
+import { D, type Doc, mk, plain } from "@usenarrator/core";
 import { type Engine, type N, unwrap } from "../engine";
 import type { CallRule } from "../plugin";
 import { block, isFn, itemName, lambdaBlock, lambdaCond, lambdaNoun, pluckedListProp, pluckedProp, propPlural } from "./lambdas";

@@ -1,5 +1,5 @@
-import { D, type Doc, vlen } from "@narrate/core";
-import { type N, unwrap } from "@narrate/lang-ts";
+import { D, type Doc, vlen } from "@usenarrator/core";
+import { type N, unwrap } from "@usenarrator/lang-ts";
 import { type Ctx, chainOf, condition, hasSqlValues, isDb, items, keyName, listDoc, type Step, val } from "./shared";
 
 /** Outermost methods the plugin always claimed; their chains keep the original receiver check and trailing colon. */

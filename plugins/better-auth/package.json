@@ -1,5 +1,5 @@
 {
-	"name": "@narrate/plugin-better-auth",
+	"name": "@usenarrator/plugin-better-auth",
 	"version": "0.0.0",
 	"private": true,
 	"description": "TS plugin: Better Auth (server config, auth.api, client, hooks, plugins).",
@@ -8,10 +8,10 @@
 		".": "./src/index.ts"
 	},
 	"dependencies": {
-		"@narrate/core": "workspace:*",
-		"@narrate/lang-ts": "workspace:*"
+		"@usenarrator/core": "workspace:*",
+		"@usenarrator/lang-ts": "workspace:*"
 	},
 	"devDependencies": {
-		"@narrate/testkit": "workspace:*"
+		"@usenarrator/testkit": "workspace:*"
 	}
 }

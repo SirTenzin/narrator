@@ -1,4 +1,4 @@
-import type { CallPhrases } from "@narrate/core";
+import type { CallPhrases } from "@usenarrator/core";
 import { grammar, sp } from "../grammar";
 
 const ownerOf = (object: string | null) => (object !== null ? `${grammar.possessive(object)} ` : "");

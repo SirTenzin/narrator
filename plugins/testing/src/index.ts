@@ -1,5 +1,5 @@
-import { D, type Doc } from "@narrate/core";
-import { type CallRule, definePlugin, type Engine, type N, type TsPlugin, unwrap } from "@narrate/lang-ts";
+import { D, type Doc } from "@usenarrator/core";
+import { type CallRule, definePlugin, type Engine, type N, type TsPlugin, unwrap } from "@usenarrator/lang-ts";
 import { en } from "./en";
 import type { TestingPhrases } from "./phrases";
 

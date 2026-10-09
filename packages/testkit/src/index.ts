@@ -1,7 +1,7 @@
-import { createNarrator, type Locale, renderText } from "@narrate/core";
-import { type TsPlugin, typescript } from "@narrate/lang-ts";
-import { oxcParser } from "@narrate/lang-ts/oxc";
-import { en } from "@narrate/locale-en";
+import { createNarrator, type Locale, renderText } from "@usenarrator/core";
+import { type TsPlugin, typescript } from "@usenarrator/lang-ts";
+import { oxcParser } from "@usenarrator/lang-ts/oxc";
+import { en } from "@usenarrator/locale-en";
 
 export type SnippetOptions = { plugins?: (TsPlugin | TsPlugin[])[]; locale?: Locale; path?: string };
 

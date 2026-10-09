@@ -1,5 +1,5 @@
 {
-	"name": "@narrate/cli",
+	"name": "@usenarrator/cli",
 	"version": "0.0.0",
 	"private": true,
 	"type": "module",
@@ -10,14 +10,14 @@
 		".": "./narrate.ts"
 	},
 	"dependencies": {
-		"@narrate/core": "workspace:*",
-		"@narrate/lang-ts": "workspace:*",
-		"@narrate/locale-en": "workspace:*",
-		"@narrate/plugin-zod": "workspace:*",
-		"@narrate/plugin-testing": "workspace:*",
-		"@narrate/example-autumn": "workspace:*",
-		"@narrate/plugin-effect": "workspace:*",
-		"@narrate/plugin-better-auth": "workspace:*",
-		"@narrate/plugin-drizzle": "workspace:*"
+		"@usenarrator/core": "workspace:*",
+		"@usenarrator/lang-ts": "workspace:*",
+		"@usenarrator/locale-en": "workspace:*",
+		"@usenarrator/plugin-zod": "workspace:*",
+		"@usenarrator/plugin-testing": "workspace:*",
+		"@usenarrator/example-autumn": "workspace:*",
+		"@usenarrator/plugin-effect": "workspace:*",
+		"@usenarrator/plugin-better-auth": "workspace:*",
+		"@usenarrator/plugin-drizzle": "workspace:*"
 	}
 }

@@ -1,5 +1,5 @@
-import { D, type Doc, plain, vlen } from "@narrate/core";
-import { type N, unwrap } from "@narrate/lang-ts";
+import { D, type Doc, plain, vlen } from "@usenarrator/core";
+import { type N, unwrap } from "@usenarrator/lang-ts";
 import { compareOp } from "./operators";
 import { type Ctx, condition, entryDoc, fnResult, isDb, isFn, items, keyName, listDoc, literalString, val } from "./shared";
 

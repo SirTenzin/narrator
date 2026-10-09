@@ -1,5 +1,5 @@
 {
-	"name": "@narrate/lang-ts",
+	"name": "@usenarrator/lang-ts",
 	"version": "0.0.0",
 	"private": true,
 	"description": "TS/JS source language: AST walker, plugin API, standard-library rules.",
@@ -10,7 +10,7 @@
 		"./wasm": "./src/wasm.ts"
 	},
 	"dependencies": {
-		"@narrate/core": "workspace:*",
+		"@usenarrator/core": "workspace:*",
 		"oxc-parser": "^0.153.0"
 	},
 	"peerDependencies": {

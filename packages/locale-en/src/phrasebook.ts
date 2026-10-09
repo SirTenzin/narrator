@@ -1,4 +1,4 @@
-import type { CorePhrases } from "@narrate/core";
+import type { CorePhrases } from "@usenarrator/core";
 import { calls } from "./phrases/calls";
 import { conditions } from "./phrases/conditions";
 import { declarations } from "./phrases/declarations";

@@ -1,5 +1,5 @@
-import { D, type Doc, mk, plain } from "@narrate/core";
-import { type N, unwrap } from "@narrate/lang-ts";
+import { D, type Doc, mk, plain } from "@usenarrator/core";
+import { type N, unwrap } from "@usenarrator/lang-ts";
 import type { DrizzlePhrases } from "./phrases";
 import { queryDoc } from "./query";
 import { type Ctx, calleeName, condition, isSqlTemplate, listDoc, literalString, sqlCode, sqlFragment, val } from "./shared";

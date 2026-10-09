@@ -363,7 +363,7 @@ export interface CorePhrases {
 	types: TypePhrases;
 }
 
-/** An output (human) language. Add one by implementing this interface; see `@narrate/locale-en`. */
+/** An output (human) language. Add one by implementing this interface; see `@usenarrator/locale-en`. */
 export interface Locale {
 	/** BCP 47 tag, e.g. "en", "es", "pt-BR". Plugins look up their own phrasebooks by this id. */
 	id: string;

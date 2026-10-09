@@ -1,4 +1,4 @@
-import { type Line, mk } from "@narrate/core";
+import { type Line, mk } from "@usenarrator/core";
 import { type Engine, type N, unwrap } from "./engine";
 
 type Comment = { type: string; value: string; start: number; end: number };

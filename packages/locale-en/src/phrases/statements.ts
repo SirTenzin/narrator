@@ -1,4 +1,4 @@
-import type { StatementPhrases } from "@narrate/core";
+import type { StatementPhrases } from "@usenarrator/core";
 
 export const statements: StatementPhrases = {
 	comment: ({ text }) => `“${text}”`,

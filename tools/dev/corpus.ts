@@ -1,4 +1,4 @@
-import type { ChangedFile } from "@narrate/core";
+import type { ChangedFile } from "@usenarrator/core";
 import { $, Glob } from "bun";
 
 export const AUTUMN = process.env.AUTUMN_ROOT ?? "/workspace/autumn";

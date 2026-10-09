@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { narrate } from "@narrate/testkit";
+import { narrate } from "@usenarrator/testkit";
 
 test("arithmetic with a fallback operand", () => {
 	expect(narrate("const total = price * quantity + (discount ?? 0);")).toBe("Let total be price times quantity plus discount (or 0 if that's missing).");

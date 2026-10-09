@@ -1,5 +1,5 @@
-import { D } from "@narrate/core";
-import { type N, unwrap } from "@narrate/lang-ts";
+import { D } from "@usenarrator/core";
+import { type N, unwrap } from "@usenarrator/lang-ts";
 import { type Ctx, callbackStep, concurrency, duration, isFn, make, noun, type OpTable, step, stepIf } from "../context";
 import type { EffectPhrases } from "../phrases";
 import { predicate } from "./effect";

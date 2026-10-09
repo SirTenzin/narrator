@@ -1,4 +1,4 @@
-import type { ExpressionPhrases } from "@narrate/core";
+import type { ExpressionPhrases } from "@usenarrator/core";
 import { grammar, possessiveChain } from "../grammar";
 
 export const expressions: ExpressionPhrases = {

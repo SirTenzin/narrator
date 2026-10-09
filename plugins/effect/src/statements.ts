@@ -1,5 +1,5 @@
-import { capFirst, D, type Doc } from "@narrate/core";
-import { type N, unwrap } from "@narrate/lang-ts";
+import { capFirst, D, type Doc } from "@usenarrator/core";
+import { type N, unwrap } from "@usenarrator/lang-ts";
 import { act, type Ctx, calleeKey, curriedCall, isFn, isPascal, memberKey, noun, objProp } from "./context";
 import { afterLines, serviceName } from "./ops/effect";
 import { structFields } from "./ops/schema";

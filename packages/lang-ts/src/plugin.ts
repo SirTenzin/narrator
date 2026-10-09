@@ -1,4 +1,4 @@
-import type { Doc, Vocabulary } from "@narrate/core";
+import type { Doc, Vocabulary } from "@usenarrator/core";
 import type { Engine, N } from "./engine";
 
 type RuleResult = Doc | string | null | undefined;

@@ -1,5 +1,5 @@
-import { D, type Doc, type Line, mk, plain, vlen } from "@narrate/core";
-import { type Engine, type N, unwrap } from "@narrate/lang-ts";
+import { D, type Doc, type Line, mk, plain, vlen } from "@usenarrator/core";
+import { type Engine, type N, unwrap } from "@usenarrator/lang-ts";
 import type { BetterAuthPhrases } from "./phrases";
 
 type P = BetterAuthPhrases;

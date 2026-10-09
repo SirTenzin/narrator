@@ -1,12 +1,12 @@
-import { type ChangedFile, createNarrator, type Line, toHtml } from "@narrate/core";
-import { autumn } from "@narrate/example-autumn";
-import { type Engine, TypeExplainer, typeRefName, typescript, unwrap } from "@narrate/lang-ts";
-import { oxcParser as parseSync } from "@narrate/lang-ts/oxc";
-import { en } from "@narrate/locale-en";
-import { betterAuth } from "@narrate/plugin-better-auth";
-import { effect } from "@narrate/plugin-effect";
-import { testing } from "@narrate/plugin-testing";
-import { zod } from "@narrate/plugin-zod";
+import { type ChangedFile, createNarrator, type Line, toHtml } from "@usenarrator/core";
+import { autumn } from "@usenarrator/example-autumn";
+import { type Engine, TypeExplainer, typeRefName, typescript, unwrap } from "@usenarrator/lang-ts";
+import { oxcParser as parseSync } from "@usenarrator/lang-ts/oxc";
+import { en } from "@usenarrator/locale-en";
+import { betterAuth } from "@usenarrator/plugin-better-auth";
+import { effect } from "@usenarrator/plugin-effect";
+import { testing } from "@usenarrator/plugin-testing";
+import { zod } from "@usenarrator/plugin-zod";
 import { Glob } from "bun";
 
 /** Teaches the engine a called function's declared return type by following it across files. */

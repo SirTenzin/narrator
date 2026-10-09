@@ -1,5 +1,5 @@
-import { narrator } from "@narrate/cli";
-import { renderText } from "@narrate/core";
+import { narrator } from "@usenarrator/cli";
+import { renderText } from "@usenarrator/core";
 import { corpusFiles } from "./corpus";
 
 const root = process.argv[2] ?? "/workspace/autumn";

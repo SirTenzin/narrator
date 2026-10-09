@@ -1,4 +1,4 @@
-import { type ConditionPhrases, plain } from "@narrate/core";
+import { type ConditionPhrases, plain } from "@usenarrator/core";
 import { grammar } from "../grammar";
 
 const missingOrSet = (neg: boolean) => (neg ? "is missing" : "is set");

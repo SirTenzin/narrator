@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { en } from "@narrate/locale-en";
-import { narrate, narrateWithStats, phrasebookGaps } from "@narrate/testkit";
+import { en } from "@usenarrator/locale-en";
+import { narrate, narrateWithStats, phrasebookGaps } from "@usenarrator/testkit";
 import { stdEn } from "..";
 
 const reads = (code: string, text: string) => {

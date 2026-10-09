@@ -1,5 +1,5 @@
-import { D } from "@narrate/core";
-import { type CallRule, type CondRule, definePlugin, type N, type TsPlugin, unwrap } from "@narrate/lang-ts";
+import { D } from "@usenarrator/core";
+import { type CallRule, type CondRule, definePlugin, type N, type TsPlugin, unwrap } from "@usenarrator/lang-ts";
 import { en } from "./en";
 import type { DecimalPhrases } from "./phrases";
 

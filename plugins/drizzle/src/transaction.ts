@@ -1,5 +1,5 @@
-import { D, type Doc, type Line } from "@narrate/core";
-import { type N, unwrap } from "@narrate/lang-ts";
+import { D, type Doc, type Line } from "@usenarrator/core";
+import { type N, unwrap } from "@usenarrator/lang-ts";
 import { queryDoc } from "./query";
 import { type Ctx, condition, entryDoc, isDb, isFn, isTx, keyName, literalString, val } from "./shared";
 

@@ -1,5 +1,5 @@
-import { D } from "@narrate/core";
-import { type N, unwrap } from "@narrate/lang-ts";
+import { D } from "@usenarrator/core";
+import { type N, unwrap } from "@usenarrator/lang-ts";
 import { type Ctx, calleeKey, duration, make, memberKey, type OpTable } from "../context";
 
 const pred = (c: Ctx, fn: N) => {

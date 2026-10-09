@@ -1,5 +1,5 @@
 // Parity check against the pre-SDK baseline. `bun tools/dev/golden.ts` compares; `--write` re-snapshots.
-import { narrator } from "@narrate/cli";
+import { narrator } from "@usenarrator/cli";
 import { AUTUMN, commitFiles, corpusFiles, GOLDEN, TEST_COMMITS } from "./corpus";
 
 const write = process.argv.includes("--write");
