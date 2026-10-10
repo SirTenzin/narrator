@@ -1,34 +1,26 @@
 @import url("https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500&display=swap");
 
 :root {
-	--nr-ink: #1b1a17;
-	--nr-paper: #fbf8f2;
-	--nr-card: #ffffff;
-	--nr-line: rgba(27, 26, 23, 0.1);
-	--nr-muted: #6b665c;
-	--nr-accent: #c2410c;
-	--nr-accent-soft: rgba(194, 65, 12, 0.09);
-	--nr-code-bg: #1c1a17;
-	--nr-code-ink: #e9e4d8;
-	--nr-english-bg: #fffdf8;
+	--nr-fg: #0a0a0a;
+	--nr-muted: #666666;
+	--nr-border: #eaeaea;
+	--nr-panel: #ffffff;
+	--nr-subtle: #fafafa;
+	--nr-hover: #f2f2f2;
+	--nr-accent: #2f5fd0;
 	--nr-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
-	--nr-serif: "Newsreader", Georgia, serif;
+	--content-width: 46rem;
 }
 
 html.dark {
-	--nr-ink: #f3eee3;
-	--nr-paper: #121110;
-	--nr-card: #1a1917;
-	--nr-line: rgba(243, 238, 227, 0.1);
-	--nr-muted: #a39d90;
-	--nr-accent: #fb8a4c;
-	--nr-accent-soft: rgba(251, 138, 76, 0.12);
-	--nr-code-bg: #0c0b0a;
-	--nr-code-ink: #e9e4d8;
-	--nr-english-bg: #1a1917;
+	--nr-fg: #ededed;
+	--nr-muted: #a1a1a1;
+	--nr-border: #262626;
+	--nr-panel: #0a0a0a;
+	--nr-subtle: #111111;
+	--nr-hover: #1a1a1a;
+	--nr-accent: #7ea2f5;
 }
-
-/* ---------- typography ---------- */
 
 code,
 pre,
@@ -40,133 +32,102 @@ kbd {
 .prose h1,
 .prose h2,
 .prose h3 {
-	letter-spacing: -0.012em;
-}
-
-#page-title {
-	font-size: 2.6rem;
-	line-height: 1.1;
+	letter-spacing: -0.025em;
+	font-weight: 600;
 }
 
 .prose h2 {
-	font-size: 1.65rem;
+	font-size: 1.375rem;
 }
 
-.prose :not(pre) > code {
-	border-radius: 6px;
-	padding: 0.1em 0.35em;
-	font-size: 0.86em;
+.prose h3 {
+	font-size: 1.125rem;
 }
 
-/* Section eyebrow reads like a small-caps chapter label. */
-.eyebrow {
-	text-transform: uppercase;
-	letter-spacing: 0.12em;
-	font-size: 0.72rem !important;
+/* Narration output is prose, so it uses the body face rather than the code face. */
+code.language-text,
+code[language="text"] {
+	font-family: "Geist", ui-sans-serif, system-ui, sans-serif !important;
+	font-size: 0.9rem !important;
+	line-height: 1.75 !important;
+	white-space: pre-wrap !important;
+}
+
+/* The landing page has its own hero, so the default page header is hidden there. */
+html[data-current-path="/"] #header {
+	display: none;
 }
 
 /* ---------- hero ---------- */
 
 .nr-hero {
-	position: relative;
-	padding: 2.5rem 0 1.5rem;
-}
-
-.nr-kicker {
-	display: inline-flex;
-	align-items: center;
-	gap: 0.5rem;
-	font-family: var(--nr-mono);
-	font-size: 0.78rem;
-	color: var(--nr-muted);
-	border: 1px solid var(--nr-line);
-	border-radius: 999px;
-	padding: 0.25rem 0.75rem;
-	background: var(--nr-card);
-}
-
-.nr-kicker b {
-	color: var(--nr-accent);
-	font-weight: 500;
+	padding: 0.5rem 0 2.25rem;
 }
 
 .nr-hero h1 {
-	font-family: var(--nr-serif);
-	font-weight: 500;
-	font-size: clamp(2.4rem, 5vw, 3.7rem);
-	line-height: 1.04;
-	letter-spacing: -0.025em;
-	color: var(--nr-ink);
-	margin: 1.1rem 0 1rem;
-	max-width: 17ch;
-}
-
-.nr-hero h1 em {
-	color: var(--nr-accent);
-	font-style: italic;
+	font-size: clamp(2rem, 4vw, 2.75rem);
+	font-weight: 600;
+	letter-spacing: -0.04em;
+	line-height: 1.1;
+	color: var(--nr-fg);
+	margin: 0 0 0.85rem;
 }
 
 .nr-hero p {
-	font-size: 1.15rem;
+	font-size: 1.125rem;
 	line-height: 1.6;
 	color: var(--nr-muted);
-	max-width: 40rem;
+	max-width: 36rem;
 	margin: 0;
 }
 
 .nr-cta {
 	display: flex;
 	flex-wrap: wrap;
-	gap: 0.75rem;
+	gap: 0.625rem;
 	margin-top: 1.75rem;
 }
 
 .nr-btn {
 	display: inline-flex;
 	align-items: center;
-	gap: 0.4rem;
-	border-radius: 10px;
-	padding: 0.6rem 1.05rem;
+	height: 2.375rem;
+	padding: 0 1rem;
+	border-radius: 6px;
+	font-size: 0.875rem;
 	font-weight: 500;
-	font-size: 0.95rem;
-	border: 1px solid var(--nr-line);
-	color: var(--nr-ink) !important;
-	background: var(--nr-card);
+	border: 1px solid var(--nr-border);
+	color: var(--nr-fg) !important;
+	background: var(--nr-panel);
 	text-decoration: none !important;
 	transition:
-		transform 0.15s ease,
+		background 0.15s ease,
 		border-color 0.15s ease;
 }
 
 .nr-btn:hover {
-	transform: translateY(-1px);
-	border-color: var(--nr-accent);
+	background: var(--nr-hover);
 }
 
 .nr-btn-primary {
-	background: var(--nr-ink);
-	color: var(--nr-paper) !important;
-	border-color: var(--nr-ink);
+	background: var(--nr-fg);
+	border-color: var(--nr-fg);
+	color: var(--nr-panel) !important;
 }
 
-.nr-install {
-	font-family: var(--nr-mono);
-	font-size: 0.85rem;
-	color: var(--nr-muted);
-	align-self: center;
+.nr-btn-primary:hover {
+	background: var(--nr-fg);
+	opacity: 0.88;
 }
 
-/* ---------- showcase: code on the left, English on the right ---------- */
+/* ---------- showcase: code | English ---------- */
 
 .nr-showcase {
-	margin: 1.5rem 0 2.5rem;
-	border: 1px solid var(--nr-line);
-	border-radius: 18px;
+	margin: 0.5rem 0 3rem;
+	border: 1px solid var(--nr-border);
+	border-radius: 8px;
 	overflow: hidden;
-	background: var(--nr-card);
-	box-shadow:
-		0 1px 0 var(--nr-line),
-		0 24px 48px -28px rgba(27, 26, 23, 0.35);
+	background: var(--nr-panel);
 }
 
 .nr-showcase-bar {
@@ -174,46 +135,45 @@ kbd {
 	align-items: center;
 	justify-content: space-between;
 	gap: 1rem;
-	padding: 0.6rem 0.75rem;
-	border-bottom: 1px solid var(--nr-line);
-	overflow-x: auto;
+	padding: 0 0.75rem;
+	height: 2.75rem;
+	border-bottom: 1px solid var(--nr-border);
+	background: var(--nr-subtle);
 }
 
 .nr-tabs {
 	display: flex;
-	gap: 0.25rem;
+	gap: 0.125rem;
 }
 
 .nr-tab {
-	font-size: 0.85rem;
+	font-size: 0.8125rem;
 	font-weight: 500;
-	padding: 0.35rem 0.75rem;
-	border-radius: 8px;
+	padding: 0.3rem 0.65rem;
+	border-radius: 6px;
 	color: var(--nr-muted);
-	white-space: nowrap;
 	cursor: pointer;
 }
 
 .nr-tab:hover {
-	color: var(--nr-ink);
+	color: var(--nr-fg);
 }
 
 .nr-tab-on {
-	color: var(--nr-ink);
-	background: var(--nr-accent-soft);
-	box-shadow: inset 0 0 0 1px var(--nr-line);
+	color: var(--nr-fg);
+	background: var(--nr-panel);
+	box-shadow: 0 0 0 1px var(--nr-border);
 }
 
 .nr-file {
 	font-family: var(--nr-mono);
 	font-size: 0.75rem;
 	color: var(--nr-muted);
-	white-space: nowrap;
 }
 
 .nr-panes {
 	display: grid;
-	grid-template-columns: minmax(0, 1.12fr) minmax(0, 1fr);
+	grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
 }
 
 @media (max-width: 900px) {
@@ -222,184 +182,205 @@ kbd {
 	}
 }
 
+.nr-pane-label {
+	font-size: 0.6875rem;
+	font-weight: 500;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	color: var(--nr-muted);
+	padding: 0.85rem 1rem 0.35rem;
+}
+
 .nr-code {
 	margin: 0 !important;
-	padding: 1rem 0 !important;
+	padding: 0 0 1rem !important;
 	border-radius: 0 !important;
-	background: var(--nr-code-bg) !important;
-	color: var(--nr-code-ink);
-	font-size: 0.76rem;
-	line-height: 1.7;
+	background: transparent !important;
+	font-size: 0.75rem;
+	line-height: 1.85;
 	overflow-x: auto;
+	color: var(--nr-fg);
+}
+
+.nr-english {
+	padding: 0 0 1rem;
+	border-left: 1px solid var(--nr-border);
+	font-size: 0.875rem;
+	line-height: 1.75;
+	color: var(--nr-fg);
+}
+
+@media (max-width: 900px) {
+	.nr-english {
+		border-left: 0;
+		border-top: 1px solid var(--nr-border);
+	}
+}
+
+.nr-cl,
+.nr-el {
+	transition: background 0.1s ease;
 }
 
 .nr-cl {
 	display: flex;
-	padding-right: 1rem;
 	white-space: pre;
-	border-left: 2px solid transparent;
+	padding-right: 1rem;
 }
 
 .nr-ln {
-	width: 2.6rem;
+	width: 2.5rem;
 	flex: none;
 	text-align: right;
 	padding-right: 1rem;
-	color: rgba(233, 228, 216, 0.28);
+	color: var(--nr-muted);
+	opacity: 0.55;
 	user-select: none;
 }
 
-.nr-cl.nr-lit {
-	background: rgba(251, 138, 76, 0.12);
-	border-left-color: #fb8a4c;
-}
-
-.nr-kw {
-	color: #f0a679;
-}
-.nr-st {
-	color: #a8d5a2;
-}
-.nr-nu {
-	color: #e6c07b;
-}
-.nr-fn {
-	color: #9cc4ff;
-}
-.nr-ty {
-	color: #d7b3ff;
-}
-.nr-cm {
-	color: rgba(233, 228, 216, 0.45);
-	font-style: italic;
-}
-
-.nr-english {
-	background: var(--nr-english-bg);
-	padding: 0.9rem 0;
-	font-family: var(--nr-serif);
-	font-size: 1.04rem;
-	line-height: 1.55;
-	color: var(--nr-ink);
-	border-left: 1px solid var(--nr-line);
-}
-
 .nr-el {
-	padding: 0.12rem 1rem 0.12rem 0.9rem;
-	border-left: 2px solid transparent;
-	transition: background 0.12s ease;
+	padding: 0 1rem;
 }
 
 .nr-d1 {
-	padding-left: 2.05rem;
+	padding-left: 2.25rem;
 }
 .nr-d2 {
-	padding-left: 3.2rem;
+	padding-left: 3.5rem;
 }
 .nr-d3 {
-	padding-left: 4.35rem;
+	padding-left: 4.75rem;
 }
 .nr-d4 {
-	padding-left: 5.5rem;
+	padding-left: 6rem;
 }
 .nr-d5 {
-	padding-left: 6.65rem;
+	padding-left: 7.25rem;
 }
 
-.nr-el.nr-head {
-	font-weight: 600;
-}
-
-.nr-el.nr-lit {
-	background: var(--nr-accent-soft);
-	border-left-color: var(--nr-accent);
+.nr-lit {
+	background: var(--nr-hover);
 }
 
 .nr-gap {
-	height: 0.6rem;
+	height: 0.75rem;
 }
 
 .nr-m-v {
-	color: var(--nr-accent);
-}
-
-.nr-m-f {
-	font-weight: 600;
-	text-decoration: underline;
-	text-decoration-color: var(--nr-line);
-	text-underline-offset: 3px;
+	color: var(--nr-fg);
 }
 
 .nr-m-t {
 	color: var(--nr-muted);
-	font-size: 0.92em;
-}
-
-.nr-m-l {
-	white-space: nowrap;
-	font-family: var(--nr-mono);
-	font-size: 0.82em;
-	color: #2f7d4f;
-}
-
-html.dark .nr-m-l {
-	color: #a8d5a2;
 }
 
 .nr-m-c {
 	font-family: var(--nr-mono);
-	font-size: 0.82em;
+	font-size: 0.8125rem;
+}
+
+/* Matches the github-light-default and github-dark-default code themes. */
+.nr-kw {
+	color: #cf222e;
+}
+.nr-st {
+	color: #0a3069;
+}
+.nr-nu {
+	color: var(--nr-fg);
+}
+.nr-fn {
+	color: #8250df;
+}
+.nr-ty {
+	color: var(--nr-fg);
+}
+.nr-cm {
 	color: var(--nr-muted);
+}
+
+html.dark .nr-kw {
+	color: #ff7b72;
+}
+html.dark .nr-st {
+	color: #a5d6ff;
+}
+html.dark .nr-fn {
+	color: #d2a8ff;
 }
 
 .nr-caption {
-	font-size: 0.78rem;
+	font-size: 0.75rem;
 	color: var(--nr-muted);
-	padding: 0.55rem 1rem;
-	border-top: 1px solid var(--nr-line);
+	padding: 0.6rem 1rem;
+	border-top: 1px solid var(--nr-border);
+	background: var(--nr-subtle);
 }
-
-/* ---------- small pieces used across pages ---------- */
 
 .nr-pill {
 	display: inline-block;
 	font-family: var(--nr-mono);
-	font-size: 0.72rem;
+	font-size: 0.75rem;
 	padding: 0.1rem 0.5rem;
-	border-radius: 999px;
-	border: 1px solid var(--nr-line);
+	border-radius: 6px;
+	border: 1px solid var(--nr-border);
 	color: var(--nr-muted);
 }
 
-[data-component-part="card-icon"] {
-	color: var(--nr-accent) !important;
+/* ---------- chrome: keep it grayscale, accent only where it signals state ---------- */
+
+#topbar-cta-button a,
+#topbar-cta-button button,
+#topbar-cta-button > *,
+#topbar-cta-button span {
+	background: var(--nr-fg) !important;
+	color: var(--nr-panel) !important;
+	border-radius: 6px !important;
 }
 
-/* The landing page carries its own hero, so hide the default page header there. */
-html[data-current-path="/"] #header {
-	display: none;
+#sidebar-content li[data-active] > a,
+#sidebar-content li[data-active] > div {
+	background: var(--nr-hover) !important;
+	color: var(--nr-fg) !important;
+	font-weight: 500;
+}
+
+.code-block,
+[data-component-part="card-content-container"],
+.card {
+	border-radius: 8px !important;
+}
+
+.card {
+	box-shadow: none !important;
+}
+
+[data-component-part="card-icon"],
+[data-component-part="card-icon"] svg {
+	color: var(--nr-muted) !important;
+}
+
+[data-component-part="card-icon"] svg {
+	background-color: var(--nr-muted) !important;
 }
 
 [data-component-part="card-title"] {
-	font-family: "Geist", ui-sans-serif, system-ui, sans-serif !important;
-	font-size: 1.02rem !important;
-	letter-spacing: 0;
+	font-size: 0.9375rem !important;
+	font-weight: 600 !important;
+	letter-spacing: -0.01em;
 }
 
-:root {
-	--content-width: 44rem;
+[data-component-part="card-content"] {
+	font-size: 0.875rem;
+	color: var(--nr-muted);
 }
 
-/* Narration output reads as prose, so set it in the serif rather than the code face. */
-code.language-text,
-code[language="text"] {
-	font-family: var(--nr-serif) !important;
-	font-size: 1.02rem !important;
-	line-height: 1.6 !important;
-	font-weight: 400 !important;
+/* The landing page is wide for the showcase; keep its prose at a readable measure. */
+html[data-current-path="/"] .prose > p {
+	max-width: 44rem;
 }
 
-code.language-text span,
-code[language="text"] span {
-	font-weight: 400 !important;
+html.dark pre.shiki,
+html.dark .code-block pre {
+	background-color: #0f0f0f !important;
 }

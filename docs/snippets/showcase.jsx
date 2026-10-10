@@ -28,22 +28,26 @@ export const Showcase = ({ examples }) => {
 				<span className="nr-file">{ex.file}</span>
 			</div>
 			<div className="nr-panes" onMouseLeave={() => setHover(null)}>
-				<pre className="nr-code" aria-label="Source code">
-					{ex.code.map((segs, i) => (
-						<div key={i} className={codeLit(i + 1) ? "nr-cl nr-lit" : "nr-cl"} onMouseEnter={() => setHover({ side: "code", n: i + 1 })}>
-							<span className="nr-ln">{i + 1}</span>
-							<span>
-								{segs.map(([k, t], j) => (
-									<span key={j} className={k ? `nr-${k}` : undefined}>
-										{t}
-									</span>
-								))}
-								{segs.length === 0 ? " " : null}
-							</span>
-						</div>
-					))}
-				</pre>
+				<div>
+					<div className="nr-pane-label">Code</div>
+					<pre className="nr-code" aria-label="Source code">
+						{ex.code.map((segs, i) => (
+							<div key={i} className={codeLit(i + 1) ? "nr-cl nr-lit" : "nr-cl"} onMouseEnter={() => setHover({ side: "code", n: i + 1 })}>
+								<span className="nr-ln">{i + 1}</span>
+								<span>
+									{segs.map(([k, t], j) => (
+										<span key={j} className={k ? `nr-${k}` : undefined}>
+											{t}
+										</span>
+									))}
+									{segs.length === 0 ? " " : null}
+								</span>
+							</div>
+						))}
+					</pre>
+				</div>
 				<div className="nr-english" aria-label="Narration">
+					<div className="nr-pane-label">English</div>
 					{ex.english.map((l, i) =>
 						l === null ? (
 							<div key={i} className="nr-gap" />

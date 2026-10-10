@@ -1,12 +1,12 @@
 {
 	"$schema": "https://mintlify.com/docs.json",
-	"theme": "maple",
+	"theme": "aspen",
 	"name": "Narrator",
 	"description": "Turn TypeScript and JavaScript into plain English, deterministically. No LLM, runs in the browser.",
 	"colors": {
-		"primary": "#C2410C",
-		"light": "#FB8A4C",
-		"dark": "#C2410C"
+		"primary": "#3155C4",
+		"light": "#8DA8F0",
+		"dark": "#3155C4"
 	},
 	"logo": {
 		"light": "/logo/light.svg",
@@ -15,19 +15,12 @@
 	},
 	"favicon": "/favicon.svg",
 	"fonts": {
-		"heading": {
-			"family": "Newsreader",
-			"weight": 560
-		},
-		"body": {
-			"family": "Geist",
-			"weight": 400
-		}
+		"family": "Geist"
 	},
 	"background": {
 		"color": {
-			"light": "#FBF8F2",
-			"dark": "#121110"
+			"light": "#FFFFFF",
+			"dark": "#0A0A0A"
 		}
 	},
 	"appearance": {
@@ -40,8 +33,8 @@
 		"eyebrows": "section",
 		"codeblocks": {
 			"theme": {
-				"light": "github-light",
-				"dark": "vesper"
+				"light": "github-light-default",
+				"dark": "github-dark-default"
 			}
 		}
 	},
@@ -54,8 +47,8 @@
 		],
 		"primary": {
 			"type": "button",
-			"label": "Get the extension",
-			"href": "/guides/browser-extension"
+			"label": "Get started",
+			"href": "/getting-started"
 		}
 	},
 	"navigation": {
