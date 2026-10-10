@@ -70,7 +70,7 @@ This page takes you from nothing to narrating your own code and your own diffs. 
     ```text Output
     Let signup be a schema for an object with email and plan.
 
-    To count open seats — given team (Team):
+    To count open seats, given team (Team):
       If team's plan is "enterprise", give back infinity.
       Give back team's seat limit minus the number of team's members.
     ```
@@ -125,7 +125,7 @@ This page takes you from nothing to narrating your own code and your own diffs. 
 
     ```text Output
     To count open seats (modified, +3 -2)
-        To count open seats — given team (Team):
+        To count open seats, given team (Team):
       - If team's plan is "enterprise", give back infinity.
       + If team's plan is "enterprise" or team is trial, give back infinity.
       - Give back team's seat limit minus the number of team's members.

@@ -84,7 +84,7 @@ export const showcase = [
 				to: 9,
 				s: [
 					["f", "To renew"],
-					["", " — given "],
+					["", " (async), given "],
 					["v", "subscription"],
 					["", " "],
 					["t", "(Subscription)"],
@@ -92,7 +92,7 @@ export const showcase = [
 					["v", "now"],
 					["", " "],
 					["t", "(Date)"],
-					["", " (async):"],
+					["", ":"],
 				],
 			},
 			{
@@ -271,9 +271,9 @@ export const showcase = [
 				to: 8,
 				s: [
 					["f", "To find active users"],
-					["", " — given "],
+					["", " (async), given "],
 					["v", "org ID"],
-					["", " (async):"],
+					["", ":"],
 				],
 			},
 			{
@@ -665,9 +665,9 @@ export const showcase = [
 				s: [
 					["", "If "],
 					["v", "rows"],
-					["", " is empty, fail with a new "],
+					["", " is empty, fail with a "],
 					["f", "user not found"],
-					["", " ("],
+					["", " error ("],
 					["v", "ID"],
 					["", ": "],
 					["l", '"1"'],

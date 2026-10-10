@@ -64,7 +64,7 @@ export async function renewSubscription(sub: Subscription, now: Date) {
 ```
 
 ```text bun apps/cli/narrate.ts billing.ts --plain
-To renew subscription — given subscription (Subscription) and now (Date) (async):
+To renew subscription (async), given subscription (Subscription) and now (Date):
   If subscription's status is "canceled", stop here.
   Let plan be the first p in plans where p's ID is subscription's plan ID.
   If plan is missing, fail with a not found error: "Unknown plan".
