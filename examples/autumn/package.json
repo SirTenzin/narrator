@@ -1,16 +1,17 @@
 {
-	"name": "@usenarrator/example-autumn",
-	"version": "0.0.0",
-	"private": true,
-	"description": "Example codebase preset: Autumn's vocabulary and helpers.",
-	"type": "module",
-	"exports": {
-		".": "./src/index.ts"
-	},
-	"dependencies": {
-		"@usenarrator/core": "workspace:*",
-		"@usenarrator/lang-ts": "workspace:*",
-		"@usenarrator/plugin-drizzle": "workspace:*",
-		"@usenarrator/plugin-decimal": "workspace:*"
-	}
+  "name": "@usenarrator/example-autumn",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Example codebase preset: Autumn's vocabulary and helpers.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@usenarrator/core": "workspace:*",
+    "@usenarrator/lang-ts": "workspace:*",
+    "@usenarrator/plugin-drizzle": "workspace:*",
+    "@usenarrator/plugin-decimal": "workspace:*"
+  },
+  "sideEffects": false
 }

@@ -1,16 +1,17 @@
 {
-	"name": "@usenarrator/locale-en",
-	"version": "0.0.0",
-	"private": true,
-	"description": "English output locale.",
-	"type": "module",
-	"exports": {
-		".": "./src/index.ts"
-	},
-	"dependencies": {
-		"@usenarrator/core": "workspace:*"
-	},
-	"devDependencies": {
-		"@usenarrator/testkit": "workspace:*"
-	}
+  "name": "@usenarrator/locale-en",
+  "version": "0.0.0",
+  "private": true,
+  "description": "English output locale.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@usenarrator/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@usenarrator/testkit": "workspace:*"
+  },
+  "sideEffects": false
 }

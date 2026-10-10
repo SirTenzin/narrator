@@ -1,17 +1,18 @@
 {
-	"name": "@usenarrator/plugin-effect",
-	"version": "0.0.0",
-	"private": true,
-	"description": "TS plugin: Effect (v3 and v4).",
-	"type": "module",
-	"exports": {
-		".": "./src/index.ts"
-	},
-	"dependencies": {
-		"@usenarrator/core": "workspace:*",
-		"@usenarrator/lang-ts": "workspace:*"
-	},
-	"devDependencies": {
-		"@usenarrator/testkit": "workspace:*"
-	}
+  "name": "@usenarrator/plugin-effect",
+  "version": "0.0.0",
+  "private": true,
+  "description": "TS plugin: Effect (v3 and v4).",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@usenarrator/core": "workspace:*",
+    "@usenarrator/lang-ts": "workspace:*"
+  },
+  "devDependencies": {
+    "@usenarrator/testkit": "workspace:*"
+  },
+  "sideEffects": false
 }
