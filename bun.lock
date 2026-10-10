@@ -110,6 +110,18 @@
         "@usenarrator/locale-en": "workspace:*",
       },
     },
+    "plugins/ai-sdk": {
+      "name": "@usenarrator/plugin-ai-sdk",
+      "version": "0.0.0",
+      "dependencies": {
+        "@usenarrator/core": "workspace:*",
+        "@usenarrator/lang-ts": "workspace:*",
+      },
+      "devDependencies": {
+        "@usenarrator/plugin-zod": "workspace:*",
+        "@usenarrator/testkit": "workspace:*",
+      },
+    },
     "plugins/better-auth": {
       "name": "@usenarrator/plugin-better-auth",
       "version": "0.0.0",
@@ -261,6 +273,8 @@
     "@usenarrator/lang-ts": ["@usenarrator/lang-ts@workspace:packages/lang-ts"],
 
     "@usenarrator/locale-en": ["@usenarrator/locale-en@workspace:packages/locale-en"],
+
+    "@usenarrator/plugin-ai-sdk": ["@usenarrator/plugin-ai-sdk@workspace:plugins/ai-sdk"],
 
     "@usenarrator/plugin-better-auth": ["@usenarrator/plugin-better-auth@workspace:plugins/better-auth"],
 

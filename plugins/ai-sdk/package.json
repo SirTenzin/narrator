@@ -1,0 +1,20 @@
+{
+	"name": "@usenarrator/plugin-ai-sdk",
+	"version": "0.0.0",
+	"private": true,
+	"description": "TS plugin: Vercel AI SDK (model calls, tools, agents, providers, middleware, stream responses, UI hooks).",
+	"type": "module",
+	"sideEffects": false,
+	"exports": {
+		".": "./src/index.ts",
+		"./en": "./src/en.ts"
+	},
+	"dependencies": {
+		"@usenarrator/core": "workspace:*",
+		"@usenarrator/lang-ts": "workspace:*"
+	},
+	"devDependencies": {
+		"@usenarrator/plugin-zod": "workspace:*",
+		"@usenarrator/testkit": "workspace:*"
+	}
+}
