@@ -1,16 +1,35 @@
 import { capFirst, D, type Doc } from "@usenarrator/core";
 import { type N, unwrap } from "@usenarrator/lang-ts";
-import { act, type Ctx, calleeKey, delegate, endsTheProgram, FORKS, isFn, isPascal, memberKey, objProp, serviceName, yieldAction } from "./context";
+import {
+	act,
+	type Ctx,
+	calleeKey,
+	delegate,
+	endsTheProgram,
+	FORKS,
+	isFn,
+	isPascal,
+	isServiceTag,
+	layerNoun,
+	memberKey,
+	objProp,
+	serviceName,
+	strLit,
+	yieldAction,
+} from "./context";
 import { afterLines } from "./ops/effect";
 import { structFields } from "./ops/schema";
 
-/** v3 fibers, refs and deferreds are effects themselves, so a later `yield* x` waits on or reads them. */
+const QUEUES = new Set(["Queue.bounded", "Queue.unbounded", "Queue.dropping", "Queue.sliding", "PubSub.subscribe"]);
+
+/** v3 fibers, refs, deferreds and queues are effects themselves, so a later `yield* x` waits on or reads them. */
 function remember(c: Ctx, name: string, arg: N) {
 	if (c.version === 4) return;
 	const key = calleeKey(arg) ?? "";
 	if (FORKS.has(key)) c.state.fibers.add(name);
-	if (key === "Ref.make" || key === "SynchronizedRef.make") c.state.refs.add(name);
+	if (key === "Ref.make" || key === "SynchronizedRef.make" || key === "SubscriptionRef.make") c.state.refs.add(name);
 	if (key === "Deferred.make") c.state.deferreds.add(name);
+	if (QUEUES.has(key)) c.state.queues.add(name);
 }
 
 /** `const x = yield* X`, `yield* X;`, `return yield* X`: each reads as one step. */
@@ -37,7 +56,7 @@ export function yieldStatement(c: Ctx, n: N, d: number): boolean {
 	if (id.type === "Identifier") {
 		remember(c, id.name, arg);
 		const name = c.e.ref(id.name);
-		if (arg.type === "Identifier" && isPascal(arg) && !c.state.fibers.has(arg.name)) {
+		if ((arg.type === "Identifier" && isPascal(arg) && !c.state.fibers.has(arg.name)) || isServiceTag(arg)) {
 			c.e.emitDoc(d, D(y.bindService({ service: serviceName(c, arg), name })), n);
 			return true;
 		}
@@ -64,12 +83,22 @@ export function effectFnDeclaration(c: Ctx, n: N, d: number): boolean {
 	if (!curriedFn && !directFn) return false;
 	const [fn, ...pipes] = init.arguments;
 	if (!isFn(fn)) return false;
+	const at = c.e.lines.length;
 	c.e.fnDecl(decl.id.name, unwrap(fn), n, d);
+	const span = curriedFn ? strLit(inner.arguments[0]) : null;
+	if (span !== null && span !== decl.id.name)
+		c.e.lines.splice(at + 1, 0, {
+			d: d + 1,
+			text: `${c.say.span.fnSpan({ name: c.e.literal({ type: "Literal", value: span }) })}.`,
+			start: n.start,
+			end: n.end,
+			kind: "stmt",
+		});
 	for (const l of afterLines(c, pipes)) c.e.lines.push({ ...l, d: l.d + d + 1, start: n.start, end: n.end });
 	return true;
 }
 
-type ClassInfo = { heading: string; extra: Doc[]; error?: boolean };
+type ClassInfo = { heading: string; extra: Doc[] };
 
 /** Fields of a type literal like `<{ readonly id: string; note?: string }>`. */
 function typeFields(c: Ctx, t: N): string | null {
@@ -111,7 +140,8 @@ function serviceInfo(c: Ctx, name: string, shape: N | null, opts: N | null): Cla
 	}
 	const deps = objProp(opts, "dependencies");
 	if (deps && unwrap(deps).type === "ArrayExpression" && unwrap(deps).elements.length)
-		extra.push(D(s.needs({ deps: c.e.g.list(unwrap(deps).elements.map((x: N) => c.e.noun(x).t)) })));
+		extra.push(D(s.needs({ deps: c.e.g.list(unwrap(deps).elements.map((x: N) => layerNoun(c, x))) })));
+	if (unwrap(objProp(opts, "accessors"))?.value === true) extra.push(D(s.accessors({ name })));
 	return { heading, extra };
 }
 
@@ -125,7 +155,7 @@ function classInfo(c: Ctx, n: N): ClassInfo | null {
 	const dataLike = (key: string | null) => {
 		if (key === "Data.TaggedError" || key === "Data.Error") {
 			const f = typeFields(c, superArgs[0]);
-			return { heading: f ? d.errorTypeFields({ name, fields: f }) : d.errorType({ name }), extra: [], error: true };
+			return { heading: f ? d.errorTypeFields({ name, fields: f }) : d.errorType({ name }), extra: [] };
 		}
 		if (key === "Data.TaggedClass" || key === "Data.Class") {
 			const f = typeFields(c, superArgs[0]);
@@ -158,7 +188,7 @@ function classInfo(c: Ctx, n: N): ClassInfo | null {
 		case "Schema.TaggedError":
 		case "Schema.TaggedErrorClass": {
 			const f = fieldsFrom(sc.arguments[1]);
-			return { heading: f ? d.errorTypeFields({ name, fields: f }) : d.errorType({ name }), extra: [], error: true };
+			return { heading: f ? d.errorTypeFields({ name, fields: f }) : d.errorType({ name }), extra: [] };
 		}
 		case "Schema.Class":
 		case "Schema.TaggedClass": {

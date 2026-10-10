@@ -1,13 +1,32 @@
 import { D } from "@usenarrator/core";
 import { type CallRule, type CondRule, definePlugin, type Engine, type StmtRule, type TsPlugin, unwrap } from "@usenarrator/lang-ts";
-import { type Ctx, type FileState, type Mode, type Op, type OpTable, owns, pipeline, pipeStep, resetState, type Version, yieldAction } from "./context";
-import { normalize, YIELD_KEY } from "./normalize";
+import {
+	type Ctx,
+	type FileState,
+	isPascal,
+	isServiceTag,
+	type Mode,
+	type Op,
+	type OpTable,
+	owns,
+	pipeline,
+	pipeStep,
+	resetState,
+	serviceName,
+	type Version,
+	yieldAction,
+} from "./context";
 import { en } from "./en";
+import { normalize, YIELD_KEY } from "./normalize";
+import { configOps } from "./ops/config";
 import { dataConditions, dataOps } from "./ops/data";
 import { effectOps } from "./ops/effect";
 import { layerOps } from "./ops/layer";
+import { matchPipeline } from "./ops/match";
+import { observeOps } from "./ops/observe";
 import { scheduleHow, scheduleOps } from "./ops/schedule";
 import { schemaOps, schemaType } from "./ops/schema";
+import { stateOps } from "./ops/state";
 import { streamOps } from "./ops/stream";
 import type { EffectPhrases } from "./phrases";
 import { classStatement, effectFnDeclaration, useRule, yieldStatement } from "./statements";
@@ -36,13 +55,14 @@ function opsFor(version: Version, groups: Versioned[]): OpTable {
 /** Effect (effect.website), v3 and v4: generators read as steps, pipes as numbered steps. */
 export const effect = ({ version }: EffectOptions = {}): TsPlugin<EffectPhrases> => {
 	const v: Version = version ?? "auto";
-	const ops = opsFor(v, [effectOps, { shared: scheduleOps }, { shared: schemaOps }, dataOps, streamOps, layerOps]);
+	const ops = opsFor(v, [effectOps, { shared: scheduleOps }, { shared: schemaOps }, dataOps, streamOps, layerOps, stateOps, configOps, observeOps]);
 	const state: FileState = {
 		src: "\0",
 		importsEffect: false,
 		fibers: new Set(),
 		refs: new Set(),
 		deferreds: new Set(),
+		queues: new Set(),
 		currentClass: null,
 		effectNames: new Set(),
 		foreignNames: new Set(),
@@ -94,6 +114,8 @@ export const effect = ({ version }: EffectOptions = {}): TsPlugin<EffectPhrases>
 			if (sched) return D(say.schedule.noun({ how: sched }));
 			const schema = schemaType(c, node, true);
 			if (schema) return D(say.schema.of({ type: schema }));
+			const matched = matchPipeline(c, subject, stepsOf(args), stmt ? "act" : "noun");
+			if (matched) return matched;
 			return pipeline(
 				c,
 				subject,
@@ -124,14 +146,17 @@ export const effect = ({ version }: EffectOptions = {}): TsPlugin<EffectPhrases>
 
 	const conditions: Record<string, CondRule<EffectPhrases>> = {};
 	for (const [key, pick] of Object.entries(dataConditions(v)))
-		conditions[key] = ({ args, e, neg, say }) => (args[0] ? pick(say)({ subject: e.noun(args[0]).t, neg }) : null);
+		conditions[key] = ({ args, e, neg, say }) =>
+			args[0] && owns(ctx(e, say), key.slice(0, key.indexOf("."))) ? pick(say)({ subject: e.noun(args[0]).t, neg }) : null;
 
 	calls[YIELD_KEY] = ({ args, e, stmt, say }) => {
 		const c = ctx(e, say);
 		const arg = unwrap(args[0]);
 		if (!arg) return null;
 		if (stmt) return yieldAction(c, arg);
+		if (isServiceTag(arg) || isPascal(arg)) return D(say.yield.serviceValue({ service: serviceName(c, arg) }));
 		const v = c.e.noun(arg);
+		if (arg.type === "CallExpression" && e.applyRulesQuiet(arg)) return v;
 		return D(say.yield.result({ effect: v.t }), v.kids);
 	};
 	conditions[YIELD_KEY] = ({ args, e, neg }) => (args[0] ? e.cond(args[0], neg) : null);
@@ -146,6 +171,7 @@ export const effect = ({ version }: EffectOptions = {}): TsPlugin<EffectPhrases>
 
 	return definePlugin<EffectPhrases>({
 		name: "effect",
+		library: { name: "effect", versions: ">=3.0 <5" },
 		phrases: { en },
 		calls,
 		conditions,
@@ -154,7 +180,10 @@ export const effect = ({ version }: EffectOptions = {}): TsPlugin<EffectPhrases>
 				normalize(c, n);
 				return false;
 			}, true),
-			statement(yieldStatement, true), statement(effectFnDeclaration, true), statement(classStatement, true)],
+			statement(yieldStatement, true),
+			statement(effectFnDeclaration, true),
+			statement(classStatement, true),
+		],
 		describeSchema: (e, n, say) => schemaType(ctx(e, say), n, true),
 	});
 };

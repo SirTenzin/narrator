@@ -13,6 +13,7 @@ import {
 	form,
 	isFn,
 	isObj,
+	layerNoun,
 	type Mode,
 	make,
 	numbered,
@@ -130,13 +131,15 @@ const gen = make((c, args, mode) => {
 });
 
 /** `Effect.fn("name")(function* (a) {...}, ...steps)` and `Effect.fn(function* ...)`. */
-export function effectFn(c: Ctx, fnArgs: N[]): Doc | null {
+export function effectFn(c: Ctx, fnArgs: N[], span: N | null = null): Doc | null {
 	const [fn, ...pipes] = fnArgs;
 	if (!fn || !isFn(fn)) return null;
 	const f = unwrap(fn);
 	const given = f.params.flatMap((p: N) => c.e.patternNames(p));
 	const head = given.length ? c.say.program.fn({ given: c.e.g.list(given) }) : c.say.program.fnBare;
-	return D(head, [...actionLines(c, f), ...afterLines(c, pipes)]);
+	const traced: Line[] =
+		span && strLit(span) !== null ? [{ d: 0, text: `${c.say.span.fnSpan({ name: c.e.noun(span).t })}.`, start: -1, end: -1, kind: "stmt" }] : [];
+	return D(head, [...traced, ...actionLines(c, f), ...afterLines(c, pipes)]);
 }
 
 /** The steps an `Effect.fn` applies around its body, as a trailing numbered block. */
@@ -153,7 +156,7 @@ export function afterLines(c: Ctx, pipes: N[]): Line[] {
 
 const fnOp = {
 	kind: "curried" as const,
-	render: (c: Ctx, inner: N[], outer: N[] | null) => (outer ? effectFn(c, outer) : isFn(inner[0]) ? effectFn(c, inner) : null),
+	render: (c: Ctx, inner: N[], outer: N[] | null) => (outer ? effectFn(c, outer, inner[0] ?? null) : isFn(inner[0]) ? effectFn(c, inner) : null),
 };
 
 /** A predicate callback as a condition. */
@@ -398,7 +401,7 @@ const shared: OpTable = {
 	"Effect.provide": step(1, (c, [what]) => {
 		if (!what) return null;
 		const u = unwrap(what);
-		const t = u.type === "ArrayExpression" ? c.e.g.list(u.elements.map((x: N) => c.e.noun(x).t)) : c.e.noun(u).t;
+		const t = u.type === "ArrayExpression" ? c.e.g.list(u.elements.map((x: N) => layerNoun(c, x))) : layerNoun(c, u);
 		return D(c.say.steps.provide({ what: t }));
 	}),
 	"Effect.provideService": step(2, (c, [tag, impl]) => {

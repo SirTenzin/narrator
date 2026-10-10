@@ -2,10 +2,14 @@
 	"name": "@usenarrator/plugin-effect",
 	"version": "0.0.0",
 	"private": true,
-	"description": "TS plugin: Effect (v3 and v4).",
+	"description": "TS plugin: Effect (v3 and v4), with optional HTTP, SQL and testing companions.",
 	"type": "module",
+	"sideEffects": false,
 	"exports": {
-		".": "./src/index.ts"
+		".": "./src/index.ts",
+		"./platform": "./src/platform/index.ts",
+		"./sql": "./src/sql/index.ts",
+		"./testing": "./src/testing/index.ts"
 	},
 	"dependencies": {
 		"@usenarrator/core": "workspace:*",

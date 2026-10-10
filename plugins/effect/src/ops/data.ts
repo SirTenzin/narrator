@@ -57,6 +57,21 @@ export const dataConditions = (version: 3 | 4 | "auto"): Record<string, CondPick
 	"Option.isNone": (s) => s.option.isEmpty,
 	"Exit.isSuccess": (s) => s.outcome.succeeded,
 	"Exit.isFailure": (s) => s.outcome.failed,
+	...(version !== 4
+		? {
+				"Cause.isInterruptedOnly": (s: EffectPhrases) => s.cause.isInterrupted,
+				"Cause.isFailure": (s: EffectPhrases) => s.cause.isFailure,
+				"Cause.isDie": (s: EffectPhrases) => s.cause.isDie,
+			}
+		: {}),
+	...(version !== 3
+		? {
+				"Cause.hasInterruptsOnly": (s: EffectPhrases) => s.cause.isInterrupted,
+				"Cause.hasFails": (s: EffectPhrases) => s.cause.isFailure,
+				"Cause.hasDies": (s: EffectPhrases) => s.cause.isDie,
+			}
+		: {}),
+	"Deferred.isDone": (s) => s.deferred.isDone,
 	...(version !== 4 ? { "Either.isRight": (s: EffectPhrases) => s.outcome.succeeded, "Either.isLeft": (s: EffectPhrases) => s.outcome.failed } : {}),
 	...(version !== 3 ? { "Result.isSuccess": (s: EffectPhrases) => s.outcome.succeeded, "Result.isFailure": (s: EffectPhrases) => s.outcome.failed } : {}),
 });

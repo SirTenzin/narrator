@@ -8,18 +8,13 @@ export type Mode = "noun" | "act";
 /** Per-file facts the yield reader needs (v3 fibers, refs and deferreds are themselves yieldable). */
 export type FileState = {
 	src: string;
-	importsEffect: boolean;
 	fibers: Set<string>;
 	refs: Set<string>;
 	deferreds: Set<string>;
+	queues: Set<string>;
 	/** The Effect class being narrated, so `this` inside it reads as its name. */
 	currentClass: string | null;
-	/** Names imported from `effect` / `@effect/*`, and names imported from anywhere else. */
-	effectNames: Set<string>;
-	foreignNames: Set<string>;
-	/** Module specifiers imported by this file, for library-specific rules (`@effect/vitest`, SQL). */
-	modules: Set<string>;
-};
+} & FileImports;
 
 export type Ctx = { e: Engine; say: EffectPhrases; version: Version; state: FileState; ops: OpTable };
 
@@ -101,8 +96,30 @@ function importedNames(clause: string): string[] {
 		.split(",")
 		.map((part) => part.trim().replace(/^type\s+/, ""))
 		.filter(Boolean)
-		.map((part) => part.split(/\s+as\s+/).at(-1)!.trim());
+		.map((part) =>
+			part
+				.split(/\s+as\s+/)
+				.at(-1)!
+				.trim(),
+		);
 }
+
+/** What a file imports: names bound from Effect modules, names bound from anything else, and every module specifier. */
+export type FileImports = { importsEffect: boolean; effectNames: Set<string>; foreignNames: Set<string>; modules: Set<string> };
+
+export function readImports(src: string): FileImports {
+	const out: FileImports = { importsEffect: false, effectNames: new Set(), foreignNames: new Set(), modules: new Set() };
+	for (const [, clause, from] of src.matchAll(IMPORT)) {
+		out.modules.add(from!);
+		const names = isEffectModule(from!) ? out.effectNames : out.foreignNames;
+		for (const n of importedNames(clause!)) names.add(n);
+	}
+	out.importsEffect = [...out.modules].some(isEffectModule);
+	return out;
+}
+
+/** Whether `name` (e.g. `Queue`) refers to Effect's module: the file imports Effect and didn't take `name` from another library. */
+export const ownsIn = (imports: FileImports, name: string) => imports.importsEffect && (imports.effectNames.has(name) || !imports.foreignNames.has(name));
 
 export function resetState(c: Ctx) {
 	if (c.state.src === c.e.src) return;
@@ -111,19 +128,24 @@ export function resetState(c: Ctx) {
 	s.fibers.clear();
 	s.refs.clear();
 	s.deferreds.clear();
-	s.effectNames.clear();
-	s.foreignNames.clear();
-	s.modules.clear();
-	for (const [, clause, from] of c.e.src.matchAll(IMPORT)) {
-		s.modules.add(from!);
-		const names = isEffectModule(from!) ? s.effectNames : s.foreignNames;
-		for (const n of importedNames(clause!)) names.add(n);
-	}
-	s.importsEffect = [...s.modules].some(isEffectModule);
+	s.queues.clear();
+	Object.assign(s, readImports(c.e.src));
 }
 
-/** Whether `name` (e.g. `Queue`) refers to Effect's module: the file imports Effect and didn't take `name` from another library. */
-export const owns = (c: Ctx, name: string) => c.state.importsEffect && (c.state.effectNames.has(name) || !c.state.foreignNames.has(name));
+/** A schema argument as a type phrase via whichever plugin describes schemas; a bare `User` reads "a user". */
+export function schemaPhrase(e: Engine, n: N): string {
+	const u = unwrap(n);
+	const described = u ? e.schemaText(u) : null;
+	if (described) return described;
+	if (u?.type === "Identifier" && /^[A-Z]/.test(u.name)) {
+		const words = e.lex.humanize(u.name);
+		return `${e.g.article(words)} ${e.ref(u.name)}`;
+	}
+	return e.noun(u).t;
+}
+
+/** `ownsIn` for the file being narrated. */
+export const owns = (c: Ctx, name: string) => ownsIn(c.state, name);
 
 /** A duration argument: `"5 seconds"` reads as-is, a bare number is milliseconds, `Duration.seconds(5)` reads naturally. */
 export function duration(c: Ctx, n: N): Doc {
@@ -209,6 +231,25 @@ export function serviceName(c: Ctx, tag: N): string {
 	const u = unwrap(tag);
 	if (u?.type === "Identifier") return c.e.fnRef(u.name, u.name);
 	if (u?.type === "ThisExpression" && c.state.currentClass) return c.e.fnRef(c.state.currentClass, c.state.currentClass);
+	if (isServiceTag(u)) return c.e.fnRef(c.e.code(u), u.property.name);
+	return c.e.noun(u).t;
+}
+
+/** A module's service tag such as `HttpClient.HttpClient` or `SqlClient.SqlClient`. */
+export const isServiceTag = (n: N) => {
+	const u = unwrap(n);
+	return u?.type === "MemberExpression" && !u.computed && isPascal(u.object) && /^[A-Z]/.test(u.property.name ?? "");
+};
+
+/** `Users.Default` (v3 `Effect.Service`) / `Users.layer` (v4 convention) as "the default Users layer"; anything else as itself. */
+export function layerNoun(c: Ctx, n: N): string {
+	const u = unwrap(n);
+	const obj = u?.type === "MemberExpression" && !u.computed ? unwrap(u.object) : null;
+	if (obj?.type === "Identifier" && isPascal(obj)) {
+		const service = c.e.fnRef(obj.name, obj.name);
+		if (u.property.name === "Default" || u.property.name === "DefaultWithoutDependencies") return c.say.service.defaultLayer({ service });
+		if (u.property.name === "layer") return c.say.service.layerOf({ service });
+	}
 	return c.e.noun(u).t;
 }
 
@@ -253,8 +294,10 @@ export function yieldAction(c: Ctx, arg: N): Doc {
 		if (c.state.fibers.has(arg.name)) return D(y.awaitFiber({ fiber: name }));
 		if (c.state.refs.has(arg.name)) return D(y.readRef({ ref: name }));
 		if (c.state.deferreds.has(arg.name)) return D(y.awaitDeferred({ deferred: name }));
+		if (c.state.queues.has(arg.name)) return D(c.say.queue.take.act({ queue: name }));
 		if (isPascal(arg)) return D(y.service({ service: serviceName(c, arg) }));
 	}
+	if (isServiceTag(arg)) return D(y.service({ service: serviceName(c, arg) }));
 	return act(c, arg);
 }
 
@@ -290,6 +333,9 @@ export function pipeStep(c: Ctx, n: N): Doc {
 		const r = op.render(c, [], "act", u);
 		if (r) return r;
 	}
+	// Steps from companion plugins (`effect/platform`): their rules read a call in action form as the step itself.
+	const root = key?.slice(0, key.indexOf("."));
+	if (!op && root && owns(c, root) && u.type === "CallExpression" && c.e.applyRulesQuiet(u)) return c.e.call(u, true);
 	const fn = c.e.noun(u);
 	return D(c.say.pipe.apply({ fn: fn.t }), fn.kids);
 }

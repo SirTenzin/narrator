@@ -192,7 +192,7 @@ const AppLive = Layer.merge(DbLive, PoolLive).pipe(Layer.provide(ConfigLive))`,
   Built by an effect that runs these steps:
     Read the CACHE_TTL setting (a whole number), and call the result TTL.
     Give back an object with TTL.
-  Needs redis's default.`);
+  Needs the default Redis layer.`);
 		expect(text).toContain(
 			"Let DB live be a layer that provides the Database service as an object with:\n  • query: a function giving back an effect that succeeds with an empty list",
 		);

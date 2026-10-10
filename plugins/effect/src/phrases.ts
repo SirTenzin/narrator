@@ -20,6 +20,7 @@ export type EffectPhrases = {
 		withNote: P<"text" | "note">;
 		letBe: P<"name" | "value">;
 		giveBack: P<"value">;
+		create: P<"thing">;
 	};
 	targets: { result: string; value: string; item: string; items: string };
 	concurrency: { sequential: string; unbounded: string; inherit: string; limited: P<"n"> };
@@ -55,6 +56,7 @@ export type EffectPhrases = {
 		awaitDeferred: P<"deferred">;
 		/** A `yield*` inside a larger expression: `(yield* getA) + 1`. */
 		result: P<"effect">;
+		serviceValue: P<"service">;
 	};
 	make: {
 		succeed: Form<"value">;
@@ -146,6 +148,10 @@ export type EffectPhrases = {
 		provideMerge: P<"layers">;
 		launch: string;
 		runtime: P<"layer">;
+		discard: P<"effect">;
+		fresh: P<"layer">;
+		unwrap: P<"effect">;
+		mock: P<"service" | "impl">;
 	};
 	service: {
 		heading: P<"name">;
@@ -158,6 +164,9 @@ export type EffectPhrases = {
 		reference: P<"name" | "value">;
 		use: Form<"service" | "name" | "action">;
 		useAnon: Form<"service" | "action">;
+		accessors: P<"name">;
+		defaultLayer: P<"service">;
+		layerOf: P<"service">;
 	};
 	data: {
 		errorType: P<"name">;
@@ -193,6 +202,10 @@ export type EffectPhrases = {
 			dateFromString: string;
 			booleanFromString: string;
 			url: string;
+			dateTimeUtc: string;
+			duration: string;
+			bytes: string;
+			natural: string;
 		};
 		struct: P<"fields">;
 		emptyStruct: string;
@@ -237,6 +250,9 @@ export type EffectPhrases = {
 			brand: P<"name">;
 			defaultsTo: P<"value">;
 			custom: string;
+			customWith: P<"message">;
+			pick: P<"fields">;
+			omit: P<"fields">;
 		};
 		decode: Form<"input" | "type">;
 		decodeSync: Form<"input" | "type">;
@@ -245,6 +261,12 @@ export type EffectPhrases = {
 		decoder: P<"type">;
 		encode: Form<"input" | "type">;
 		encoder: P<"type">;
+		transform: P<"from" | "to">;
+		json: string;
+		jsonOf: P<"type">;
+		taggedStruct: P<"tag" | "fields">;
+		option: P<"type">;
+		redacted: P<"type">;
 	};
 	schedule: {
 		noun: P<"how">;
@@ -323,19 +345,187 @@ export type EffectPhrases = {
 		merge: P<"other">;
 		concat: P<"other">;
 		schedule: P<"how">;
+		groupedWithin: P<"n" | "duration">;
+		debounce: P<"duration">;
+		throttle: P<"n" | "duration">;
+		buffer: P<"n">;
+		scan: P<"initial">;
+		zip: P<"other">;
+		zipWithIndex: string;
+		takeWhile: P<"cond">;
+		takeUntil: P<"cond">;
+		dropWhile: P<"cond">;
+		mapConcat: Callback<"value">;
+		runLast: string;
+		runSum: string;
+		retry: P<"how">;
+		timeout: P<"duration">;
+		unfold: P<"initial">;
+		paginate: P<"initial">;
+		fromQueue: P<"queue">;
+		fromPubSub: P<"hub">;
+		fromAsyncIterable: P<"items">;
+		fromReadable: P<"source">;
+		callback: string;
+		decodeText: string;
+		splitLines: string;
 	};
 	config: {
 		setting: Form<"name" | "kind">;
-		kinds: { string: string; number: string; integer: string; boolean: string; redacted: string; url: string; duration: string };
+		kinds: {
+			string: string;
+			number: string;
+			integer: string;
+			boolean: string;
+			redacted: string;
+			url: string;
+			duration: string;
+			port: string;
+			date: string;
+			logLevel: string;
+			nonEmptyString: string;
+			finite: string;
+		};
+		oneOf: P<"values">;
+		listOf: P<"kind">;
 		withDefault: P<"value">;
+		option: string;
+		nested: P<"prefix">;
+		orElse: P<"other">;
+		described: P<"text">;
+		all: { noun: string; act: string };
+		fromEnv: string;
+		fromSource: P<"source">;
+		withProvider: P<"provider">;
+		providerLayer: P<"provider">;
 	};
 	ref: {
 		make: Form<"value">;
+		makeSynchronized: Form<"value">;
+		makeSubscription: Form<"value">;
 		get: Form<"ref">;
 		set: P<"ref" | "value">;
 		update: P<"ref" | "value">;
+		updateEffect: P<"ref" | "action">;
+		getAndSet: P<"ref" | "value">;
+		getAndUpdate: P<"ref" | "value">;
+		updateAndGet: P<"ref" | "value">;
+		modify: P<"ref" | "fn">;
+		changes: P<"ref">;
 	};
-	fiber: { join: Form<"fiber">; interrupt: P<"fiber"> };
+	queue: {
+		bounded: P<"n">;
+		unbounded: string;
+		dropping: P<"n">;
+		sliding: P<"n">;
+		offer: P<"item" | "queue">;
+		offerAll: P<"items" | "queue">;
+		take: Form<"queue">;
+		takeAll: Form<"queue">;
+		takeN: Form<"queue" | "n">;
+		poll: Form<"queue">;
+		size: P<"queue">;
+		shutdown: P<"queue">;
+		end: P<"queue">;
+	};
+	pubsub: {
+		bounded: P<"n">;
+		unbounded: string;
+		publish: P<"message" | "hub">;
+		publishAll: P<"messages" | "hub">;
+		subscribe: Form<"hub">;
+	};
+	deferred: {
+		make: { noun: string; act: string };
+		succeed: P<"deferred" | "value">;
+		fail: P<"deferred" | "error">;
+		complete: P<"deferred" | "action">;
+		await: Form<"deferred">;
+		isDone: Cond;
+	};
+	fiber: {
+		join: Form<"fiber">;
+		interrupt: P<"fiber">;
+		await: Form<"fiber">;
+		joinAll: Form<"fibers">;
+		awaitAll: Form<"fibers">;
+		interruptAll: P<"fibers">;
+	};
+	race: {
+		all: { noun: string; act: string };
+		with: P<"other">;
+		interruptible: string;
+		uninterruptible: string;
+		onInterrupt: P<"action">;
+		forkIn: P<"scope">;
+		awaitAllChildren: string;
+	};
+	request: {
+		request: Form<"request" | "resolver">;
+		tagged: P<"tag">;
+		type: P<"name">;
+		typeFields: P<"name" | "fields">;
+		batched: Callback<"action">;
+		single: Callback<"action">;
+		batchN: P<"n">;
+		complete: P<"request" | "value">;
+		completeFail: P<"request" | "error">;
+	};
+	matcher: {
+		value: P<"subject">;
+		type: string;
+		when: P<"pattern">;
+		not: P<"pattern">;
+		tag: P<"tags">;
+		otherwise: string;
+		allCovered: string;
+		is: P<"value">;
+		fieldIs: P<"field" | "value">;
+		refinements: {
+			string: string;
+			number: string;
+			boolean: string;
+			bigint: string;
+			date: string;
+			null: string;
+			undefined: string;
+			defined: string;
+			nonEmptyString: string;
+			record: string;
+			any: string;
+		};
+	};
+	metric: {
+		counter: P<"name">;
+		gauge: P<"name">;
+		histogram: P<"name">;
+		summary: P<"name">;
+		frequency: P<"name">;
+		timer: P<"name">;
+		increment: P<"metric">;
+		incrementBy: P<"metric" | "n">;
+		set: P<"metric" | "value">;
+		update: P<"metric" | "value">;
+		value: Form<"metric">;
+		track: P<"metric">;
+		trackDuration: P<"metric">;
+		tagged: P<"entries">;
+	};
+	span: {
+		annotate: P<"entries">;
+		fnSpan: P<"name">;
+	};
+	cause: {
+		pretty: P<"cause">;
+		squash: P<"cause">;
+		failureOption: P<"cause">;
+		fail: P<"error">;
+		die: P<"defect">;
+		isInterrupted: Cond;
+		isFailure: Cond;
+		isDie: Cond;
+	};
+	exit: { succeed: P<"value">; fail: P<"error">; die: P<"defect"> };
 	scope: {
 		resource: { noun: string; act: string };
 		acquire: P<"action">;

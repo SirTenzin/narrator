@@ -1,6 +1,6 @@
 import { D, mk } from "@usenarrator/core";
 import { type N, unwrap } from "@usenarrator/lang-ts";
-import { type Ctx, calleeKey, curried, form, isFn, isObj, type Mode, make, memberKey, type OpTable, objProp } from "../context";
+import { type Ctx, calleeKey, curried, form, isFn, isObj, type Mode, make, memberKey, type OpTable, objProp, strLit } from "../context";
 import type { EffectPhrases } from "../phrases";
 
 type Types = EffectPhrases["schema"]["types"];
@@ -35,6 +35,14 @@ const MEMBERS: Record<string, keyof Types> = {
 	BooleanFromString: "booleanFromString",
 	URL: "url",
 	URLFromSelf: "url",
+	DateTimeUtc: "dateTimeUtc",
+	DateTimeUtcFromSelf: "dateTimeUtc",
+	Duration: "duration",
+	DurationFromSelf: "duration",
+	Uint8Array: "bytes",
+	Uint8ArrayFromSelf: "bytes",
+	NonNegativeInt: "natural",
+	Natural: "natural",
 };
 
 function typeOfMember(c: Ctx, name: string): string | null {
@@ -123,8 +131,15 @@ function check(c: Ctx, n: N): string | null {
 			return "";
 		case "filter":
 		case "makeFilter":
-		case "refine":
-			return k.custom;
+		case "refine": {
+			const msg = isObj(b) ? objProp(b, "message") : null;
+			return msg ? k.customWith({ message: isFn(msg) ? c.e.noun(c.e.lambdaExpr(unwrap(msg)) ?? msg).t : t(msg) }) : k.custom;
+		}
+		case "pick":
+		case "omit": {
+			const fields = c.e.g.list((call ? u.arguments : []).map((x: N) => c.e.prop(strLit(x) ?? c.e.code(x))));
+			return name === "pick" ? k.pick({ fields }) : k.omit({ fields });
+		}
 	}
 	return null;
 }
@@ -177,6 +192,8 @@ export function schemaType(c: Ctx, n: N, strict: boolean): string | null {
 		const base = schemaType(c, callee.object, strict);
 		if (base === null) return null;
 		if (callee.property.name === "annotations" || callee.property.name === "annotate") return base;
+		const to = u.arguments.find((a: N) => calleeKey(a) === "Schema.decodeTo");
+		if (to) return s.transform({ from: base, to: loose(unwrap(to).arguments[0]) });
 		return withChecks(
 			c,
 			base,
@@ -224,6 +241,21 @@ export function schemaType(c: Ctx, n: N, strict: boolean): string | null {
 			return s.enums({ name: c.e.noun(args[0]).t });
 		case "Schema.TemplateLiteral":
 			return c.say.schema.types.string;
+		case "Schema.transform":
+		case "Schema.transformOrFail":
+		case "Schema.compose":
+			return s.transform({ from: loose(args[0]), to: loose(args[1]) });
+		case "Schema.parseJson":
+		case "Schema.fromJsonString":
+			return args[0] ? s.jsonOf({ type: loose(args[0]) }) : s.json;
+		case "Schema.TaggedStruct": {
+			const fields = structFields(c, args[1]);
+			return s.taggedStruct({ tag: c.e.noun(args[0]).t, fields: fields ?? "" });
+		}
+		case "Schema.Option":
+			return s.option({ type: loose(args[0]) });
+		case "Schema.Redacted":
+			return s.redacted({ type: loose(args[0]) });
 	}
 	return fallback();
 }
@@ -270,7 +302,28 @@ const asSchema = make((c, _args, _mode, node) => {
 	return type ? D(c.say.schema.of({ type })) : null;
 });
 
-const BUILDERS = ["Struct", "Array", "NonEmptyArray", "Record", "Union", "Literal", "Literals", "NullOr", "NullishOr", "UndefinedOr", "Tuple", "Enums"];
+const BUILDERS = [
+	"TaggedStruct",
+	"transform",
+	"transformOrFail",
+	"compose",
+	"parseJson",
+	"fromJsonString",
+	"Option",
+	"Redacted",
+	"Struct",
+	"Array",
+	"NonEmptyArray",
+	"Record",
+	"Union",
+	"Literal",
+	"Literals",
+	"NullOr",
+	"NullishOr",
+	"UndefinedOr",
+	"Tuple",
+	"Enums",
+];
 
 export const schemaOps: OpTable = {
 	...Object.fromEntries(BUILDERS.map((m) => [`Schema.${m}`, asSchema])),
