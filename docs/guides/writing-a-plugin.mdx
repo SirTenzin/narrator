@@ -1,0 +1,286 @@
+---
+title: "Writing a plugin"
+description: "Teach Narrator what a library or your own helpers mean, step by step."
+---
+
+Without a plugin, Narrator reads library calls from their names. That gets you a long way, but it can't know that `new Decimal(a).lte(b)` is a comparison or that `Flags.isEnabled("x")` is a feature check. A plugin adds that knowledge. This guide builds up the decimal.js plugin from the repository, then covers rule keys, guards and testing.
+
+## What a plugin changes
+
+Here is a small plugin for an in-house feature flag helper and a retry wrapper, before and after:
+
+{/* run file="examples/flags-plugin.ts" */}
+```ts flags-plugin.ts
+import { D } from "@usenarrator/core";
+import { definePlugin, unwrap } from "@usenarrator/lang-ts";
+import { narrate } from "@usenarrator/testkit";
+
+type FlagPhrases = {
+	enabled: (p: { flag: string; neg: boolean }) => string;
+	withRetries: (p: { action: string; times: string }) => string;
+};
+
+const flags = definePlugin<FlagPhrases>({
+	name: "flags",
+	phrases: {
+		en: {
+			enabled: ({ flag, neg }) => `the ${flag} feature is ${neg ? "off" : "on"}`,
+			withRetries: ({ action, times }) => `${action}, retrying up to ${times} times`,
+		},
+	},
+	vocabulary: { glossary: { cfg: "settings" } },
+	conditions: {
+		"Flags.isEnabled": ({ args, neg, say }) => {
+			const flag = unwrap(args[0]);
+			if (flag?.type !== "Literal") return null;
+			return say.enabled({ flag: String(flag.value), neg });
+		},
+	},
+	calls: {
+		withRetry: ({ args, e, say }) => {
+			if (args.length !== 2) return null;
+			return D(say.withRetries({ action: e.text(args[0]), times: e.text(args[1]) }));
+		},
+	},
+});
+
+const code = `
+if (!Flags.isEnabled("new-checkout")) return legacyCheckout(cfg);
+await withRetry(chargeCard(order), 3);
+`;
+
+console.log("Without the plugin:");
+console.log(narrate(code));
+console.log("\nWith the plugin:");
+console.log(narrate(code, { plugins: [flags] }));
+```
+
+```text Output
+Without the plugin:
+If "new-checkout" is not enabled [Flags], give back a legacy checkout (config).
+With retry (charge card (order) and 3).
+
+With the plugin:
+If the new-checkout feature is off, give back a legacy checkout (settings).
+Charge card (order), retrying up to 3 times.
+```
+
+Three things happened. A condition rule turned `Flags.isEnabled("new-checkout")` into a sentence about a feature. A call rule turned `withRetry(...)` into "retrying up to 3 times". The `vocabulary` field changed how the abbreviation `cfg` reads. The rest of the file is still narrated by the built-in rules.
+
+## Build the decimal plugin
+
+The [decimal plugin](/plugins/decimal) is about 80 lines and uses every common feature, so it is a good model.
+
+<Steps>
+  <Step title="Describe your phrasebook">
+    A plugin never hard-codes English inside its rules. It declares the shape of everything it says as a type, so that other locales can provide the same phrases.
+
+    ```ts phrases.ts
+    type Pair = (p: { a: string; b: string }) => string;
+    type Is = (p: { value: string; neg: boolean }) => string;
+
+    export type DecimalPhrases = {
+      plus: Pair;
+      minus: Pair;
+      times: Pair;
+      dividedBy: Pair;
+      roundedTo: (p: { value: string; places: string }) => string;
+      compare: Record<"atMost" | "lessThan" | "atLeast" | "moreThan" | "equals" | "notEquals", Pair>;
+      isZero: Is;
+      isNegative: Is;
+      isPositive: Is;
+    };
+    ```
+
+    Arguments arrive as already-rendered text, with [markup](/concepts/markup) included, so phrases only arrange words.
+  </Step>
+
+  <Step title="Write the English phrases">
+    English is required. It is the fallback for every other locale and the reference that translators compare against.
+
+    ```ts en.ts
+    import type { DecimalPhrases } from "./phrases";
+
+    const is =
+      (word: string) =>
+      ({ value, neg }: { value: string; neg: boolean }) =>
+        `${value} is ${neg ? "not " : ""}${word}`;
+
+    export const en: DecimalPhrases = {
+      plus: ({ a, b }) => `${a} plus ${b}`,
+      minus: ({ a, b }) => `${a} minus ${b}`,
+      times: ({ a, b }) => `${a} times ${b}`,
+      dividedBy: ({ a, b }) => `${a} divided by ${b}`,
+      roundedTo: ({ value, places }) => `${value} rounded to ${places} decimal places`,
+      compare: {
+        atMost: ({ a, b }) => `${a} is at most ${b}`,
+        lessThan: ({ a, b }) => `${a} is less than ${b}`,
+        atLeast: ({ a, b }) => `${a} is at least ${b}`,
+        moreThan: ({ a, b }) => `${a} is more than ${b}`,
+        equals: ({ a, b }) => `${a} is ${b}`,
+        notEquals: ({ a, b }) => `${a} is not ${b}`,
+      },
+      isZero: is("zero"),
+      isNegative: is("negative"),
+      isPositive: is("positive"),
+    };
+    ```
+  </Step>
+
+  <Step title="Write call rules">
+    A call rule turns a call into a noun phrase, such as "price times quantity". It receives the call's receiver (`obj`), its arguments (`args`), the engine (`e`) and your phrasebook (`say`).
+
+    ```ts
+    const arithmetic =
+      (op: "plus" | "minus" | "times" | "dividedBy"): CallRule<DecimalPhrases> =>
+      ({ obj, args, e, say }) => {
+        const a = e.noun(obj);
+        const b = e.noun(args[0]);
+        return D(say[op]({ a: a.t, b: b.t }), [...a.kids, ...b.kids]);
+      };
+    ```
+
+    `e.noun(node)` renders any expression and returns a `Doc`: the inline text `t` plus any block lines (`kids`) the expression needed, such as a multi-line callback. Passing the kids through keeps those lines attached. When you only need the inline text, `e.text(node)` does this for you.
+  </Step>
+
+  <Step title="Write condition rules">
+    A condition rule is used when a call appears where a yes or no answer is expected, such as an `if`. It also receives `neg`, which is `true` when the condition is negated. Use it to say the opposite naturally instead of "it is not the case that".
+
+    ```ts
+    const comparison =
+      (holds: Comparison, negated: Comparison): CondRule<DecimalPhrases> =>
+      ({ obj, args, e, neg, say }) => {
+        if (args.length !== 1 || !obj) return null;
+        const a = e.noun(obj);
+        const b = e.noun(args[0]);
+        return D(say.compare[neg ? negated : holds]({ a: a.t, b: b.t }), [...a.kids, ...b.kids]);
+      };
+    ```
+
+    A negated `lte` reads as "is more than", and a negated `gt` reads as "is at most".
+  </Step>
+
+  <Step title="Put it together">
+    Rules are keyed by the callee they handle. `*.plus` matches `.plus(...)` on any receiver.
+
+    ```ts index.ts
+    export const decimal = (): TsPlugin<DecimalPhrases> =>
+      definePlugin({
+        name: "decimal",
+        phrases: { en },
+        calls: {
+          "new Decimal": ({ args, e }) => e.noun(args[0]),
+          "*.plus": arithmetic("plus"),
+          "*.add": (x) => (isNewDecimal(x.obj) ? arithmetic("plus")(x) : null),
+          "*.minus": arithmetic("minus"),
+          "*.times": arithmetic("times"),
+          "*.dividedBy": arithmetic("dividedBy"),
+          "*.toNumber": ({ obj, e }) => e.noun(obj),
+          "*.toDecimalPlaces": ({ obj, args, e, say }) => D(say.roundedTo({ value: e.text(obj), places: e.text(args[0]) })),
+        },
+        conditions: {
+          "*.lte": comparison("atMost", "moreThan"),
+          "*.lt": comparison("lessThan", "atLeast"),
+          "*.gte": comparison("atLeast", "lessThan"),
+          "*.gt": comparison("moreThan", "atMost"),
+          "*.isZero": sign("isZero"),
+        },
+      });
+    ```
+
+    The real plugin has a few more aliases (`sub`, `mul`, `div`, `eq`). `definePlugin` is an identity function that infers the phrasebook type from `phrases.en`, so every rule's `say` is fully typed.
+  </Step>
+
+  <Step title="Try it">
+    {/* narrate plugins="decimal" */}
+    ```ts
+    const total = new Decimal(price).times(quantity).plus(shipping);
+    if (!new Decimal(balance).gte(total)) throw new Error("Insufficient funds");
+    const rounded = total.toDecimalPlaces(2);
+    ```
+
+    ```text English
+    Let total be price times quantity plus shipping.
+    If balance is less than total, fail with an error: "Insufficient funds".
+    Let rounded be total rounded to 2 decimal places.
+    ```
+  </Step>
+</Steps>
+
+## Rule keys
+
+The engine looks up rules by the shape of the callee. A call can match several keys, and they are tried from most to least specific.
+
+| Key | Matches | Example |
+| --- | --- | --- |
+| `foo` | A call to a bare identifier | `withRetry(fn, 3)` |
+| `Obj.method` | A method on a specific identifier | `z.object({...})`, `Flags.isEnabled("x")` |
+| `Obj.*` | Any method on a specific identifier | `Effect.*` |
+| `*.parent.method` | A method on a property with a given name | `*.charges.create` for `stripe.charges.create(...)` |
+| `*.method` | A method on any receiver | `*.lte`, `*.filter` |
+| `new Foo` | A constructor call | `new Decimal(x)` |
+| `Obj.fn()` | The outer call of a curried call | `Effect.fn("name")(function* () {...})` |
+| `` tag`` `` | A tagged template | `` sql`select ...` `` |
+| `` *.tag`` `` | A tagged template on any receiver | `` db.sql`...` `` |
+
+When several plugins register the same key, the plugin listed later wins, and the built-in `std` plugin always comes first. If a rule returns `null` or `undefined`, the next rule for that key is tried, then the next key, and finally the engine's generic phrasing.
+
+## Guards
+
+`*.method` keys are broad. `*.add` matches decimal.js, but it also matches `set.add(x)` and `cart.add(item)`. A rule that claims calls it doesn't understand makes narration worse, so check the shape first and return `null` when it isn't yours.
+
+Common guards in the repository's plugins:
+
+- **Check the receiver.** The decimal plugin only claims `*.add` when the receiver is a `new Decimal(...)` expression.
+- **Check the arguments.** Comparisons require exactly one argument. The flags example above only claims `Flags.isEnabled` when its argument is a string literal.
+- **Check the file's imports.** The Effect, Hono and Elysia plugins only narrate their APIs in files that import the library, so a `.get()` in an Express app or an unrelated `Effect` class is left alone. The engine exposes the parsed source as `e.src`, and plugins scan the program's import declarations once per file.
+
+<Warning>
+  A rule that throws stops narration of that statement. Prefer returning `null` for anything unexpected.
+</Warning>
+
+## Other plugin fields
+
+| Field | What it does |
+| --- | --- |
+| `vocabulary` | Adds glossary entries (`{ cfg: "settings" }`), acronyms, verbs and predicate prefixes used to read identifiers. |
+| `ambient` | Names that are plumbing, such as `ctx` or `deps`. They are dropped from argument lists and member chains. |
+| `errors` | Constructor names (or a pattern) whose instances are errors, so `throw new X("message")` reads well. |
+| `errorLabels` | How to name an error class, for example `{ HttpError: "an HTTP error" }`. |
+| `constants` | Exact source text mapped to a phrase, for example `{ "Number.MAX_SAFE_INTEGER": "no limit" }`. |
+| `statements` | Rules that take over a whole statement and emit lines themselves. Effect uses these for `yield*` steps. |
+| `describeSchema` | Describes a schema builder expression as a type. zod and Effect Schema use it so fields read as types. |
+| `library` | The library and version range the plugin reads. See [Plugin versioning](/guides/plugin-versioning). |
+
+The full type is in the [TsPlugin reference](/reference/ts-plugin).
+
+## Test it
+
+`@usenarrator/testkit` narrates a snippet with your plugin and returns plain text, which makes exact assertions easy. Every plugin in the repository is tested this way.
+
+```ts decimal.test.ts
+import { expect, test } from "bun:test";
+import { narrateWithStats, phrasebookGaps } from "@usenarrator/testkit";
+import { decimal, decimalEn } from "../src";
+
+const reads = (code: string, text: string) => {
+  const r = narrateWithStats(code, { plugins: [decimal()] });
+  expect(r.text).toBe(text);
+  expect(r.fallbacks).toBe(0);
+};
+
+test("arithmetic chains read left to right", () =>
+  reads(`const total = new Decimal(price).times(quantity).plus(fee);`, "Let total be price times quantity plus fee."));
+
+test("comparisons and their negations", () => {
+  reads(`if (new Decimal(balance).lte(0)) stop();`, "If balance is at most 0, stop.");
+  reads(`if (!new Decimal(balance).lte(0)) go();`, "If balance is more than 0, run go.");
+});
+
+test("a partial translation reports what it is missing", () => {
+  const gaps = phrasebookGaps(decimalEn, { plus: () => "", compare: { atMost: () => "" } });
+  expect(gaps.missing).toContain("compare.moreThan");
+});
+```
+
+Asserting `fallbacks` is zero catches the case where part of your snippet silently fell back to raw code. See the [testkit reference](/reference/testkit) for the full API.

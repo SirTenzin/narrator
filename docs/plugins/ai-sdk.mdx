@@ -1,0 +1,114 @@
+---
+title: "AI SDK"
+description: "Read Vercel AI SDK code as what is sent to the model and what comes back."
+---
+
+<span className="nr-pill">@usenarrator/plugin-ai-sdk</span>
+
+The [AI SDK](https://ai-sdk.dev) plugin reads model calls as requests: which model is asked, with what instructions and prompt, which tools it may use, and what your code takes from the result. It covers text and object generation, streaming, tools and agents, providers and middleware, and the React hooks.
+
+```ts
+import { aiSdk } from "@usenarrator/plugin-ai-sdk";
+
+typescript({ parser: oxcParser, plugins: [aiSdk()] });
+// or pin a major version: aiSdk({ version: 6 }) or aiSdk({ version: 7 })
+```
+
+The plugin declares `library: { name: "ai", versions: ">=6 <8" }` and only narrates files that import from `ai` or an `@ai-sdk/*` package.
+
+## Examples
+
+{/* narrate plugins="ai-sdk" path="recipe.ts" */}
+```ts Generating text
+import { generateText } from "ai";
+import { openai } from "@ai-sdk/openai";
+
+const { text, usage } = await generateText({
+  model: openai("gpt-5"),
+  system: "You are a friendly assistant.",
+  prompt: "Write a vegetarian lasagna recipe for 4 people.",
+  temperature: 0.3,
+  maxOutputTokens: 512,
+});
+```
+
+```text English
+Ask OpenAI's gpt-5 model for text, and take its text and token usage:
+  • instructions: "You are a friendly assistant."
+  • prompt: "Write a vegetarian lasagna recipe for 4 people."
+  • randomness (temperature): 0.3
+  • write at most 512 tokens
+```
+
+{/* narrate plugins="ai-sdk,zod" path="route.ts" */}
+```ts A chat route with a tool
+import { convertToModelMessages, stepCountIs, streamText, tool } from "ai";
+import { z } from "zod";
+
+const weather = tool({
+  description: "Get the weather in a location",
+  inputSchema: z.object({ location: z.string() }),
+  execute: async ({ location }) => ({ location, temperature: 72 }),
+});
+
+export async function POST(req: Request) {
+  const { messages } = await req.json();
+  const result = streamText({
+    model: "anthropic/claude-sonnet-4.5",
+    messages: convertToModelMessages(messages),
+    tools: { weather },
+    stopWhen: stepCountIs(5),
+  });
+  return result.toUIMessageStreamResponse();
+}
+```
+
+```text English
+Let weather be a tool the model can call to get the weather in a location:
+  • its input: an object with location
+  • when called (given location):
+    Give back an object with location and temperature: 72.
+
+To post — given request (Request) (async):
+  From request's JSON, take messages.
+  Stream text from the AI Gateway's anthropic/claude-sonnet-4.5 model → result:
+    • the conversation so far: messages, converted for the model
+    • tools it can use: weather
+    • stop after 5 steps
+  Give back result, streamed back to the chat UI.
+```
+
+{/* narrate plugins="ai-sdk,zod" path="extract.ts" */}
+```ts Structured output
+import { generateObject } from "ai";
+import { z } from "zod";
+
+const { object } = await generateObject({
+  model: "openai/gpt-5-mini",
+  schema: z.object({ name: z.string(), tags: z.array(z.string()) }),
+  prompt: `Extract the product from: ${description}`,
+});
+```
+
+```text English
+Ask the AI Gateway's openai/gpt-5-mini model for structured data, and take its object:
+  • shaped like an object with name and tags
+  • prompt: "Extract the product from: {description}"
+```
+
+## AI SDK 6 and 7
+
+Some names changed meaning in AI SDK 7. For example, `usage` and `toolCalls` on a multi-step result cover only the final step in version 6 and every step in version 7. In auto mode the plugin avoids saying which steps a value covers. Pin `version: 6` or `version: 7` to get the precise reading. See [Plugin versioning](/guides/plugin-versioning).
+
+## What it covers
+
+- `generateText`, `streamText`, `generateObject`, `streamObject`, structured output, tool choice and stop conditions.
+- Tools defined with `tool()` and inline, agents, and callbacks such as `onFinish` and `onChunk`.
+- Embeddings, image generation, transcription and speech.
+- Providers, custom providers, registries and middleware.
+- Stream responses for route handlers and the loops that read streams.
+- The UI hooks `useChat`, `useCompletion` and `useObject`, and the functions they return.
+
+## Translating
+
+The English phrasebook is exported as `en` and typed as `AiSdkPhrases`.

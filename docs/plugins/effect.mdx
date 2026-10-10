@@ -1,0 +1,104 @@
+---
+title: "Effect"
+description: "Read Effect programs as the steps they run, for Effect 3 and Effect 4."
+---
+
+<span className="nr-pill">@usenarrator/plugin-effect</span>
+
+[Effect](https://effect.website) code is dense. A single `pipe` can retry, time out, recover from two kinds of error and log along the way. The Effect plugin reads generators as a list of steps and pipes as numbered steps, so the control flow is visible at a glance.
+
+```ts
+import { effect } from "@usenarrator/plugin-effect";
+
+typescript({ parser: oxcParser, plugins: [effect()] });
+// or pin a major version: effect({ version: 3 }) or effect({ version: 4 })
+```
+
+<Note>
+  The plugin only narrates Effect APIs in files that import from `effect`. That keeps unrelated code that happens to use names like `Effect` or `Layer` reading normally.
+</Note>
+
+## Examples
+
+{/* narrate plugins="effect" path="program.ts" */}
+```ts Generators and pipes
+import { Effect, Schedule } from "effect";
+
+const program = Effect.gen(function* () {
+  const db = yield* Database;
+  const rows = yield* db.query("select * from users");
+  if (rows.length === 0) return yield* new UserNotFound({ id: "1" });
+  yield* Effect.log("loaded users");
+  return rows;
+}).pipe(
+  Effect.retry(Schedule.exponential("100 millis")),
+  Effect.timeout("5 seconds"),
+);
+```
+
+```text English
+Let program be the result of these steps:
+  1. Start with an effect that runs these steps:
+    Get the Database service, and call it DB.
+    Query DB ("select * from users"), and call the result rows.
+    If rows is empty, fail with a new user not found (ID: "1").
+    Log "loaded users".
+    Give back rows.
+  2. Retry with exponential backoff starting at 100 millis
+  3. Give up if it takes longer than 5 seconds
+```
+
+{/* narrate plugins="effect" path="errors.ts" */}
+```ts Error handling
+import { Effect } from "effect";
+
+const safe = loadProfile(id).pipe(
+  Effect.catchTag("NotFound", () => Effect.succeed(guestProfile)),
+  Effect.tapError((error) => Effect.logError(error)),
+  Effect.orElse(() => Effect.succeed(defaultProfile)),
+);
+```
+
+```text English
+Let safe be the result of these steps:
+  1. Start with load profile (ID)
+  2. If it fails with "NotFound", succeed with guest profile
+  3. If it fails (call the error error), also log error as an error
+  4. If it fails, succeed with default profile instead
+```
+
+{/* narrate plugins="effect" path="schema.ts" */}
+```ts Schema
+import { Schema } from "effect";
+
+const User = Schema.Struct({
+  id: Schema.Number,
+  email: Schema.String,
+  nickname: Schema.optional(Schema.String),
+});
+```
+
+```text English
+Let user be a schema for an object with ID (a number), email (text), and nickname (text, optional).
+```
+
+## Effect 3 and Effect 4
+
+Some names mean different things in Effect 3 and Effect 4. By default the plugin reads both and uses a phrasing that is true for either. Pass `version: 3` or `version: 4` for the precise reading. [Plugin versioning](/guides/plugin-versioning) shows the difference for `Schema.Date`.
+
+## What it covers
+
+- `Effect.gen` generators, `yield*` steps, `pipe` as a method and as a function, and `Effect.fn`.
+- Constructors: `succeed`, `fail`, `sync`, `promise`, `tryPromise`, `try`.
+- Combinators: `map`, `flatMap`, `tap`, `all`, `forEach` (with concurrency), `retry`, `timeout`, `catchTag`, `catchTags`, `catchAll`, `tapError`, `mapError`, `orElse`, `either`.
+- Running: `runPromise`, `runSync`, `runFork`, `runMain`.
+- Services and layers: `Context.Tag`, `Effect.Service`, Effect 4's `Context.Service`, `Layer` constructors and `provideService`.
+- Errors: `Data.TaggedError` and Schema tagged errors.
+- `Option`, `Either` and `Result` basics, `Schedule`, `Stream` constructors and sinks, scopes and finalizers, fibers and refs.
+- `Schema`: structs, optional fields, checks, literals, unions, classes and decoding.
+
+More of Effect is being added. If you find an API that reads generically, it is probably not covered yet.
+
+## Translating
+
+The English phrasebook is exported as `en` and typed as `EffectPhrases`.

@@ -1,0 +1,63 @@
+---
+title: "Browser extension"
+description: "Read GitHub pull requests and commits in plain English, inline in GitHub's own diff view."
+---
+
+The Narrator extension, called **Narrator for GitHub**, replaces the code rows in GitHub's diff tables with Narrator's English. It works on pull request "Files changed" pages and on commit pages, follows GitHub's split or unified setting, and can be turned on and off from GitHub's own diff settings menu.
+
+<Frame caption="A pull request on github.com with the extension turned on. Added sentences are green, and unchanged declarations are folded into a summary line.">
+  <img src="/images/extension-diff.png" alt="A GitHub pull request diff where the code rows have been replaced by English sentences" />
+</Frame>
+
+Everything runs inside the extension. It fetches the old and new versions of each changed file from GitHub, parses them with the WASM build of the oxc parser, and narrates them in the extension's service worker. Your code is never sent anywhere else.
+
+## Install it
+
+The extension is not in any browser's store yet, so you build it from the repository and load it yourself. The same build works in Chromium browsers (Chrome, Arc, Edge, Brave) and in Firefox, and a script wraps it for Safari on macOS.
+
+<Steps>
+  <Step title="Build it">
+    From the repository root:
+
+    ```bash
+    bun install
+    bun apps/extension/build.ts
+    ```
+
+    This writes a ready-to-load extension to `apps/extension/dist`.
+  </Step>
+  <Step title="Load it">
+    <Tabs>
+      <Tab title="Chrome and Chromium">
+        Open `chrome://extensions` (or `arc://extensions`), turn on **Developer mode**, click **Load unpacked**, and choose the `apps/extension/dist` folder.
+      </Tab>
+      <Tab title="Firefox">
+        Install Mozilla's `web-ext` tool (`npm install -g web-ext`), then run `bun run firefox` from `apps/extension`. It builds the extension and opens a Firefox window with it loaded.
+      </Tab>
+      <Tab title="Safari">
+        On a Mac with Xcode installed, run `bun run safari` from `apps/extension`. It converts the build into a Safari app at `apps/extension/safari-build/Narrator.app`. The build is unsigned, so turn on **Allow unsigned extensions** in Safari's Develop menu, open the app once, and then enable the extension in Safari's settings.
+      </Tab>
+    </Tabs>
+  </Step>
+  <Step title="Open a diff">
+    Visit any pull request's **Files changed** tab or any commit page on github.com. TypeScript and JavaScript files are shown in English. Other files are left alone.
+  </Step>
+</Steps>
+
+After you rebuild in a Chromium browser, press the reload icon on the extension's card in `chrome://extensions` to pick up the new build.
+
+## Turn it on and off
+
+Open GitHub's diff settings menu (the gear icon above the diff) and toggle **Plain English**. The setting is remembered per browser. When it is off, you see GitHub's normal diff.
+
+## What you'll see
+
+Each changed declaration is shown as a unit with its English, using the same rows as GitHub's diff: removed sentences on the left or in red, added sentences on the right or in green, and edited sentences with the changed words highlighted. Functions that moved between files or were renamed are labelled as such instead of showing up as a deletion plus an addition. See [Units and diffs](/concepts/units-and-diffs) for how that matching works.
+
+If a file's English did not change at all, for example because the edit only touched imports, types, formatting or string contents, the extension says so and shows the code instead.
+
+## Limits today
+
+- **Public repositories only.** The extension uses GitHub's API without signing in, so it can't read private repositories yet.
+- **Rate limit.** Anonymous GitHub API calls are limited to 60 per hour. A large pull request uses several. When you run out, the extension tells you how long until the limit resets.
+- **Fixed plugins.** The extension ships with a fixed set of plugins: zod, testing, Effect, Better Auth, Hono, Elysia, the AI SDK, Drizzle and decimal.js, plus vocabulary from one example codebase. The SQL plugin is not included yet, and there is no settings page to choose plugins.

@@ -1,0 +1,155 @@
+---
+title: "Getting started"
+description: "Install Narrator, narrate a file, and narrate a diff in about five minutes."
+---
+
+This page takes you from nothing to narrating your own code and your own diffs. You need [Bun](https://bun.sh) 1.1 or newer. The packages currently ship TypeScript source rather than compiled JavaScript, so Node needs a bundler or a TypeScript loader until the first release.
+
+<Note>
+  The `@usenarrator/*` packages are not on npm yet. Until the first release, clone the repository and work inside it. The package names below are the ones you will install once they are published, and the imports are identical either way.
+</Note>
+
+<Steps>
+  <Step title="Get the code">
+    ```bash
+    git clone https://github.com/SirTenzin/narrator
+    cd narrator
+    bun install
+    ```
+
+    Once the packages are published, this step becomes:
+
+    ```bash
+    bun add @usenarrator/core @usenarrator/lang-ts @usenarrator/locale-en oxc-parser
+    ```
+  </Step>
+
+  <Step title="Try the CLI">
+    The repository includes a small CLI at `apps/cli/narrate.ts`. Give it a file, or pipe code into it.
+
+    ```bash
+    bun apps/cli/narrate.ts path/to/file.ts          # coloured output
+    bun apps/cli/narrate.ts path/to/file.ts --plain  # plain text
+    echo 'if (xs.includes(b)) go()' | bun apps/cli/narrate.ts --plain
+    ```
+
+    The last command prints `If b is in xs, run go.`
+  </Step>
+
+  <Step title="Narrate a file from code">
+    A narrator is three choices: which source languages it reads, which plugins those languages use, and which locale it writes in.
+
+    {/* run file="examples/narrate-file.ts" */}
+    ```ts narrate-file.ts
+    import { createNarrator, renderText } from "@usenarrator/core";
+    import { typescript } from "@usenarrator/lang-ts";
+    import { oxcParser } from "@usenarrator/lang-ts/oxc";
+    import { en } from "@usenarrator/locale-en";
+    import { zod } from "@usenarrator/plugin-zod";
+
+    const narrator = createNarrator({
+    	languages: [typescript({ parser: oxcParser, plugins: [zod()] })],
+    	locale: en,
+    });
+
+    const source = `
+    export const Signup = z.object({ email: z.string().email(), plan: z.enum(["free", "pro"]) });
+
+    export function countOpenSeats(team: Team) {
+      if (team.plan === "enterprise") return Infinity;
+      return team.seatLimit - team.members.length;
+    }
+    `;
+
+    const { lines } = narrator.narrate(source, "signup.ts");
+    console.log(renderText(lines));
+    ```
+
+    Running it with `bun narrate-file.ts` prints:
+
+    ```text Output
+    Let signup be a schema for an object with email and plan.
+
+    To count open seats — given team (Team):
+      If team's plan is "enterprise", give back infinity.
+      Give back team's seat limit minus the number of team's members.
+    ```
+
+    `narrate` returns an array of `Line` objects, not a string. Each line knows its indent depth, its kind (heading, statement, bullet and so on), and the source offsets it came from. `renderText` is the simplest way to turn them into text.
+  </Step>
+
+  <Step title="Narrate a diff">
+    Give `narrator.diff` the old and new source of each changed file. Narrator narrates both sides, splits them into units (one per top-level declaration), and lines up the English so you see what changed in meaning rather than in characters.
+
+    {/* run file="examples/narrate-diff.ts" */}
+    ```ts narrate-diff.ts
+    import { createNarrator } from "@usenarrator/core";
+    import { typescript } from "@usenarrator/lang-ts";
+    import { oxcParser } from "@usenarrator/lang-ts/oxc";
+    import { en } from "@usenarrator/locale-en";
+
+    const narrator = createNarrator({ languages: [typescript({ parser: oxcParser })], locale: en });
+
+    const before = `
+    export function countOpenSeats(team: Team) {
+      if (team.plan === "enterprise") return Infinity;
+      return team.seatLimit - team.members.length;
+    }
+    `;
+    const after = `
+    export function countOpenSeats(team: Team) {
+      if (team.plan === "enterprise" || team.isTrial) return Infinity;
+      const used = team.members.filter((m) => !m.isGuest).length;
+      return Math.max(0, team.seatLimit - used);
+    }
+    `;
+
+    const [file] = narrator.diff([{ path: "team.ts", oldPath: null, status: "modified", oldSrc: before, newSrc: after }]);
+    const text = (html: string) =>
+    	html
+    		.replace(/<span class="t">(.*?)<\/span>/g, "($1)")
+    		.replace(/<[^>]+>/g, "")
+    		.replaceAll("&amp;", "&")
+    		.replaceAll("&lt;", "<")
+    		.replaceAll("&gt;", ">");
+
+    for (const unit of file!.units) {
+    	console.log(`${unit.title} (${unit.status}, +${unit.adds} -${unit.dels})`);
+    	for (const row of unit.rows) {
+    		if (row.kind === "same") console.log(`    ${text(row.right!.html)}`);
+    		if (row.left && row.kind !== "same") console.log(`  - ${text(row.left.html)}`);
+    		if (row.right && row.kind !== "same") console.log(`  + ${text(row.right.html)}`);
+    	}
+    }
+    ```
+
+    ```text Output
+    To count open seats (modified, +3 -2)
+        To count open seats — given team (Team):
+      - If team's plan is "enterprise", give back infinity.
+      + If team's plan is "enterprise" or team is trial, give back infinity.
+      - Give back team's seat limit minus the number of team's members.
+      + Let used be the number of team's members where m is not guest.
+      + Give back the larger of 0 and team's seat limit minus used.
+    ```
+
+    The first condition was edited in place, so it shows as a removed line and an added line. The `return` grew from one sentence into a bulleted condition, which is easier to review than the code change that caused it.
+  </Step>
+</Steps>
+
+## What to read next
+
+<Columns cols={2}>
+  <Card title="How it works" icon="workflow" href="/concepts/how-it-works">
+    The path from source code to sentences, and the pieces you can swap.
+  </Card>
+  <Card title="Embedding in your app" icon="box" href="/guides/embedding">
+    Use the native parser on the server or the WASM parser in a browser.
+  </Card>
+  <Card title="Plugins" icon="puzzle" href="/plugins/overview">
+    Add zod, Drizzle, Effect, Hono and more so library calls read naturally.
+  </Card>
+  <Card title="Write a plugin" icon="pencil" href="/guides/writing-a-plugin">
+    Teach Narrator what your own helpers mean.
+  </Card>
+</Columns>

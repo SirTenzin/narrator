@@ -1,0 +1,144 @@
+---
+title: "Drizzle ORM"
+description: "Read Drizzle queries, operators, relational queries, transactions and schemas."
+---
+
+<span className="nr-pill">@usenarrator/plugin-drizzle</span>
+
+The Drizzle plugin is the most complete plugin in the repository and a good reference if you are writing your own. It reads the query builder as a description of the rows you get back, reads SQL operators as conditions, and reads table definitions as a list of columns with their constraints.
+
+```ts
+import { drizzle } from "@usenarrator/plugin-drizzle";
+
+typescript({ parser: oxcParser, plugins: [drizzle()] });
+```
+
+## Queries
+
+{/* narrate plugins="drizzle" */}
+```ts Select with conditions, ordering and a limit
+export async function findActiveUsers(orgId: string) {
+  return db
+    .select()
+    .from(users)
+    .where(and(eq(users.orgId, orgId), isNull(users.deletedAt)))
+    .orderBy(desc(users.createdAt))
+    .limit(50);
+}
+```
+
+```text English
+To find active users — given org ID (async):
+  Give back look up rows from users:
+    • where all of these are true:
+      • users' org ID is org ID
+      • users' deleted at is empty
+    • sorted by users' created at (newest first)
+    • at most 50 row(s)
+```
+
+{/* narrate plugins="drizzle" */}
+```ts Pattern matching and ranges
+const matches = await db
+  .select()
+  .from(posts)
+  .where(or(ilike(posts.title, `%${term}%`), between(posts.views, 100, 1000)));
+```
+
+```text English
+Let matches be look up rows from posts:
+  • where any of these is true:
+    • posts' title contains term (ignoring case)
+    • posts' views is between 100 and 1000
+```
+
+{/* narrate plugins="drizzle" */}
+```ts Inserts with conflict handling
+await db
+  .insert(subscriptions)
+  .values({ userId, plan: "pro" })
+  .onConflictDoUpdate({ target: subscriptions.userId, set: { plan: "pro" } });
+```
+
+```text English
+Insert into subscriptions:
+  • the values: an object with user ID and plan: "pro"
+  • updating rows that already exist (matched on subscriptions' user ID):
+    • setting an object with plan: "pro"
+```
+
+## Relational queries
+
+{/* narrate plugins="drizzle" */}
+```ts findMany with relations
+const recent = await db.query.posts.findMany({
+  where: eq(posts.published, true),
+  with: { author: true, comments: { limit: 3 } },
+  orderBy: [desc(posts.createdAt)],
+  limit: 10,
+});
+```
+
+```text English
+Let recent be the rows of posts:
+  • where posts' published is true
+  • including author
+  • including comments:
+    • at most 3 row(s)
+  • sorted by posts' created at (newest first)
+  • at most 10 row(s)
+```
+
+## Transactions
+
+{/* narrate plugins="drizzle" */}
+```ts A transaction with a rollback
+await db.transaction(async (tx) => {
+  const [account] = await tx.select().from(accounts).where(eq(accounts.id, fromId));
+  if (account.balance < amount) tx.rollback();
+  await tx.update(accounts).set({ balance: account.balance - amount }).where(eq(accounts.id, fromId));
+});
+```
+
+```text English
+Do this all-or-nothing, in one transaction:
+  Look up rows from accounts, and take the first result as account:
+    • where accounts' ID is from ID
+  If account's balance is less than amount, cancel the transaction, undoing everything it changed.
+  Update accounts:
+    • setting an object with balance: account's balance minus amount
+    • where accounts' ID is from ID
+```
+
+## Schemas
+
+{/* narrate plugins="drizzle" */}
+```ts A Postgres table
+export const users = pgTable("users", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  email: text("email").notNull().unique(),
+  orgId: uuid("org_id").references(() => orgs.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+```
+
+```text English
+Let users be a Postgres table "users":
+  • ID: UUID, primary key, defaults to a random UUID
+  • email: text, required, unique
+  • org ID: UUID, points to orgs' ID, deleted along with it
+  • created at: timestamp, defaults to the current time, required
+```
+
+## What it covers
+
+- Query builders: `select`, `selectDistinct`, `selectDistinctOn`, `insert`, `update`, `delete`, joins, `groupBy`, `having`, `orderBy`, `limit`, `offset`, `returning`, `onConflictDoUpdate`, `onConflictDoNothing`, subqueries with `.as()`, and CTEs with `$with`.
+- Operators: `eq`, `ne`, `gt`, `gte`, `lt`, `lte`, `and`, `or`, `not`, `inArray`, `isNull`, `like`, `ilike`, `between`, `exists`, the array operators and their negations.
+- `sql` tagged templates, shown with their full SQL text.
+- Relational queries: `findMany` and `findFirst`, including the object-style `where` from relational queries v2.
+- `transaction`, `rollback`, `batch` and `$count`.
+- Schemas for Postgres, MySQL, SQLite and SingleStore tables, column modifiers, indexes and constraints, enums, `relations` and `defineRelations`.
+
+## Translating
+
+The English phrasebook is exported as `en` and typed as `DrizzlePhrases`.

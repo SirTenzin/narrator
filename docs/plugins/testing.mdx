@@ -1,0 +1,70 @@
+---
+title: "Testing"
+description: "Read test files as the behaviour they check."
+---
+
+<span className="nr-pill">@usenarrator/plugin-testing</span>
+
+The testing plugin reads `describe`, `test`, `it`, lifecycle hooks and `expect(...)` matchers. It works for Bun's test runner, Jest and Vitest, since they share these names. Tests read as a list of named checks, which makes them a useful summary of what code is supposed to do.
+
+```ts
+import { testing } from "@usenarrator/plugin-testing";
+
+typescript({ parser: oxcParser, plugins: [testing()] });
+```
+
+## Examples
+
+{/* narrate plugins="testing" path="cart.test.ts" */}
+```ts Groups, hooks and checks
+describe("cart", () => {
+  beforeEach(() => resetCart());
+
+  it("starts empty", () => {
+    expect(cart.items).toHaveLength(0);
+    expect(cart.total).toBe(0);
+  });
+
+  it("rejects unknown coupons", () => {
+    expect(() => applyCoupon(cart, "NOPE")).toThrow("Unknown coupon");
+  });
+});
+```
+
+```text English
+Test group "cart":
+  Before each test:
+    reset cart
+  Test "starts empty":
+    Check that cart's items has 0 item(s).
+    Check that cart's total is 0.
+  Test "rejects unknown coupons":
+    Check that a function giving back apply coupon (cart and "NOPE") throws "Unknown coupon".
+```
+
+{/* narrate plugins="testing" path="user.test.ts" */}
+```ts Negated and argument-less matchers
+expect(user.id).toBeDefined();
+expect(result).not.toBeNull();
+expect(total).not.toBeGreaterThan(10);
+```
+
+```text English
+Check that user's ID is set.
+Check that result is not null.
+Check that total is not more than 10.
+```
+
+## What it covers
+
+- Blocks: `describe`, `test`, `it`, `beforeAll`, `beforeEach`, `afterAll`, `afterEach`.
+- Matchers: `toBe`, `toEqual`, `toStrictEqual`, `toMatchObject`, `toBeDefined`, `toBeUndefined`, `toBeNull`, `toBeTruthy`, `toBeFalsy`, `toHaveLength`, `toContain`, `toThrow`, the four numeric comparisons, `toBeCloseTo`, `toHaveProperty` and `toBeInstanceOf`. Any `.not` flips the check.
+- Other matchers read as "check that X matches Y" using the matcher's name.
+
+<Warning>
+  The phrasebook has phrases for `toHaveBeenCalled`, `toHaveBeenCalledTimes` and `toHaveBeenCalledWith`, but these matchers are currently misread as a function whose name starts with "to". Avoid relying on them until that is fixed.
+</Warning>
+
+## Translating
+
+The English phrasebook is exported as `testingEn` and typed as `TestingPhrases`.

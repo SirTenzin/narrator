@@ -1,0 +1,103 @@
+---
+title: "SQL"
+description: "Read SQL embedded in TypeScript, clause by clause, with interpolations as their JavaScript values."
+---
+
+<span className="nr-pill">@usenarrator/plugin-sql</span>
+
+Raw SQL in a TypeScript file is usually the part a reviewer reads most carefully, and the part plain code narration can do least with. The SQL plugin finds SQL at its call sites, parses it, and reads it clause by clause. Interpolated values and `$1` or `?` placeholders are replaced by the JavaScript values they are bound to.
+
+It understands postgres.js, `Bun.sql`, `pg`, `mysql2`, `better-sqlite3`, `bun:sqlite`, Prisma's raw queries, Neon, slonik and kysely.
+
+```ts
+import { sql } from "@usenarrator/plugin-sql";
+import { pgsqlParser } from "@usenarrator/plugin-sql/pgsql";
+
+typescript({ parser: oxcParser, plugins: [sql({ parser: pgsqlParser })] });
+```
+
+The parser is injectable because it is the heaviest part. `pgsqlParser` uses `pgsql-ast-parser`, a peer dependency you install yourself. Without a parser the plugin still recognises SQL call sites but shows the SQL text as it is. You can also pass a getter to load the parser lazily.
+
+## Examples
+
+{/* narrate plugins="sql" path="users.ts" */}
+```ts A tagged template
+const users = await sql`
+  select id, name from users
+  where org_id = ${orgId} and deleted_at is null
+  order by created_at desc
+  limit 10
+`;
+```
+
+```text English
+Let users be the id and name from users:
+  • where org_id is org ID and deleted_at is empty
+  • sorted by created_at (newest first)
+  • at most 10 rows
+  • SQL: select id, name from users where org_id = ${orgId} and deleted_at is null order by created_at desc limit 10
+```
+
+{/* narrate plugins="sql" path="orders.ts" */}
+```ts pg with placeholders
+const { rows } = await pool.query(
+  "select o.id, sum(i.price * i.qty) as total from orders o join items i on i.order_id = o.id where o.customer_id = $1 group by o.id having sum(i.price * i.qty) > $2",
+  [customerId, minimum],
+);
+```
+
+```text English
+From the rows of orders, take rows:
+  • with these columns:
+    • orders' id
+    • total: the total of items' price times items' qty
+  • joined with items where items' order_id is orders' id
+  • where orders' customer_id is customer ID
+  • grouped by orders' id
+  • keeping only groups where the total of items' price times items' qty is more than minimum
+  • SQL: select o.id, sum(i.price * i.qty) as total from orders o join items i on i.order_id = o.id where o.customer_id = $1 group by o.id having sum(i.price * i.qty) > $2
+```
+
+{/* narrate plugins="sql" path="upsert.ts" */}
+```ts Upserts
+await sql`
+  insert into seats (team_id, user_id) values (${teamId}, ${userId})
+  on conflict (team_id, user_id) do update set updated_at = now()
+  returning id
+`;
+```
+
+```text English
+Add a row to seats:
+  • setting team_id to team ID and user_id to user ID
+  • if a row with the same team_id and user_id already exists, updating that row instead:
+    • setting updated_at to the current time
+  • giving back id
+  • SQL: insert into seats (team_id, user_id) values (${teamId}, ${userId}) on conflict (team_id, user_id) do update set updated_at = now() returning id
+```
+
+{/* narrate plugins="sql" path="cleanup.ts" */}
+```ts An update without a WHERE clause
+await db.query("update sessions set revoked = true");
+```
+
+```text English
+Change rows in sessions:
+  • setting revoked to true
+  • in every row (there's no condition)
+  • SQL: update sessions set revoked = true
+```
+
+## What it covers
+
+- Tagged templates (`sql`, `Bun.sql`, Prisma's `$queryRaw` and `$executeRaw`, slonik), `sql.unsafe`, and kysely's `.execute(db)`.
+- Query functions on database handles such as `db`, `pool`, `client` and `tx`, with `$1`, `?` and `$name` placeholders, value arrays, and `{ text, values }` objects.
+- Prepared statements in `better-sqlite3` and `bun:sqlite`, including statements declared once and run later.
+- SQL constants, narrated where they are declared and where they run.
+- Selects with joins, grouping, window functions, `CASE`, subqueries, CTEs (including recursive ones) and `UNION`, plus inserts, updates, deletes, upserts, `RETURNING`, row locking and JSONB operators.
+
+When the Drizzle plugin is loaded, Drizzle's own `sql` template is left to the Drizzle plugin.
+
+## Translating
+
+The English phrasebook is exported as `en` and typed as `SqlPhrases`.

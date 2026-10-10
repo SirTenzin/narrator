@@ -1,0 +1,51 @@
+---
+title: "@usenarrator/testkit"
+sidebarTitle: "Testkit"
+description: "Helpers for testing plugins and locales."
+---
+
+```ts
+import { narrate, narrateWithStats, phrasebookGaps } from "@usenarrator/testkit";
+```
+
+The testkit wires up the TypeScript language with the native parser and the English locale, so a test only has to say which plugins it needs.
+
+## narrate
+
+```ts
+function narrate(code: string, options?: SnippetOptions): string;
+
+type SnippetOptions = { plugins?: (TsPlugin | TsPlugin[])[]; locale?: Locale; path?: string };
+```
+
+Narrates a snippet and returns plain text. `path` defaults to `snippet.ts`. Set it to a `.tsx` name when the snippet contains JSX.
+
+{/* narrate plugins="decimal" */}
+```ts
+const fee = new Decimal(amount).times(rate).toDecimalPlaces(2);
+```
+
+```text narrate(code, { plugins: [decimal()] })
+Let fee be amount times rate rounded to 2 decimal places.
+```
+
+## narrateWithStats
+
+```ts
+function narrateWithStats(code: string, options?: SnippetOptions): { text: string; fallbacks: number };
+```
+
+Like `narrate`, and also returns how many nodes fell back to raw code. Assert it is `0` to make sure your snippet is fully covered.
+
+## phrasebookGaps
+
+```ts
+function phrasebookGaps(reference: object, translation: object): { missing: string[]; extra: string[] };
+```
+
+Compares the key paths of two phrasebooks. Use the English phrasebook as the reference. `missing` lists phrases the translation doesn't have yet, and `extra` lists keys that don't exist in the reference, which usually means a typo.
+
+```ts
+const gaps = phrasebookGaps(decimalEn, { plus: () => "", compare: { atMost: () => "" } });
+// gaps.missing includes "minus", "compare.moreThan", "isZero" and more
+```

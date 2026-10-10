@@ -1,0 +1,143 @@
+---
+title: "@usenarrator/core"
+sidebarTitle: "Core"
+description: "createNarrator, lines, markup, diffs and the contracts every language and locale implements."
+---
+
+The core package has no dependencies and knows nothing about any particular programming language. It defines the contracts, creates narrators and builds diff reports.
+
+## createNarrator
+
+```ts
+function createNarrator(options: { languages: SourceLanguage[]; locale: Locale }): Narrator;
+```
+
+<ParamField path="languages" type="SourceLanguage[]" required>
+  The source languages this narrator can read. For each file, the first language whose `handles(path)` returns `true` is used.
+</ParamField>
+<ParamField path="locale" type="Locale" required>
+  The output language, for example `en` from `@usenarrator/locale-en`.
+</ParamField>
+
+### Narrator
+
+```ts
+type Narrator = {
+  locale: Locale;
+  canNarrate(path: string): boolean;
+  narrate(src: string, path: string): FileNarration;
+  fileNarrator(path: string): FileNarrator;
+  diff(files: ChangedFile[], opts?: { resolve?: Resolver }): FileJson[];
+};
+```
+
+<ResponseField name="canNarrate(path)" type="boolean">
+  Whether any configured language handles this path.
+</ResponseField>
+<ResponseField name="narrate(src, path)" type="FileNarration">
+  Narrates one file and returns `{ lines, errors, stats }`. Throws if no language handles the path, so check `canNarrate` first when paths come from users.
+</ResponseField>
+<ResponseField name="fileNarrator(path)" type="FileNarrator">
+  A fresh narrator for one file, with access to `units(src, path)` for diffing.
+</ResponseField>
+<ResponseField name="diff(files, opts)" type="FileJson[]">
+  Narrates both sides of each changed file, diffs them by unit, detects moves and renames across files, and returns HTML-ready rows. Files no language handles are skipped, and files whose English didn't change are left out. `opts.resolve` turns function and value references into links. See [Units and diffs](/concepts/units-and-diffs).
+</ResponseField>
+
+```ts
+type ChangedFile = {
+  path: string;
+  oldPath: string | null;
+  status: "added" | "deleted" | "renamed" | "modified";
+  oldSrc: string;
+  newSrc: string;
+};
+
+type Resolver = (payload: string, kind: string) => string | null;
+```
+
+## Lines
+
+```ts
+type LineKind = "head" | "stmt" | "note" | "bullet" | "raw" | "blank";
+type Line = { d: number; text: string; start: number; end: number; kind: LineKind };
+type Doc = { t: string; kids: Line[] };
+```
+
+`Line.d` is the indent depth. `start` and `end` are source offsets, or `-1` for lines that don't map to code. `text` contains [markup](/concepts/markup).
+
+`Doc` is what rules return: inline text `t` and the block lines `kids` it introduces. Create one with `D(t, kids?)`, which also strips a trailing colon from `t` when there are kids, because the colon is added when the block is emitted.
+
+| Function | Description |
+| --- | --- |
+| `renderText(lines, fmt?)` | Joins lines with two spaces of indent per level. `fmt` defaults to `plain`. Pass `toAnsi` for terminal colours. |
+| `D(t, kids?)` | Creates a `Doc`. |
+| `capFirst(s)`, `lowerFirst(s)` | Change the case of the first visible letter, skipping over markup. |
+
+## Markup
+
+| Function | Description |
+| --- | --- |
+| `mk(kind, text, payload?)` | Creates a token. `kind` is `"v"`, `"f"`, `"t"`, `"l"` or `"c"`. |
+| `plain(s)` | Removes markup. Type names are wrapped in parentheses. |
+| `toHtml(s, resolve)` | Wraps tokens in spans and, where `resolve` returns a URL, links. |
+| `toAnsi(s)` | Colours tokens for a terminal. |
+| `vlen(s)` | The visible length of a string, ignoring markup. |
+
+## Contracts
+
+```ts
+interface SourceLanguage {
+  id: string;
+  handles(path: string): boolean;
+  create(locale: Locale): FileNarrator;
+}
+
+interface FileNarrator {
+  narrate(src: string, path: string): FileNarration;
+  units(src: string, path: string): Unit[];
+}
+
+type FileNarration = { lines: Line[]; errors: number; stats: NarrationStats };
+type NarrationStats = { nodes: number; fallbacks: number; fallbackTypes: Record<string, number> };
+```
+
+See [Adding a source language](/guides/source-languages) and the [Locale reference](/reference/locale).
+
+## Diff primitives
+
+These are what `narrator.diff` is built on. Use them when you want `Line` objects instead of HTML.
+
+```ts
+type Unit = { key: string; title: string; start: number; end: number; lines: Line[] };
+
+function diffUnits(before: Unit[], after: Unit[]): UnitDiff[];
+function diffLines(a: Line[], b: Line[], context?: number): Row[];
+function detectMoves(files: { path: string; units: UnitDiff[] }[]): void;
+function bodySimilarity(a: Line[], b: Line[]): number;
+function buildDiffReport(options: { files: ChangedFile[]; narratorFor: (path: string) => FileNarrator; resolve: Resolver }): FileJson[];
+```
+
+`detectMoves` updates the unit diffs in place, marking matched pairs as `moved`, `renamed` or `moved-away`.
+
+## Lexicon
+
+`Lexicon` reads identifiers into words. Each engine has one, extended by the `vocabulary` of every plugin.
+
+```ts
+type Vocabulary = {
+  glossary?: Record<string, string>;
+  acronyms?: string[];
+  verbs?: string[];
+  predicatePrefixes?: string[];
+};
+```
+
+| Member | Example |
+| --- | --- |
+| `humanize(id)` | `cusProductIds` becomes "customer product IDs" |
+| `words(id)` | `isTrialing` becomes `["is", "trialing"]` |
+| `isPredicateName(id)` | `true` for `isTrialing`, `hasSeats` |
+| `startsWithVerb(id)` | `true` for `buildInvoice` |
+| `converterParts(id)` | `invoiceToPdf` becomes `[["invoice"], ["pdf"]]` |
+| `extend(vocabulary)` | Adds glossary entries, acronyms, verbs and predicate prefixes |

@@ -1,0 +1,52 @@
+---
+title: "Determinism"
+description: "Why Narrator uses rules instead of a language model, and what that buys you."
+---
+
+Narrator produces the same English for the same code every time. There is no model, no temperature and no network call. That is a deliberate trade, and it shapes everything else about the project.
+
+## Why not use an LLM?
+
+A language model can write a lovely summary of a function, and sometimes that summary is wrong. When you are reviewing a pull request, a confident but wrong description is worse than none, because it tells you to stop looking. Narrator takes the other side of the trade. It narrates rather than summarizes, so every statement in the code has a sentence, and every sentence can be traced back to a rule.
+
+This also has practical benefits:
+
+- **Speed.** Narrating a typical file takes a few milliseconds, so the browser extension can narrate a whole pull request when the page loads.
+- **Privacy.** Code never leaves the machine. In the extension, parsing and narration run in the extension's own service worker.
+- **Stable diffs.** Because the same code always reads the same way, a diff of the English only changes where the code changed. A model that rephrases things on every run would make English diffs useless.
+- **Testability.** Plugin authors can assert exact output in tests, which is how every plugin in the repository is tested.
+
+## What happens when Narrator doesn't know something
+
+If no rule can narrate a node, Narrator does not invent words. It shows the original code inline and counts the fallback, so you can see exactly where coverage is missing.
+
+{/* run file="examples/stats.ts" */}
+```ts stats.ts
+import { createNarrator, plain } from "@usenarrator/core";
+import { typescript } from "@usenarrator/lang-ts";
+import { oxcParser } from "@usenarrator/lang-ts/oxc";
+import { en } from "@usenarrator/locale-en";
+
+const narrator = createNarrator({ languages: [typescript({ parser: oxcParser })], locale: en });
+const { lines, stats } = narrator.narrate(`const changed = previousFlags ^ nextFlags;`, "flags.ts");
+
+console.log(plain(lines[0]!.text));
+console.log(stats);
+```
+
+```console Output
+Let changed be previousFlags ^ nextFlags.
+{
+  nodes: 1,
+  fallbacks: 1,
+  fallbackTypes: {
+    BinaryExpression: 1,
+  },
+}
+```
+
+`stats.fallbacks` and `stats.fallbackTypes` tell you how often this happened and for which node types. The repository's `bun stress` script runs this over a whole codebase, and plugin tests usually assert that fallbacks are zero. See [Testing your plugin](/guides/writing-a-plugin#test-it).
+
+## What determinism does not promise
+
+Determinism is about a fixed version of Narrator and its plugins. When a plugin improves, its output changes. If you store narrations or snapshot them in tests, expect to update them when you upgrade, the same way you would update any other snapshot.

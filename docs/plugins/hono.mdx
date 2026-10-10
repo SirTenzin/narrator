@@ -1,0 +1,126 @@
+---
+title: "Hono"
+description: "Read Hono apps as an API description: routes, requests, replies and middleware."
+---
+
+<span className="nr-pill">@usenarrator/plugin-hono</span>
+
+The [Hono](https://hono.dev) plugin reads an app the way you would describe an API to a colleague: which routes it answers, what each handler reads from the request, and what it replies with. It also covers middleware, validation, the typed RPC client and streaming.
+
+```ts
+import { hono } from "@usenarrator/plugin-hono";
+
+typescript({ parser: oxcParser, plugins: [hono()] });
+```
+
+The plugin declares `library: { name: "hono", versions: ">=4 <6" }`. It only narrates Hono APIs in files that import from `hono`, so `get`, `json` and `use` calls in an Express app are left alone.
+
+## Examples
+
+{/* narrate plugins="hono" path="app.ts" */}
+```ts A route that reads the request and replies
+import { Hono } from "hono";
+
+const app = new Hono();
+
+app.get("/users/:id", async (c) => {
+  const id = c.req.param("id");
+  const page = c.req.query("page");
+  const user = await findUser(id);
+  if (!user) return c.notFound();
+  c.header("Cache-Control", "no-store");
+  return c.json({ user, page });
+});
+
+export default app;
+```
+
+```text English
+Create a Hono app as app.
+
+Answer GET /users/:id:
+  Let ID be the id path parameter.
+  Let page be the page query parameter.
+  Find user (ID) → user.
+  If user is missing, reply with the not-found response.
+  Set the Cache-Control response header to "no-store".
+  Reply with an object with user and page as JSON.
+
+Export app as this module's request handler.
+```
+
+{/* narrate plugins="hono" path="middleware.ts" */}
+```ts Built-in and inline middleware
+import { Hono } from "hono";
+import { cors } from "hono/cors";
+import { logger } from "hono/logger";
+
+const app = new Hono();
+
+app.use(logger());
+app.use("/api/*", cors({ origin: "https://app.acme.com" }));
+app.use("/admin/*", async (c, next) => {
+  if (!c.req.header("Authorization")) return c.text("Unauthorized", 401);
+  await next();
+});
+```
+
+```text English
+Create a Hono app as app.
+Run request logging on every request.
+Run CORS (allowed origins: "https://app.acme.com") on requests to /api/*.
+
+For requests to /admin/*:
+  If there is no Authorization request header, reply with the text "Unauthorized" (status 401 Unauthorized).
+  Let the next handler run.
+```
+
+{/* narrate plugins="hono,zod" path="validate.ts" */}
+```ts Validation with zValidator
+import { Hono } from "hono";
+import { zValidator } from "@hono/zod-validator";
+
+const app = new Hono();
+
+app.post("/posts", zValidator("json", z.object({ title: z.string().min(1) })), async (c) => {
+  const { title } = c.req.valid("json");
+  const post = await createPost(title);
+  return c.json(post, 201);
+});
+```
+
+```text English
+Create a Hono app as app.
+
+Answer POST /posts, after a check of the JSON body against a schema for an object with title:
+  From the validated JSON body, take title.
+  Create post (title) → post.
+  Reply with post as JSON (status 201 Created).
+```
+
+{/* narrate plugins="hono" path="client.ts" */}
+```ts The RPC client
+import { hc } from "hono/client";
+
+const client = hc<AppType>("https://api.acme.com");
+const res = await client.users[":id"].$get({ param: { id: "42" } });
+```
+
+```text English
+Let client be a typed API client for AppType at "https://api.acme.com".
+Let response be the response to GET /users/:id from client, sending the path parameters (ID: "42").
+```
+
+## What it covers
+
+- Apps: `new Hono()` with its generics and options, `basePath`, `route`, chained route groups, and `export default app`.
+- Routes: `get`, `post`, `put`, `patch`, `delete`, `on`, `all`, and path lists.
+- The context: path, query, header and body reads, `c.json`, `c.text`, `c.html`, `c.redirect`, `c.body`, headers and status, `c.set` and `c.get`, bindings and `executionCtx.waitUntil`.
+- Errors: `onError`, `notFound` and `HTTPException`.
+- Middleware: the built-in middleware by what it does, inline middleware around `next()`, `createMiddleware`, and factories.
+- Validation: `zValidator` and `validator`, naming the part of the request that is checked.
+- The RPC client `hc`, streaming helpers (SSE, text and byte streams), cookie helpers, and server adapters for Node and Bun.
+
+## Translating
+
+The English phrasebook is exported as `en` and typed as `HonoPhrases`.

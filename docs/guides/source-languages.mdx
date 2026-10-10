@@ -1,0 +1,60 @@
+---
+title: "Adding a source language"
+description: "The contract a new programming language implements to plug into Narrator."
+---
+
+Narrator's core doesn't know about TypeScript. It knows about source languages, which are objects that can say whether they handle a file and can create a narrator for it. `@usenarrator/lang-ts` is one implementation. Python, Go or SQL files would each be another.
+
+## The contract
+
+```ts
+interface SourceLanguage {
+  id: string;
+  handles(path: string): boolean;
+  create(locale: Locale): FileNarrator;
+}
+
+interface FileNarrator {
+  narrate(src: string, path: string): FileNarration;
+  units(src: string, path: string): Unit[];
+}
+
+type FileNarration = { lines: Line[]; errors: number; stats: NarrationStats };
+type NarrationStats = { nodes: number; fallbacks: number; fallbackTypes: Record<string, number> };
+type Unit = { key: string; title: string; start: number; end: number; lines: Line[] };
+```
+
+- **`handles`** decides by path. `createNarrator` uses the first language that handles a file, and `narrator.diff` skips files no language handles.
+- **`create`** is called once per file, so the file narrator it returns can keep per-file state, such as which imports the file has.
+- **`narrate`** returns lines, the number of parse errors, and stats. Count a fallback each time you show raw code instead of English, so tools like `bun stress` can measure coverage.
+- **`units`** splits the file into matchable pieces for diffs. Use the declaration name as the key and keep it stable across edits. See [Units and diffs](/concepts/units-and-diffs).
+
+## Lines
+
+Each `Line` describes one sentence:
+
+```ts
+type LineKind = "head" | "stmt" | "note" | "bullet" | "raw" | "blank";
+type Line = { d: number; text: string; start: number; end: number; kind: LineKind };
+```
+
+`d` is the indent depth, `start` and `end` are source offsets (use `-1` for lines that don't map to code), and `text` may contain [markup](/concepts/markup). Use `head` for a declaration's heading line, because diffs use it to title the unit.
+
+## Phrases
+
+The core `CorePhrases` type is shaped around JavaScript concepts. A new language can reuse the parts that fit, such as conditions, statements and most expressions, and define its own phrasebook type for the rest. Follow the pattern plugins use: a typed phrasebook with a required `en` entry, so the language can be translated the same way.
+
+## Registering it
+
+Pass the language to `createNarrator` next to TypeScript. Order matters only when two languages claim the same file.
+
+```ts
+const narrator = createNarrator({
+  languages: [typescript({ parser: oxcParser }), python()],
+  locale: en,
+});
+```
+
+<Info>
+  `python()` here is hypothetical. TypeScript and JavaScript are the only source languages today. If you want to build one, open an issue on [GitHub](https://github.com/SirTenzin/narrator) first so the contract can grow with you.
+</Info>

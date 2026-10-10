@@ -1,0 +1,65 @@
+---
+title: "decimal.js"
+description: "Read decimal.js arithmetic and comparisons as math."
+---
+
+<span className="nr-pill">@usenarrator/plugin-decimal</span>
+
+Money code often uses [decimal.js](https://mikemcl.github.io/decimal.js/) to avoid floating point errors. Without help, a chain like `new Decimal(a).times(b).plus(c)` reads as a series of method calls. The decimal plugin reads it as arithmetic, and reads comparisons as comparisons, including their negations.
+
+This plugin is also the worked example in [Writing a plugin](/guides/writing-a-plugin).
+
+```ts
+import { decimal } from "@usenarrator/plugin-decimal";
+
+typescript({ parser: oxcParser, plugins: [decimal()] });
+```
+
+## Examples
+
+{/* narrate plugins="decimal" */}
+```ts Arithmetic chains read left to right
+const subtotal = new Decimal(price).times(quantity);
+const total = subtotal.plus(shipping).minus(discount);
+const perSeat = total.dividedBy(seats).toDecimalPlaces(2);
+```
+
+```text English
+Let subtotal be price times quantity.
+Let total be subtotal plus shipping minus discount.
+Let per seat be total divided by seats rounded to 2 decimal places.
+```
+
+{/* narrate plugins="decimal" */}
+```ts Comparisons and their negations
+if (new Decimal(balance).lte(0)) suspendAccount(account);
+if (!new Decimal(balance).lte(0)) resumeAccount(account);
+if (!refund.isZero()) issueRefund(refund);
+```
+
+```text English
+If balance is at most 0, suspend account (account).
+If balance is more than 0, resume account (account).
+If refund is not zero, issue refund (refund).
+```
+
+Without the plugin, the same comparison reads like this:
+
+{/* narrate */}
+```ts Without the plugin
+if (new Decimal(balance).lte(0)) suspendAccount(account);
+```
+
+```text English
+If there is a new decimal (balance)'s lte (0), suspend account (account).
+```
+
+## What it covers
+
+- `new Decimal(x)` reads as `x`.
+- Arithmetic: `plus` and `add`, `minus` and `sub`, `times` and `mul`, `div` and `dividedBy`, `toDecimalPlaces`, `toNumber`. `add` is only claimed on a `new Decimal(...)` receiver, so `set.add(x)` is unaffected.
+- Conditions: `lt`, `lte`, `gt`, `gte`, `eq`, `equals`, `isZero`, `isNegative`, `isPositive`.
+
+## Translating
+
+The English phrasebook is exported as `decimalEn` and typed as `DecimalPhrases`.

@@ -1,0 +1,108 @@
+---
+title: "Embedding in your app"
+description: "Run Narrator on a server with the native parser, or in a browser with the WASM parser."
+---
+
+The core package has no runtime dependencies, and the engine is plain TypeScript. The only platform-specific part is the parser, and you choose it when you create the TypeScript source language.
+
+| Where you run | Parser | Import |
+| --- | --- | --- |
+| Node, Bun, Deno, CI, a CLI | Native oxc binding | `oxcParser` from `@usenarrator/lang-ts/oxc` |
+| Browsers, extension service workers, edge runtimes without native modules | oxc compiled to WASM | `oxcWasmParser` from `@usenarrator/lang-ts/wasm` |
+
+Both parsers produce the same tree, so the English is identical. This script narrates the same code with each one and compares the results:
+
+{/* run file="examples/wasm-parity.ts" */}
+```ts wasm-parity.ts
+import { parseSync } from "@oxc-parser/wasm";
+import { createNarrator, renderText } from "@usenarrator/core";
+import { typescript } from "@usenarrator/lang-ts";
+import { oxcParser } from "@usenarrator/lang-ts/oxc";
+import { oxcWasmParser } from "@usenarrator/lang-ts/wasm";
+import { en } from "@usenarrator/locale-en";
+
+const source = `export const total = (items: Item[]) => items.reduce((sum, item) => sum + item.price * item.qty, 0);`;
+
+const native = createNarrator({ languages: [typescript({ parser: oxcParser })], locale: en });
+const wasm = createNarrator({ languages: [typescript({ parser: oxcWasmParser(parseSync) })], locale: en });
+
+const a = renderText(native.narrate(source, "cart.ts").lines);
+const b = renderText(wasm.narrate(source, "cart.ts").lines);
+console.log(a);
+console.log(a === b ? "native and WASM agree" : "native and WASM differ");
+```
+
+```text Output
+To total — given items (Item):
+  Give back the total of each item's price times each item's quantity across items.
+native and WASM agree
+```
+
+## On a server
+
+Install the native parser alongside the core packages and pass `oxcParser` to `typescript()`.
+
+```ts
+import { createNarrator } from "@usenarrator/core";
+import { typescript } from "@usenarrator/lang-ts";
+import { oxcParser } from "@usenarrator/lang-ts/oxc";
+import { en } from "@usenarrator/locale-en";
+
+export const narrator = createNarrator({ languages: [typescript({ parser: oxcParser })], locale: en });
+```
+
+A narrator is cheap to create and safe to reuse. It creates a fresh file narrator for each file, so per-file state never leaks between calls.
+
+## In a browser
+
+The WASM parser needs to load its `.wasm` file before the first parse. Install `@oxc-parser/wasm` (version `0.60.0`, the version `@usenarrator/lang-ts` is tested against), serve the `.wasm` file with your app, and initialise it once.
+
+```ts
+import initWasm, { parseSync } from "@oxc-parser/wasm/web/oxc_parser_wasm.js";
+import { createNarrator } from "@usenarrator/core";
+import { typescript } from "@usenarrator/lang-ts";
+import { oxcWasmParser } from "@usenarrator/lang-ts/wasm";
+import { en } from "@usenarrator/locale-en";
+
+const narrator = createNarrator({
+  languages: [typescript({ parser: oxcWasmParser(parseSync) })],
+  locale: en,
+});
+
+let ready: Promise<unknown> | null = null;
+
+export async function narrate(source: string, path: string) {
+  ready ??= initWasm({ module_or_path: "/oxc_parser_wasm_bg.wasm" });
+  await ready;
+  return narrator.narrate(source, path);
+}
+```
+
+This is the same setup the browser extension uses, except that the extension passes `chrome.runtime.getURL("oxc_parser_wasm_bg.wasm")` as the module path.
+
+<Tip>
+  Narration is synchronous and usually takes a few milliseconds per file, but a large pull request can take longer. In a web app, run it in a Web Worker so the page stays responsive.
+</Tip>
+
+## Bundle size
+
+These numbers come from the extension build and are a rough guide for planning. They were measured before any size work, so expect them to shrink.
+
+| Piece | Raw | Gzipped |
+| --- | --- | --- |
+| oxc parser WASM | 737 KB | 256 KB |
+| Engine, English locale and plugins (JavaScript, unminified) | | about 98 KB |
+
+Since then the extension build has been minified. Its whole background script, which includes the engine, the English locale and every plugin the extension ships, is now 281 KB raw and about 83 KB gzipped.
+
+The WASM file is the larger part, and it is fetched once and cached by the browser. The JavaScript grows with each plugin you include, so only include the plugins your users need.
+
+## Rendering the output
+
+`narrate` gives you `Line` objects. Pick the renderer that suits your UI:
+
+- `renderText(lines)` for plain text, with two spaces of indent per level.
+- `renderText(lines, toAnsi)` for a terminal.
+- `toHtml(line.text, resolve)` per line for a web page, using `line.d` for indentation and `line.kind` for styling. See [Markup](/concepts/markup).
+
+For diffs, `narrator.diff` returns HTML-ready rows. See [Units and diffs](/concepts/units-and-diffs).

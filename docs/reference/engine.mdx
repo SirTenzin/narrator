@@ -1,0 +1,99 @@
+---
+title: "Engine"
+description: "The TypeScript source language and the engine API that rules call."
+---
+
+```ts
+import { typescript, Engine } from "@usenarrator/lang-ts";
+import { oxcParser } from "@usenarrator/lang-ts/oxc";
+import { oxcWasmParser } from "@usenarrator/lang-ts/wasm";
+```
+
+## typescript()
+
+```ts
+function typescript(options: {
+  parser: Parser;
+  plugins?: (TsPlugin | TsPlugin[])[];
+  setup?: (ctx: { engine: Engine; path: string }) => void;
+}): SourceLanguage & { engine(locale: Locale): Engine };
+```
+
+<ParamField path="parser" type="Parser" required>
+  `oxcParser` for Node and Bun, or `oxcWasmParser(parseSync)` for browsers. See [Embedding](/guides/embedding).
+</ParamField>
+<ParamField path="plugins" type="(TsPlugin | TsPlugin[])[]">
+  Library and codebase plugins, applied after the built-in `std` plugin. Nested arrays are flattened. Later plugins win.
+</ParamField>
+<ParamField path="setup" type="({ engine, path }) => void">
+  Runs before each file is narrated. Use it to install cross-file hooks, such as `engine.typeOfCall`, which lets the engine look up the declared return type of a function defined in another file.
+</ParamField>
+
+The language handles `.ts`, `.tsx`, `.js`, `.jsx`, `.mjs` and `.cjs`, but not `.d.ts`. Its extra `engine(locale)` method creates a bare engine, which is handy in tools and tests.
+
+```ts
+type Parser = (filename: string, src: string) => ParseOutput;
+type ParseOutput = { program: any; comments: { type: string; value: string; start: number; end: number }[]; errors: unknown[] };
+```
+
+## The Engine inside rules
+
+Every rule receives the engine as `e`. These are the methods plugins in the repository use, roughly from most to least common.
+
+### Rendering expressions
+
+| Method | Returns | Description |
+| --- | --- | --- |
+| `e.text(node)` | `string` | Inline text for any expression. Block lines it needs are attached to your rule's result automatically. |
+| `e.noun(node)` | `Doc` | Inline text plus block lines, for when you need to place the lines yourself. |
+| `e.cond(node, neg?)` | `Doc` | Renders an expression as a yes or no condition, optionally negated. |
+| `e.call(node, stmt)` | `Doc` | Renders a call as the engine would, including other plugins' rules. |
+| `e.literal(node)` | `string` | Renders a literal. |
+| `e.code(node)` | `string` | The node's original source text. |
+| `e.raw(node, reason?)` | `string` | The source as a `c` markup token. Counts as a fallback in stats. |
+| `e.typeText(typeNode)` | `string` | Renders a type annotation. |
+| `e.fold(node)` | `number \| null` | Constant-folds arithmetic like `60 * 60 * 24`. |
+
+### Names
+
+| Method | Description |
+| --- | --- |
+| `e.ref(name)` | A variable reference as a value token, with its display words. |
+| `e.prop(key)` | A property or key name as a value token. |
+| `e.fnRef(name, text)` | A function reference token. |
+| `e.lex` | The [Lexicon](/reference/core#lexicon) for this file, with `humanize`, `words` and friends. |
+| `e.isAmbient(node)` | Whether a node is a plumbing name such as `ctx`. |
+| `e.patternNames(pattern)` | The names bound by a destructuring pattern. |
+
+### Arguments, objects and functions
+
+| Method | Description |
+| --- | --- |
+| `e.argList(args)` | Rendered argument list as a `Doc`. |
+| `e.objectProp(prop)` | One property of an object literal as a `Doc`. |
+| `e.lambdaExpr(fn)` | A function's single expression body, or `null` if it has statements. |
+| `e.body(node, d)` | Renders statements into a detached `Line[]` at relative depth `d`. |
+| `e.looksBoolean(node)` | Whether an expression is probably a yes or no value. |
+
+### Emitting lines (statement rules)
+
+| Method | Description |
+| --- | --- |
+| `e.emitDoc(d, doc, node, end?, kind?)` | Emits a `Doc` as a line at depth `d`, followed by its block lines. `end` defaults to `"."`. |
+| `e.emit(d, text, node, kind?)` | Emits a single line. |
+| `e.bullet(doc, d?, kind?)` | Turns a `Doc` into bullet lines. |
+
+### State
+
+| Field | Description |
+| --- | --- |
+| `e.src` | The source of the file being narrated. Plugins use it as a cache key for per-file facts such as imports. |
+| `e.say` | The locale's core phrases. |
+| `e.g` | The locale's grammar. |
+| `e.locale` | The active locale. |
+| `e.stats` | Node and fallback counts for the current file. |
+| `e.parse` | The parser, if a rule needs to parse a fragment. |
+
+<Warning>
+  The Engine is a large class and most of its members are public. The methods above are the ones plugins rely on today. Others are internal to the walker and may change without notice.
+</Warning>

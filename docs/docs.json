@@ -1,0 +1,163 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "maple",
+  "name": "Narrator",
+  "description": "Turn TypeScript and JavaScript into plain English, deterministically. No LLM, runs in the browser.",
+  "colors": {
+    "primary": "#C2410C",
+    "light": "#FB8A4C",
+    "dark": "#C2410C"
+  },
+  "logo": {
+    "light": "/logo/light.svg",
+    "dark": "/logo/dark.svg",
+    "href": "/"
+  },
+  "favicon": "/favicon.svg",
+  "fonts": {
+    "heading": {
+      "family": "Newsreader",
+      "weight": 560
+    },
+    "body": {
+      "family": "Geist",
+      "weight": 400
+    }
+  },
+  "background": {
+    "color": {
+      "light": "#FBF8F2",
+      "dark": "#121110"
+    }
+  },
+  "appearance": {
+    "default": "system"
+  },
+  "icons": {
+    "library": "lucide"
+  },
+  "styling": {
+    "eyebrows": "section",
+    "codeblocks": {
+      "theme": {
+        "light": "github-light",
+        "dark": "vesper"
+      }
+    }
+  },
+  "navbar": {
+    "links": [
+      {
+        "label": "GitHub",
+        "href": "https://github.com/SirTenzin/narrator"
+      }
+    ],
+    "primary": {
+      "type": "button",
+      "label": "Get the extension",
+      "href": "/guides/browser-extension"
+    }
+  },
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Get started",
+        "icon": "book-open",
+        "groups": [
+          {
+            "group": "Get started",
+            "pages": [
+              "index",
+              "getting-started"
+            ]
+          },
+          {
+            "group": "Concepts",
+            "pages": [
+              "concepts/how-it-works",
+              "concepts/markup",
+              "concepts/units-and-diffs",
+              "concepts/determinism"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Guides",
+        "icon": "compass",
+        "groups": [
+          {
+            "group": "Use Narrator",
+            "pages": [
+              "guides/browser-extension",
+              "guides/embedding"
+            ]
+          },
+          {
+            "group": "Extend Narrator",
+            "pages": [
+              "guides/writing-a-plugin",
+              "guides/translating",
+              "guides/source-languages",
+              "guides/plugin-versioning"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Plugins",
+        "icon": "puzzle",
+        "groups": [
+          {
+            "group": "Plugins",
+            "pages": [
+              "plugins/overview"
+            ]
+          },
+          {
+            "group": "Available",
+            "pages": [
+              "plugins/zod",
+              "plugins/testing",
+              "plugins/decimal",
+              "plugins/drizzle",
+              "plugins/effect",
+              "plugins/better-auth",
+              "plugins/hono",
+              "plugins/elysia",
+              "plugins/ai-sdk",
+              "plugins/sql"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Reference",
+        "icon": "braces",
+        "groups": [
+          {
+            "group": "Packages",
+            "pages": [
+              "reference/core",
+              "reference/engine",
+              "reference/ts-plugin",
+              "reference/locale",
+              "reference/testkit"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/SirTenzin/narrator"
+    }
+  },
+  "contextual": {
+    "options": [
+      "copy",
+      "view"
+    ]
+  }
+}

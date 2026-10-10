@@ -1,0 +1,405 @@
+@import url("https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500&display=swap");
+
+:root {
+	--nr-ink: #1b1a17;
+	--nr-paper: #fbf8f2;
+	--nr-card: #ffffff;
+	--nr-line: rgba(27, 26, 23, 0.1);
+	--nr-muted: #6b665c;
+	--nr-accent: #c2410c;
+	--nr-accent-soft: rgba(194, 65, 12, 0.09);
+	--nr-code-bg: #1c1a17;
+	--nr-code-ink: #e9e4d8;
+	--nr-english-bg: #fffdf8;
+	--nr-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+	--nr-serif: "Newsreader", Georgia, serif;
+}
+
+html.dark {
+	--nr-ink: #f3eee3;
+	--nr-paper: #121110;
+	--nr-card: #1a1917;
+	--nr-line: rgba(243, 238, 227, 0.1);
+	--nr-muted: #a39d90;
+	--nr-accent: #fb8a4c;
+	--nr-accent-soft: rgba(251, 138, 76, 0.12);
+	--nr-code-bg: #0c0b0a;
+	--nr-code-ink: #e9e4d8;
+	--nr-english-bg: #1a1917;
+}
+
+/* ---------- typography ---------- */
+
+code,
+pre,
+kbd {
+	font-family: var(--nr-mono) !important;
+}
+
+#page-title,
+.prose h1,
+.prose h2,
+.prose h3 {
+	letter-spacing: -0.012em;
+}
+
+#page-title {
+	font-size: 2.6rem;
+	line-height: 1.1;
+}
+
+.prose h2 {
+	font-size: 1.65rem;
+}
+
+.prose :not(pre) > code {
+	border-radius: 6px;
+	padding: 0.1em 0.35em;
+	font-size: 0.86em;
+}
+
+/* Section eyebrow reads like a small-caps chapter label. */
+.eyebrow {
+	text-transform: uppercase;
+	letter-spacing: 0.12em;
+	font-size: 0.72rem !important;
+}
+
+/* ---------- hero ---------- */
+
+.nr-hero {
+	position: relative;
+	padding: 2.5rem 0 1.5rem;
+}
+
+.nr-kicker {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.5rem;
+	font-family: var(--nr-mono);
+	font-size: 0.78rem;
+	color: var(--nr-muted);
+	border: 1px solid var(--nr-line);
+	border-radius: 999px;
+	padding: 0.25rem 0.75rem;
+	background: var(--nr-card);
+}
+
+.nr-kicker b {
+	color: var(--nr-accent);
+	font-weight: 500;
+}
+
+.nr-hero h1 {
+	font-family: var(--nr-serif);
+	font-weight: 500;
+	font-size: clamp(2.4rem, 5vw, 3.7rem);
+	line-height: 1.04;
+	letter-spacing: -0.025em;
+	color: var(--nr-ink);
+	margin: 1.1rem 0 1rem;
+	max-width: 17ch;
+}
+
+.nr-hero h1 em {
+	color: var(--nr-accent);
+	font-style: italic;
+}
+
+.nr-hero p {
+	font-size: 1.15rem;
+	line-height: 1.6;
+	color: var(--nr-muted);
+	max-width: 40rem;
+	margin: 0;
+}
+
+.nr-cta {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.75rem;
+	margin-top: 1.75rem;
+}
+
+.nr-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.4rem;
+	border-radius: 10px;
+	padding: 0.6rem 1.05rem;
+	font-weight: 500;
+	font-size: 0.95rem;
+	border: 1px solid var(--nr-line);
+	color: var(--nr-ink) !important;
+	background: var(--nr-card);
+	text-decoration: none !important;
+	transition:
+		transform 0.15s ease,
+		border-color 0.15s ease;
+}
+
+.nr-btn:hover {
+	transform: translateY(-1px);
+	border-color: var(--nr-accent);
+}
+
+.nr-btn-primary {
+	background: var(--nr-ink);
+	color: var(--nr-paper) !important;
+	border-color: var(--nr-ink);
+}
+
+.nr-install {
+	font-family: var(--nr-mono);
+	font-size: 0.85rem;
+	color: var(--nr-muted);
+	align-self: center;
+}
+
+/* ---------- showcase: code on the left, English on the right ---------- */
+
+.nr-showcase {
+	margin: 1.5rem 0 2.5rem;
+	border: 1px solid var(--nr-line);
+	border-radius: 18px;
+	overflow: hidden;
+	background: var(--nr-card);
+	box-shadow:
+		0 1px 0 var(--nr-line),
+		0 24px 48px -28px rgba(27, 26, 23, 0.35);
+}
+
+.nr-showcase-bar {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 1rem;
+	padding: 0.6rem 0.75rem;
+	border-bottom: 1px solid var(--nr-line);
+	overflow-x: auto;
+}
+
+.nr-tabs {
+	display: flex;
+	gap: 0.25rem;
+}
+
+.nr-tab {
+	font-size: 0.85rem;
+	font-weight: 500;
+	padding: 0.35rem 0.75rem;
+	border-radius: 8px;
+	color: var(--nr-muted);
+	white-space: nowrap;
+	cursor: pointer;
+}
+
+.nr-tab:hover {
+	color: var(--nr-ink);
+}
+
+.nr-tab-on {
+	color: var(--nr-ink);
+	background: var(--nr-accent-soft);
+	box-shadow: inset 0 0 0 1px var(--nr-line);
+}
+
+.nr-file {
+	font-family: var(--nr-mono);
+	font-size: 0.75rem;
+	color: var(--nr-muted);
+	white-space: nowrap;
+}
+
+.nr-panes {
+	display: grid;
+	grid-template-columns: minmax(0, 1.12fr) minmax(0, 1fr);
+}
+
+@media (max-width: 900px) {
+	.nr-panes {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}
+
+.nr-code {
+	margin: 0 !important;
+	padding: 1rem 0 !important;
+	border-radius: 0 !important;
+	background: var(--nr-code-bg) !important;
+	color: var(--nr-code-ink);
+	font-size: 0.76rem;
+	line-height: 1.7;
+	overflow-x: auto;
+}
+
+.nr-cl {
+	display: flex;
+	padding-right: 1rem;
+	white-space: pre;
+	border-left: 2px solid transparent;
+}
+
+.nr-ln {
+	width: 2.6rem;
+	flex: none;
+	text-align: right;
+	padding-right: 1rem;
+	color: rgba(233, 228, 216, 0.28);
+	user-select: none;
+}
+
+.nr-cl.nr-lit {
+	background: rgba(251, 138, 76, 0.12);
+	border-left-color: #fb8a4c;
+}
+
+.nr-kw {
+	color: #f0a679;
+}
+.nr-st {
+	color: #a8d5a2;
+}
+.nr-nu {
+	color: #e6c07b;
+}
+.nr-fn {
+	color: #9cc4ff;
+}
+.nr-ty {
+	color: #d7b3ff;
+}
+.nr-cm {
+	color: rgba(233, 228, 216, 0.45);
+	font-style: italic;
+}
+
+.nr-english {
+	background: var(--nr-english-bg);
+	padding: 0.9rem 0;
+	font-family: var(--nr-serif);
+	font-size: 1.04rem;
+	line-height: 1.55;
+	color: var(--nr-ink);
+	border-left: 1px solid var(--nr-line);
+}
+
+.nr-el {
+	padding: 0.12rem 1rem 0.12rem 0.9rem;
+	border-left: 2px solid transparent;
+	transition: background 0.12s ease;
+}
+
+.nr-d1 {
+	padding-left: 2.05rem;
+}
+.nr-d2 {
+	padding-left: 3.2rem;
+}
+.nr-d3 {
+	padding-left: 4.35rem;
+}
+.nr-d4 {
+	padding-left: 5.5rem;
+}
+.nr-d5 {
+	padding-left: 6.65rem;
+}
+
+.nr-el.nr-head {
+	font-weight: 600;
+}
+
+.nr-el.nr-lit {
+	background: var(--nr-accent-soft);
+	border-left-color: var(--nr-accent);
+}
+
+.nr-gap {
+	height: 0.6rem;
+}
+
+.nr-m-v {
+	color: var(--nr-accent);
+}
+
+.nr-m-f {
+	font-weight: 600;
+	text-decoration: underline;
+	text-decoration-color: var(--nr-line);
+	text-underline-offset: 3px;
+}
+
+.nr-m-t {
+	color: var(--nr-muted);
+	font-size: 0.92em;
+}
+
+.nr-m-l {
+	white-space: nowrap;
+	font-family: var(--nr-mono);
+	font-size: 0.82em;
+	color: #2f7d4f;
+}
+
+html.dark .nr-m-l {
+	color: #a8d5a2;
+}
+
+.nr-m-c {
+	font-family: var(--nr-mono);
+	font-size: 0.82em;
+	color: var(--nr-muted);
+}
+
+.nr-caption {
+	font-size: 0.78rem;
+	color: var(--nr-muted);
+	padding: 0.55rem 1rem;
+	border-top: 1px solid var(--nr-line);
+}
+
+/* ---------- small pieces used across pages ---------- */
+
+.nr-pill {
+	display: inline-block;
+	font-family: var(--nr-mono);
+	font-size: 0.72rem;
+	padding: 0.1rem 0.5rem;
+	border-radius: 999px;
+	border: 1px solid var(--nr-line);
+	color: var(--nr-muted);
+}
+
+[data-component-part="card-icon"] {
+	color: var(--nr-accent) !important;
+}
+
+/* The landing page carries its own hero, so hide the default page header there. */
+html[data-current-path="/"] #header {
+	display: none;
+}
+
+[data-component-part="card-title"] {
+	font-family: "Geist", ui-sans-serif, system-ui, sans-serif !important;
+	font-size: 1.02rem !important;
+	letter-spacing: 0;
+}
+
+:root {
+	--content-width: 44rem;
+}
+
+/* Narration output reads as prose, so set it in the serif rather than the code face. */
+code.language-text,
+code[language="text"] {
+	font-family: var(--nr-serif) !important;
+	font-size: 1.02rem !important;
+	line-height: 1.6 !important;
+	font-weight: 400 !important;
+}
+
+code.language-text span,
+code[language="text"] span {
+	font-weight: 400 !important;
+}
