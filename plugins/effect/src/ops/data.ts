@@ -1,13 +1,13 @@
 import { D } from "@usenarrator/core";
 import type { N } from "@usenarrator/lang-ts";
-import { type Ctx, callbackStep, fixed, make, noun, type OpTable, step } from "../context";
+import { type Ctx, callbackStep, fixed, make, type OpTable, step } from "../context";
 import type { EffectPhrases } from "../phrases";
 import { matchFirst, thunkValue } from "./effect";
 
 const one = (pick: (s: EffectPhrases) => (p: any) => string, key: string) =>
 	make((c, [x]) => {
 		if (!x) return null;
-		const v = noun(c, x);
+		const v = c.e.noun(x);
 		return D(pick(c.say)({ [key]: v.t }), v.kids);
 	});
 
@@ -57,6 +57,21 @@ export const dataConditions = (version: 3 | 4 | "auto"): Record<string, CondPick
 	"Option.isNone": (s) => s.option.isEmpty,
 	"Exit.isSuccess": (s) => s.outcome.succeeded,
 	"Exit.isFailure": (s) => s.outcome.failed,
+	...(version !== 4
+		? {
+				"Cause.isInterruptedOnly": (s: EffectPhrases) => s.cause.isInterrupted,
+				"Cause.isFailure": (s: EffectPhrases) => s.cause.isFailure,
+				"Cause.isDie": (s: EffectPhrases) => s.cause.isDie,
+			}
+		: {}),
+	...(version !== 3
+		? {
+				"Cause.hasInterruptsOnly": (s: EffectPhrases) => s.cause.isInterrupted,
+				"Cause.hasFails": (s: EffectPhrases) => s.cause.isFailure,
+				"Cause.hasDies": (s: EffectPhrases) => s.cause.isDie,
+			}
+		: {}),
+	"Deferred.isDone": (s) => s.deferred.isDone,
 	...(version !== 4 ? { "Either.isRight": (s: EffectPhrases) => s.outcome.succeeded, "Either.isLeft": (s: EffectPhrases) => s.outcome.failed } : {}),
 	...(version !== 3 ? { "Result.isSuccess": (s: EffectPhrases) => s.outcome.succeeded, "Result.isFailure": (s: EffectPhrases) => s.outcome.failed } : {}),
 });

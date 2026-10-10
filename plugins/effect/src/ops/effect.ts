@@ -9,16 +9,18 @@ import {
 	cbValue,
 	concurrency,
 	duration,
+	errorValue,
 	form,
 	isFn,
 	isObj,
+	layerNoun,
 	type Mode,
 	make,
-	noun,
 	numbered,
 	type OpTable,
 	objProp,
 	pipeStep,
+	serviceName,
 	step,
 	stepIf,
 	strLit,
@@ -29,7 +31,7 @@ import { scheduleHow } from "./schedule";
 type Form = { noun: (p: any) => string; act: (p: any) => string };
 
 /** A one-argument builder like `Effect.succeed(x)` with a noun and an action reading. */
-const valueOp = (pick: (s: EffectPhrases) => Form, key: string, read: (c: Ctx, n: N) => Doc = noun) =>
+const valueOp = (pick: (s: EffectPhrases) => Form, key: string, read: (c: Ctx, n: N) => Doc = (c, n) => c.e.noun(n)) =>
 	make((c, args, mode) => {
 		if (!args[0]) return null;
 		const v = read(c, args[0]);
@@ -37,11 +39,17 @@ const valueOp = (pick: (s: EffectPhrases) => Form, key: string, read: (c: Ctx, n
 	});
 
 /** `() => x` read as "x"; a function reference reads as itself. */
-export const thunkValue = (c: Ctx, n: N): Doc => (isFn(n) ? cbValue(c, callbackParts(c, n)) : noun(c, n));
+export const thunkValue = (c: Ctx, n: N): Doc => (isFn(n) ? cbValue(c, callbackParts(c, n)) : c.e.noun(n));
 export const thunkAction = (c: Ctx, n: N): Doc => (isFn(n) ? cbAction(c, callbackParts(c, n)) : act(c, n));
+/** `() => new Timeout()` or `new Timeout()` where only an error makes sense. */
+export const errorThunk = (c: Ctx, n: N): Doc => {
+	const ex = isFn(n) ? c.e.lambdaExpr(unwrap(n)) : n;
+	return ex ? errorValue(c, ex) : thunkValue(c, n);
+};
 
 /** A callback's body as statement lines, for blocks that list what happens. */
 export function actionLines(c: Ctx, fn: N): Line[] {
+	if (unwrap(fn).body?.type === "BlockStatement") return c.e.body(unwrap(fn).body, 0);
 	const parts = callbackParts(c, fn);
 	if (parts.block) return c.e.body(parts.block, 0);
 	const a = act(c, parts.expr);
@@ -56,12 +64,12 @@ const tryLike = (plain: (s: EffectPhrases) => Form, mapped: (s: EffectPhrases) =
 		if (!t) return null;
 		const v = thunkValue(c, t);
 		if (!k) return D(form(plain(c.say), mode, { value: v.t }), v.kids);
-		const err = thunkValue(c, k);
+		const err = errorThunk(c, k);
 		return D(form(mapped(c.say), mode, { value: v.t, error: err.t }), [...v.kids, ...err.kids]);
 	});
 
 const messages = (c: Ctx, args: N[]) => {
-	const docs = args.map((a) => noun(c, a));
+	const docs = args.map((a) => c.e.noun(a));
 	return D(
 		c.e.g.list(docs.map((d) => d.t)),
 		docs.flatMap((d) => d.kids),
@@ -105,9 +113,9 @@ const all = make((c, [items, opts], mode) => {
 const forEach = make((c, [items, fn, opts], mode) => {
 	if (!items || !fn) return null;
 	const how = concurrency(c, opts ?? null);
-	const list = noun(c, items);
+	const list = c.e.noun(items);
 	if (!isFn(fn)) {
-		const f = noun(c, fn);
+		const f = c.e.noun(fn);
 		return D(form(c.say.make.forEachFn, mode, { items: list.t, fn: f.t, how }), [...list.kids, ...f.kids]);
 	}
 	const p = unwrap(fn).params[0];
@@ -123,13 +131,15 @@ const gen = make((c, args, mode) => {
 });
 
 /** `Effect.fn("name")(function* (a) {...}, ...steps)` and `Effect.fn(function* ...)`. */
-export function effectFn(c: Ctx, fnArgs: N[]): Doc | null {
+export function effectFn(c: Ctx, fnArgs: N[], span: N | null = null): Doc | null {
 	const [fn, ...pipes] = fnArgs;
 	if (!fn || !isFn(fn)) return null;
 	const f = unwrap(fn);
 	const given = f.params.flatMap((p: N) => c.e.patternNames(p));
 	const head = given.length ? c.say.program.fn({ given: c.e.g.list(given) }) : c.say.program.fnBare;
-	return D(head, [...actionLines(c, f), ...afterLines(c, pipes)]);
+	const traced: Line[] =
+		span && strLit(span) !== null ? [{ d: 0, text: `${c.say.span.fnSpan({ name: c.e.noun(span).t })}.`, start: -1, end: -1, kind: "stmt" }] : [];
+	return D(head, [...traced, ...actionLines(c, f), ...afterLines(c, pipes)]);
 }
 
 /** The steps an `Effect.fn` applies around its body, as a trailing numbered block. */
@@ -146,7 +156,7 @@ export function afterLines(c: Ctx, pipes: N[]): Line[] {
 
 const fnOp = {
 	kind: "curried" as const,
-	render: (c: Ctx, inner: N[], outer: N[] | null) => (outer ? effectFn(c, outer) : isFn(inner[0]) ? effectFn(c, inner) : null),
+	render: (c: Ctx, inner: N[], outer: N[] | null) => (outer ? effectFn(c, outer, inner[0] ?? null) : isFn(inner[0]) ? effectFn(c, inner) : null),
 };
 
 /** A predicate callback as a condition. */
@@ -166,13 +176,13 @@ function policy(c: Ctx, p: N, pick: { how: (x: { how: string }) => string; with:
 		const times = objProp(p, "times");
 		const w = objProp(p, "while");
 		const u = objProp(p, "until");
-		if (sched) parts.push(scheduleHow(c, sched) ?? noun(c, sched).t);
+		if (sched) parts.push(scheduleHow(c, sched) ?? c.e.noun(sched).t);
 		if (times) parts.push(c.say.schedule.recurs({ n: c.e.noun(times).t }));
 		if (w) parts.push(c.say.schedule.while({ cond: predicate(c, w) }));
 		if (u) parts.push(c.say.schedule.until({ cond: predicate(c, u) }));
 		if (parts.length) return D(pick.how({ how: c.e.g.list(parts) }));
 	}
-	const pol = noun(c, p);
+	const pol = c.e.noun(p);
 	return D(pick.with({ policy: pol.t }), pol.kids);
 }
 
@@ -232,14 +242,14 @@ const bare = (pick: (s: EffectPhrases) => string) =>
 const forkOp = (pick: (s: EffectPhrases) => string) => ({
 	...bare(pick),
 	first: (c: Ctx, [eff]: N[], mode: Mode) => {
-		const v = noun(c, eff);
+		const v = c.e.noun(eff);
 		return D(form(c.say.run.fork, mode, { effect: v.t }), v.kids);
 	},
 });
 
 const runner = (pick: (s: EffectPhrases) => Form) =>
 	make((c, [eff], mode) => {
-		const v = eff ? noun(c, eff) : D(c.say.common.it);
+		const v = eff ? c.e.noun(eff) : D(c.say.common.it);
 		return D(form(pick(c.say), mode, { effect: v.t }), v.kids);
 	});
 
@@ -272,7 +282,7 @@ const matchCases = (c: Ctx, cases: N, asAction: boolean): Line[] => {
 	return u.properties.flatMap((p: N) => {
 		const when = c.say.match.when[p.key?.name as keyof EffectPhrases["match"]["when"]];
 		if (!when || p.type !== "Property") return [];
-		if (!isFn(p.value)) return c.e.bullet(D(c.say.match.line({ when, then: noun(c, p.value).t })));
+		if (!isFn(p.value)) return c.e.bullet(D(c.say.match.line({ when, then: c.e.noun(p.value).t })));
 		const parts = callbackParts(c, p.value);
 		const body = asAction ? cbAction(c, parts) : cbValue(c, parts);
 		const label = parts.name ? c.say.match.named({ when, name: parts.name }) : when;
@@ -291,7 +301,7 @@ export const matchOp = (asAction: boolean) =>
 export const matchFirst = (asAction: boolean) => ({
 	...matchOp(asAction),
 	first: (c: Ctx, args: N[]) => {
-		const subj = noun(c, args[0]);
+		const subj = c.e.noun(args[0]);
 		return D(c.say.match.header({ subject: subj.t }), [...subj.kids, ...matchCases(c, args[1], asAction)]);
 	},
 });
@@ -309,21 +319,13 @@ function resource(c: Ctx, mode: Mode, acquire: N, use: N | null, release: N): Do
 	return D(c.say.scope.resource[mode], lines);
 }
 
-/** A service tag as a linkable name (`Database`), or its noun for anything more complex. */
-export function serviceName(c: Ctx, tag: N): string {
-	const u = unwrap(tag);
-	if (u?.type === "Identifier") return c.e.fnRef(u.name, u.name);
-	if (u?.type === "ThisExpression" && c.state.currentClass) return c.e.fnRef(c.state.currentClass, c.state.currentClass);
-	return noun(c, u).t;
-}
-
 const shared: OpTable = {
 	"Effect.gen": gen,
 	"Effect.fn": fnOp,
 	"Effect.fnUntraced": fnOp,
 	"Effect.succeed": valueOp((s) => s.make.succeed, "value"),
-	"Effect.fail": valueOp((s) => s.make.fail, "error"),
-	"Effect.failSync": valueOp((s) => s.make.fail, "error", thunkValue),
+	"Effect.fail": valueOp((s) => s.make.fail, "error", errorValue),
+	"Effect.failSync": valueOp((s) => s.make.fail, "error", errorThunk),
 	"Effect.die": valueOp((s) => s.make.die, "defect"),
 	"Effect.dieMessage": valueOp((s) => s.make.die, "defect"),
 	"Effect.sync": make((c, [fn], mode) => {
@@ -365,7 +367,7 @@ const shared: OpTable = {
 	"Effect.catchTags": catchTags,
 	"Effect.catchIf": step(2, (c, [pred, fn]) => (pred && fn ? callbackStep(c, c.say.steps.catchTag, fn, "action", { tags: predicate(c, pred) }) : null)),
 	"Effect.tapError": step(1, (c, [fn]) => (fn ? callbackStep(c, c.say.steps.tapError, fn, "action") : null)),
-	"Effect.mapError": step(1, (c, [fn]) => (fn ? callbackStep(c, c.say.steps.mapError, fn, "value") : null)),
+	"Effect.mapError": step(1, (c, [fn]) => (fn ? callbackStep(c, c.say.steps.mapError, fn, "value", {}, errorValue) : null)),
 	"Effect.orElse": actionStep((s) => s.steps.orElse),
 	"Effect.orElseSucceed": step(1, (c, [fn]) => {
 		if (!fn) return null;
@@ -374,7 +376,7 @@ const shared: OpTable = {
 	}),
 	"Effect.orElseFail": step(1, (c, [fn]) => {
 		if (!fn) return null;
-		const v = thunkValue(c, fn);
+		const v = errorThunk(c, fn);
 		return D(c.say.steps.orElseFail({ error: v.t }), v.kids);
 	}),
 	"Effect.orDie": bare((s) => s.steps.orDie),
@@ -385,7 +387,7 @@ const shared: OpTable = {
 	"Effect.flatten": bare((s) => s.steps.flatten),
 	"Effect.scoped": bare((s) => s.steps.scoped),
 	"Effect.forkScoped": bare((s) => s.steps.forkScoped),
-	"Effect.as": step(1, (c, [v]) => (v ? D(c.say.steps.as({ value: noun(c, v).t })) : null)),
+	"Effect.as": step(1, (c, [v]) => (v ? D(c.say.steps.as({ value: c.e.noun(v).t })) : null)),
 	"Effect.retry": step(1, (c, [p]) => (p ? policy(c, p, { how: c.say.steps.retry, with: c.say.steps.retryWith }) : null)),
 	"Effect.repeat": step(1, (c, [p]) => (p ? policy(c, p, { how: c.say.steps.repeat, with: c.say.steps.repeatWith }) : null)),
 	"Effect.timeout": durationStep((s) => s.steps.timeout),
@@ -394,17 +396,17 @@ const shared: OpTable = {
 		const d = opts ? objProp(opts, "duration") : null;
 		const on = opts ? objProp(opts, "onTimeout") : null;
 		if (!d || !on) return null;
-		return D(c.say.steps.timeoutFail({ duration: duration(c, d).t, error: thunkValue(c, on).t }));
+		return D(c.say.steps.timeoutFail({ duration: duration(c, d).t, error: errorThunk(c, on).t }));
 	}),
 	"Effect.provide": step(1, (c, [what]) => {
 		if (!what) return null;
 		const u = unwrap(what);
-		const t = u.type === "ArrayExpression" ? c.e.g.list(u.elements.map((x: N) => noun(c, x).t)) : noun(c, u).t;
+		const t = u.type === "ArrayExpression" ? c.e.g.list(u.elements.map((x: N) => layerNoun(c, x))) : layerNoun(c, u);
 		return D(c.say.steps.provide({ what: t }));
 	}),
 	"Effect.provideService": step(2, (c, [tag, impl]) => {
 		if (!tag || !impl) return null;
-		const i = noun(c, impl);
+		const i = c.e.noun(impl);
 		return D(c.say.steps.provideService({ service: serviceName(c, tag), impl: i.t }), i.kids);
 	}),
 	"Effect.withSpan": stepIf(
@@ -439,7 +441,7 @@ const shared: OpTable = {
 			if (!pred) return null;
 			const cond = predicate(c, pred);
 			if (!orFail) return D(c.say.steps.filterOrFailBare({ cond }));
-			return D(c.say.steps.filterOrFail({ cond, error: thunkValue(c, orFail).t }));
+			return D(c.say.steps.filterOrFail({ cond, error: errorThunk(c, orFail).t }));
 		},
 	),
 	"Effect.match": matchFirst(false),

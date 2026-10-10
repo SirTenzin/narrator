@@ -1,42 +1,35 @@
 import { capFirst, D, type Doc } from "@usenarrator/core";
 import { type N, unwrap } from "@usenarrator/lang-ts";
-import { act, type Ctx, calleeKey, curriedCall, isFn, isPascal, memberKey, noun, objProp } from "./context";
-import { afterLines, serviceName } from "./ops/effect";
+import {
+	act,
+	type Ctx,
+	calleeKey,
+	delegate,
+	endsTheProgram,
+	FORKS,
+	isFn,
+	isPascal,
+	isServiceTag,
+	layerNoun,
+	memberKey,
+	objProp,
+	serviceName,
+	strLit,
+	yieldAction,
+} from "./context";
+import { afterLines } from "./ops/effect";
 import { structFields } from "./ops/schema";
 
-const delegate = (n: N) => {
-	const u = unwrap(n);
-	return u?.type === "YieldExpression" && u.delegate ? unwrap(u.argument) : null;
-};
+const QUEUES = new Set(["Queue.bounded", "Queue.unbounded", "Queue.dropping", "Queue.sliding", "PubSub.subscribe"]);
 
-const FAILS = new Set(["Effect.fail", "Effect.failSync", "Effect.die", "Effect.dieMessage", "Effect.interrupt"]);
-const FORKS = new Set(["Effect.fork", "Effect.forkDaemon", "Effect.forkScoped", "Effect.forkChild", "Effect.forkDetach", "Effect.forkIn"]);
-const endsTheProgram = (arg: N) => arg.type === "NewExpression" || FAILS.has(calleeKey(arg) ?? "");
-
-/** What `yield* arg` does, as an action. */
-function yieldAction(c: Ctx, arg: N): Doc {
-	const y = c.say.yield;
-	if (arg.type === "NewExpression") {
-		const err = c.e.noun(arg);
-		return D(y.failWith({ error: err.t }), err.kids);
-	}
-	if (arg.type === "Identifier") {
-		const name = c.e.ref(arg.name);
-		if (c.state.fibers.has(arg.name)) return D(y.awaitFiber({ fiber: name }));
-		if (c.state.refs.has(arg.name)) return D(y.readRef({ ref: name }));
-		if (c.state.deferreds.has(arg.name)) return D(y.awaitDeferred({ deferred: name }));
-		if (isPascal(arg)) return D(y.service({ service: serviceName(c, arg) }));
-	}
-	return act(c, arg);
-}
-
-/** v3 fibers, refs and deferreds are effects themselves, so a later `yield* x` waits on or reads them. */
+/** v3 fibers, refs, deferreds and queues are effects themselves, so a later `yield* x` waits on or reads them. */
 function remember(c: Ctx, name: string, arg: N) {
 	if (c.version === 4) return;
 	const key = calleeKey(arg) ?? "";
 	if (FORKS.has(key)) c.state.fibers.add(name);
-	if (key === "Ref.make" || key === "SynchronizedRef.make") c.state.refs.add(name);
+	if (key === "Ref.make" || key === "SynchronizedRef.make" || key === "SubscriptionRef.make") c.state.refs.add(name);
 	if (key === "Deferred.make") c.state.deferreds.add(name);
+	if (QUEUES.has(key)) c.state.queues.add(name);
 }
 
 /** `const x = yield* X`, `yield* X;`, `return yield* X`: each reads as one step. */
@@ -63,7 +56,7 @@ export function yieldStatement(c: Ctx, n: N, d: number): boolean {
 	if (id.type === "Identifier") {
 		remember(c, id.name, arg);
 		const name = c.e.ref(id.name);
-		if (arg.type === "Identifier" && isPascal(arg) && !c.state.fibers.has(arg.name)) {
+		if ((arg.type === "Identifier" && isPascal(arg) && !c.state.fibers.has(arg.name)) || isServiceTag(arg)) {
 			c.e.emitDoc(d, D(y.bindService({ service: serviceName(c, arg), name })), n);
 			return true;
 		}
@@ -90,36 +83,22 @@ export function effectFnDeclaration(c: Ctx, n: N, d: number): boolean {
 	if (!curriedFn && !directFn) return false;
 	const [fn, ...pipes] = init.arguments;
 	if (!isFn(fn)) return false;
+	const at = c.e.lines.length;
 	c.e.fnDecl(decl.id.name, unwrap(fn), n, d);
+	const span = curriedFn ? strLit(inner.arguments[0]) : null;
+	if (span !== null && span !== decl.id.name)
+		c.e.lines.splice(at + 1, 0, {
+			d: d + 1,
+			text: `${c.say.span.fnSpan({ name: c.e.literal({ type: "Literal", value: span }) })}.`,
+			start: n.start,
+			end: n.end,
+			kind: "stmt",
+		});
 	for (const l of afterLines(c, pipes)) c.e.lines.push({ ...l, d: l.d + d + 1, start: n.start, end: n.end });
 	return true;
 }
 
-/** Statements whose value is a curried Effect builder the engine can't dispatch on its own. */
-export function curriedStatement(c: Ctx, n: N, d: number): boolean {
-	const p = c.say.common;
-	if (n.type === "ReturnStatement" && n.argument) {
-		const v = curriedCall(c, n.argument, "noun");
-		if (!v) return false;
-		c.e.emitDoc(d, D(p.giveBack({ value: v.t }), v.kids), n);
-		return true;
-	}
-	if (n.type === "ExpressionStatement") {
-		const v = curriedCall(c, n.expression, "act");
-		if (!v) return false;
-		c.e.emitDoc(d, v, n);
-		return true;
-	}
-	if (n.type !== "VariableDeclaration" || n.declarations.length !== 1) return false;
-	const decl = n.declarations[0];
-	if (decl.id.type !== "Identifier" || !decl.init) return false;
-	const v = curriedCall(c, decl.init, "noun");
-	if (!v) return false;
-	c.e.emitDoc(d, D(p.letBe({ name: c.e.ref(decl.id.name), value: v.t }), v.kids), n);
-	return true;
-}
-
-type ClassInfo = { heading: string; extra: Doc[]; error?: boolean };
+type ClassInfo = { heading: string; extra: Doc[] };
 
 /** Fields of a type literal like `<{ readonly id: string; note?: string }>`. */
 function typeFields(c: Ctx, t: N): string | null {
@@ -145,23 +124,24 @@ function serviceInfo(c: Ctx, name: string, shape: N | null, opts: N | null): Cla
 	const extra: Doc[] = [];
 	const built = objProp(opts, "effect") ?? objProp(opts, "scoped") ?? objProp(opts, "make");
 	if (built) {
-		const v = noun(c, built);
+		const v = c.e.noun(built);
 		extra.push(D(s.built({ effect: v.t }), v.kids));
 	}
 	const succeed = objProp(opts, "succeed");
 	if (succeed) {
-		const v = noun(c, succeed);
+		const v = c.e.noun(succeed);
 		extra.push(D(s.alwaysProvides({ value: v.t }), v.kids));
 	}
 	const sync = objProp(opts, "sync");
 	if (sync) {
 		const ex = isFn(sync) ? c.e.lambdaExpr(unwrap(sync)) : null;
-		const v = noun(c, ex ?? sync);
+		const v = c.e.noun(ex ?? sync);
 		extra.push(D(s.computed({ value: v.t }), v.kids));
 	}
 	const deps = objProp(opts, "dependencies");
 	if (deps && unwrap(deps).type === "ArrayExpression" && unwrap(deps).elements.length)
-		extra.push(D(s.needs({ deps: c.e.g.list(unwrap(deps).elements.map((x: N) => noun(c, x).t)) })));
+		extra.push(D(s.needs({ deps: c.e.g.list(unwrap(deps).elements.map((x: N) => layerNoun(c, x))) })));
+	if (unwrap(objProp(opts, "accessors"))?.value === true) extra.push(D(s.accessors({ name })));
 	return { heading, extra };
 }
 
@@ -175,7 +155,7 @@ function classInfo(c: Ctx, n: N): ClassInfo | null {
 	const dataLike = (key: string | null) => {
 		if (key === "Data.TaggedError" || key === "Data.Error") {
 			const f = typeFields(c, superArgs[0]);
-			return { heading: f ? d.errorTypeFields({ name, fields: f }) : d.errorType({ name }), extra: [], error: true };
+			return { heading: f ? d.errorTypeFields({ name, fields: f }) : d.errorType({ name }), extra: [] };
 		}
 		if (key === "Data.TaggedClass" || key === "Data.Class") {
 			const f = typeFields(c, superArgs[0]);
@@ -208,7 +188,7 @@ function classInfo(c: Ctx, n: N): ClassInfo | null {
 		case "Schema.TaggedError":
 		case "Schema.TaggedErrorClass": {
 			const f = fieldsFrom(sc.arguments[1]);
-			return { heading: f ? d.errorTypeFields({ name, fields: f }) : d.errorType({ name }), extra: [], error: true };
+			return { heading: f ? d.errorTypeFields({ name, fields: f }) : d.errorType({ name }), extra: [] };
 		}
 		case "Schema.Class":
 		case "Schema.TaggedClass": {
@@ -224,7 +204,6 @@ export function classStatement(c: Ctx, n: N, d: number): boolean {
 	if (n.type !== "ClassDeclaration") return false;
 	const info = classInfo(c, n);
 	if (!info) return false;
-	if (info.error) c.e.errorNames.add(n.id.name);
 	const at = c.e.lines.length;
 	const outer = c.state.currentClass;
 	c.state.currentClass = n.id.name;
