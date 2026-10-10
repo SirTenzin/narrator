@@ -1,0 +1,104 @@
+---
+title: "Elysia"
+description: "Read Elysia servers as routes with their schemas, hooks and replies."
+---
+
+<span className="nr-pill">@usenarrator/plugin-elysia</span>
+
+The [Elysia](https://elysiajs.com) plugin reads a server as a bulleted list of routes. Each route shows its TypeBox schemas as plain types, its hooks, and the steps of its handler. It also reads lifecycle hooks, plugins such as CORS and Swagger, and the Eden client.
+
+```ts
+import { elysia } from "@usenarrator/plugin-elysia";
+
+typescript({ parser: oxcParser, plugins: [elysia()] });
+// or pin a major version: elysia({ version: 1 }) or elysia({ version: 2 })
+```
+
+The plugin declares `library: { name: "elysia", versions: ">=1.0.0 <2.0.0 || >=2.0.0-0 <3.0.0" }`. It only narrates files that import from `elysia`, and only treats `t.*` as TypeBox when `t` comes from Elysia or `@sinclair/typebox`.
+
+## Examples
+
+{/* narrate plugins="elysia" path="server.ts" */}
+```ts Routes with schemas
+import { Elysia, t } from "elysia";
+
+const app = new Elysia({ prefix: "/api" })
+  .get("/", () => "Hello Elysia")
+  .get("/users/:id", ({ params: { id }, status }) => {
+    const user = findUser(id);
+    if (!user) return status(404, "User not found");
+    return user;
+  }, { params: t.Object({ id: t.Numeric() }) })
+  .post("/users", ({ body }) => createUser(body), {
+    body: t.Object({ name: t.String({ minLength: 1 }), email: t.String({ format: "email" }) }),
+  })
+  .listen(3000);
+```
+
+```text English
+Let app be a web server (Elysia) (every path starts with "/api"):
+  • answer GET "/" with "Hello Elysia"
+  • answer GET "/users/:id":
+    • the path parameters must be an object with ID (a number, even if sent as text)
+    • then:
+      Find user (ID) → user.
+      If user is missing, reply with a 404 (Not Found) response with "User not found".
+      Give back user.
+  • answer POST "/users":
+    • the body must be an object with name (text, at least 1 character) and email (an email address)
+    • reply with create user (body)
+  • start listening on port 3000
+```
+
+{/* narrate plugins="elysia" path="admin.ts" */}
+```ts Groups and guards
+import { Elysia, t } from "elysia";
+
+new Elysia().group("/admin", (app) =>
+  app
+    .guard({ headers: t.Object({ authorization: t.String() }) })
+    .get("/stats", () => getStats())
+    .delete("/users/:id", ({ params }) => deleteUser(params.id)),
+);
+```
+
+```text English
+A web server (Elysia):
+  • under "/admin":
+    • for every route from here on:
+      • the headers must be an object with authorization (text)
+    • answer GET "/stats" with get stats
+    • answer DELETE "/users/:id" with delete user (params' ID)
+```
+
+{/* narrate plugins="elysia" path="client.ts" */}
+```ts The Eden client
+import { treaty } from "@elysiajs/eden";
+
+const api = treaty<App>("localhost:3000");
+const { data, error } = await api.users({ id: 1 }).get();
+```
+
+```text English
+Let API be a typed client for the App API at "localhost:3000".
+From the reply to GET "/users/:id" through API (ID 1), take data and error.
+```
+
+## Elysia 1 and Elysia 2
+
+Elysia 2 changes some route signatures and hook names. In auto mode the plugin understands both. Pass `version: 1` or `version: 2` to read only one major's names. See [Plugin versioning](/guides/plugin-versioning).
+
+## What it covers
+
+- Apps and routes, including `all`, `route`, named handlers, static values, `export default`, WebSocket routes and mounts.
+- `group` and `guard` with the routes inside them.
+- Lifecycle hooks on the app and on single routes, with their scope.
+- `state`, `decorate`, `derive`, `resolve`, `model`, `macro` and error codes.
+- TypeBox schemas from `t` and `@sinclair/typebox`, including string formats and numeric strings.
+- Official plugins: CORS, Swagger, OpenAPI, JWT, static files and cron.
+- `set.status`, `set.headers`, `status()`, `redirect` and `listen` callbacks.
+- The Eden `treaty` client and `app.handle` in tests.
+
+## Translating
+
+The English phrasebook is exported as `en` and typed as `ElysiaPhrases`.

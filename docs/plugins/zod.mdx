@@ -1,0 +1,65 @@
+---
+title: "zod"
+description: "Read zod schemas as the shapes and rules they describe."
+---
+
+<span className="nr-pill">@usenarrator/plugin-zod</span>
+
+The zod plugin reads schema builders as descriptions of data. Base types, objects, arrays, enums, unions, records and literals become types, and modifiers such as `.optional()`, `.min()` and `.email()` become short notes after the type.
+
+```ts
+import { zod } from "@usenarrator/plugin-zod";
+
+typescript({ parser: oxcParser, plugins: [zod()] });
+```
+
+## Examples
+
+{/* narrate plugins="zod" */}
+```ts Enums and arrays
+const Role = z.enum(["owner", "admin", "member"]);
+const Tags = z.array(z.string()).max(5);
+```
+
+```text English
+Let role be a schema for one of "owner", "admin", or "member".
+Let tags be a schema for a list of text (at most 5).
+```
+
+{/* narrate plugins="zod" */}
+```ts Modifiers stack in order
+const Age = z.number().int().positive().nullable();
+const Website = z.string().url().optional();
+const Retries = z.number().int().min(0).max(10).default(3);
+```
+
+```text English
+Let age be a schema for a number (whole number, positive, can be null).
+Let website be a schema for text (a URL, optional).
+Let retries be a schema for a number (whole number, at least 0, at most 10, defaults to 3).
+```
+
+{/* narrate plugins="zod" */}
+```ts Objects, unions and records
+const Signup = z.object({ email: z.string().email(), password: z.string().min(10) });
+const Id = z.union([z.string().uuid(), z.number()]);
+const Scores = z.record(z.string(), z.number());
+```
+
+```text English
+Let signup be a schema for an object with email and password.
+Let ID be a schema for either text (a UUID) or a number.
+Let scores be a schema for a lookup of a number.
+```
+
+## What it covers
+
+- Base types: `string`, `number`, `boolean`, `date`, `bigint`, `any`, `unknown`, `null`.
+- Builders: `object`, `array`, `enum`, `nativeEnum`, `literal`, `union`, `record`, `.extend()`.
+- Modifiers: `optional`, `nullable`, `nullish`, `default`, `min`, `max`, `int`, `positive`, `nonnegative`, `email`, `url`, `uuid`, `refine`, `transform`. `describe`, `meta` and `openapi` are read but don't add words.
+
+Calls that use a schema, such as `Signup.parse(body)` and `Signup.safeParse(body)`, are not covered yet and read generically from their names.
+
+## Translating
+
+The English phrasebook is exported as `zodEn` and typed as `ZodPhrases`. See [Translating Narrator](/guides/translating).

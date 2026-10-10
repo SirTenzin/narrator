@@ -1,0 +1,109 @@
+---
+title: "TsPlugin"
+description: "The type every TypeScript and JavaScript plugin implements."
+---
+
+```ts
+import { definePlugin, type TsPlugin } from "@usenarrator/lang-ts";
+```
+
+```ts
+type TsPlugin<P = any> = {
+  name: string;
+  phrases?: Phrasebooks<P>;
+  library?: { name: string; versions: string };
+  vocabulary?: Vocabulary;
+  ambient?: string[];
+  errors?: string[] | RegExp;
+  errorLabels?: Record<string, string>;
+  constants?: Record<string, string>;
+  calls?: Record<string, CallRule<P>>;
+  conditions?: Record<string, CondRule<P>>;
+  statements?: StmtRule<P>[];
+  describeSchema?: (e: Engine, n: N, say: P) => string | null;
+};
+```
+
+`P` is the type of the plugin's phrasebook. Use `definePlugin(plugin)` to have it inferred from `phrases.en`.
+
+## Fields
+
+<ParamField path="name" type="string" required>
+  A unique name. Locales override this plugin's phrases under `locale.plugins[name]`.
+</ParamField>
+<ParamField path="phrases" type="{ en: P } & { [locale: string]: P }">
+  Phrasebooks keyed by locale id. `en` is required. A phrasebook may also include `glossary`, `constants` and `errorLabels`, which the engine merges over the plugin's own fields.
+</ParamField>
+<ParamField path="library" type="{ name: string; versions: string }">
+  The npm package this plugin reads and the semver range it was written against. Metadata only today. See [Plugin versioning](/guides/plugin-versioning).
+</ParamField>
+<ParamField path="vocabulary" type="Vocabulary">
+  Glossary entries, acronyms, verbs and predicate prefixes used to read identifiers.
+</ParamField>
+<ParamField path="ambient" type="string[]">
+  Identifiers that are plumbing, dropped from argument lists and member chains. The built-in `std` plugin marks `ctx` as ambient.
+</ParamField>
+<ParamField path="errors" type="string[] | RegExp">
+  Constructor names whose instances are errors. The built-in `std` plugin uses `/Error$/`.
+</ParamField>
+<ParamField path="errorLabels" type="Record<string, string>">
+  How to name an error class when it's thrown.
+</ParamField>
+<ParamField path="constants" type="Record<string, string>">
+  Exact source text mapped to a phrase.
+</ParamField>
+<ParamField path="calls" type="Record<string, CallRule<P>>">
+  Call rules keyed by callee. See [rule keys](/guides/writing-a-plugin#rule-keys).
+</ParamField>
+<ParamField path="conditions" type="Record<string, CondRule<P>>">
+  Condition rules, used when a call appears where a yes or no answer is expected.
+</ParamField>
+<ParamField path="statements" type="StmtRule<P>[]">
+  Rules that can take over a whole statement.
+</ParamField>
+<ParamField path="describeSchema" type="(e, n, say) => string | null">
+  Describes a schema-builder expression as a type, or returns `null` if the node isn't one.
+</ParamField>
+
+## Rules
+
+```ts
+type RuleResult = Doc | string | null | undefined;
+
+type CallRule<P> = (ctx: { node: N; args: N[]; obj: N | null; e: Engine; stmt: boolean; say: P }) => RuleResult;
+type CondRule<P> = (ctx: { node: N; args: N[]; obj: N | null; e: Engine; neg: boolean; say: P }) => RuleResult;
+type StmtRule<P> = (ctx: { node: N; e: Engine; d: number; say: P }) => boolean;
+```
+
+<ResponseField name="node" type="N">
+  The call expression. `N` is an ESTree node from oxc.
+</ResponseField>
+<ResponseField name="args" type="N[]">
+  The call's arguments.
+</ResponseField>
+<ResponseField name="obj" type="N | null">
+  The receiver for `Obj.method` and `*.method` keys, otherwise `null`.
+</ResponseField>
+<ResponseField name="stmt" type="boolean">
+  `true` when the call is a statement on its own, so it should read as an action ("Send the receipt") rather than a noun ("the receipt that was sent").
+</ResponseField>
+<ResponseField name="neg" type="boolean">
+  For condition rules, `true` when the condition is negated.
+</ResponseField>
+<ResponseField name="d" type="number">
+  For statement rules, the indent depth to emit lines at. Return `true` once you've emitted lines, or `false` to let the engine handle the statement.
+</ResponseField>
+<ResponseField name="say" type="P">
+  This plugin's phrasebook for the active locale.
+</ResponseField>
+
+Return `null` or `undefined` to let the next rule try. A string result is treated as a `Doc` with no block lines.
+
+## Other exports
+
+| Export | Description |
+| --- | --- |
+| `definePlugin(p)` | Identity function that infers `P`. |
+| `unwrap(n)` | Strips parentheses, TypeScript casts and assertions, optional chains and `await` from a node. |
+| `std`, `stdEn` | The built-in plugin for JavaScript itself and its English phrasebook. |
+| `typescript(options)` | The TypeScript source language. See the [Engine reference](/reference/engine). |

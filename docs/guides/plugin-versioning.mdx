@@ -1,0 +1,79 @@
+---
+title: "Plugin versioning"
+description: "Declare which library versions a plugin reads, and handle breaking majors."
+---
+
+Libraries change. A method can be renamed, removed, or keep its name and change its meaning. A plugin that narrates the old meaning for new code is worse than no plugin, so Narrator gives plugins two tools: a declared version range, and an option for picking a major version when the meaning of the code depends on it.
+
+## Declare the library you read
+
+Set `library` to the npm package your plugin reads and the semver range you wrote it against.
+
+```ts
+export const hono = (): TsPlugin<HonoPhrases> =>
+  definePlugin({
+    name: "hono",
+    library: { name: "hono", versions: ">=4 <6" },
+    phrases: { en },
+    calls,
+    statements,
+  });
+```
+
+The Hono and Elysia plugins declare their ranges today. The field is metadata: the engine doesn't read it yet, but tools can, for example to warn when a project's installed version is outside the range, or to pick the right plugin version automatically. Declaring it now costs nothing and makes that possible later.
+
+## Handle breaking majors with a `version` option
+
+When two majors of a library use the same name for different things, the plugin can't tell from the code alone which one it is reading. The convention is a `version` option on the plugin factory:
+
+```ts
+effect({ version: 4 });
+elysia({ version: 2 });
+```
+
+Leave it out and the plugin runs in **auto** mode. Auto mode reads the names from both majors, and for a name whose meaning changed it uses a phrasing written to be true in either version. Pin a version when you know which one your code uses, so you get the precise reading.
+
+Here is the same Effect schema read with each setting. In Effect 3, `Schema.Date` decodes a date from a string. In Effect 4 it is a date value.
+
+{/* narrate plugins="effect@3" */}
+```ts Effect 3
+import { Schema } from "effect";
+const Meeting = Schema.Struct({ title: Schema.String, at: Schema.Date });
+```
+
+```text English
+Let meeting be a schema for an object with title (text) and at (a date written as text).
+```
+
+{/* narrate plugins="effect@4" */}
+```ts Effect 4
+import { Schema } from "effect";
+const Meeting = Schema.Struct({ title: Schema.String, at: Schema.Date });
+```
+
+```text English
+Let meeting be a schema for an object with title (text) and at (a date).
+```
+
+`Effect.catch` is another example. In Effect 4 it catches every failure. In Effect 3 it takes a discriminator and catches one kind of failure. Pinning to one major also drops the other major's names entirely, so a v3-only API in a v4 codebase is narrated generically instead of being explained with the wrong meaning.
+
+## Writing a versioned plugin
+
+The Effect plugin keeps its rules in groups and merges them based on the option. You can copy the pattern:
+
+```ts
+type Versioned = { shared?: OpTable; v3?: OpTable; v4?: OpTable; auto?: OpTable };
+
+function opsFor(version: 3 | 4 | "auto", groups: Versioned[]): OpTable {
+  const out: OpTable = {};
+  for (const g of groups) {
+    Object.assign(out, g.shared);
+    if (version !== 4) Object.assign(out, g.v3);
+    if (version !== 3) Object.assign(out, g.v4);
+    if (version === "auto") Object.assign(out, g.auto);
+  }
+  return out;
+}
+```
+
+Test each mode. The repository's Effect tests narrate the same snippet with `version: 3`, `version: 4` and no version, and assert each output. The Elysia tests do the same with versions 1 and 2.

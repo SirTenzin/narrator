@@ -1,0 +1,68 @@
+---
+title: "Plugins"
+sidebarTitle: "Overview"
+description: "Library plugins teach Narrator what popular APIs mean."
+---
+
+Out of the box, Narrator understands JavaScript itself: arrays, strings, numbers, Math, JSON, promises, Map and Set, timers and the console. Library calls are read from their names, which is often good enough. A plugin goes further and explains what the library call actually does.
+
+Here is a Drizzle query without and with the Drizzle plugin.
+
+{/* narrate */}
+```ts Without the plugin
+const rows = await db.select().from(users).where(eq(users.email, email)).limit(1);
+```
+
+```text English
+Limit select DB's from (users)'s where (the result of eq (users' email and email)) (1), and call the result rows.
+```
+
+{/* narrate plugins="drizzle" */}
+```ts With drizzle()
+const rows = await db.select().from(users).where(eq(users.email, email)).limit(1);
+```
+
+```text English
+Let rows be look up rows from users:
+  • where users' email is email
+  • at most 1 row(s)
+```
+
+## Available plugins
+
+<Columns cols={2}>
+  <Card title="zod" icon="shield-check" href="/plugins/zod">Schemas read as the shapes they describe.</Card>
+  <Card title="Testing" icon="flask-conical" href="/plugins/testing">`describe`, `it`, `expect` and matchers from Bun, Jest and Vitest.</Card>
+  <Card title="decimal.js" icon="calculator" href="/plugins/decimal">Arithmetic chains and comparisons read as math.</Card>
+  <Card title="Drizzle ORM" icon="database" href="/plugins/drizzle">Queries, operators, relational queries, transactions and schemas.</Card>
+  <Card title="Effect" icon="sparkles" href="/plugins/effect">Generators, pipes, errors, layers, schedules and Schema, for v3 and v4.</Card>
+  <Card title="Better Auth" icon="key-round" href="/plugins/better-auth">Auth configuration, plugins and client calls.</Card>
+  <Card title="Hono" icon="route" href="/plugins/hono">Apps, routes, context, middleware, validation and the RPC client.</Card>
+  <Card title="Elysia" icon="server" href="/plugins/elysia">Routes, hooks, lifecycle, TypeBox schemas and Eden.</Card>
+  <Card title="AI SDK" icon="bot" href="/plugins/ai-sdk">Model calls, tools, agents, streaming and the UI hooks.</Card>
+  <Card title="SQL" icon="table" href="/plugins/sql">SQL strings and templates from postgres.js, pg, SQLite, Prisma and more.</Card>
+</Columns>
+
+## Using plugins
+
+Plugins are factory functions. Pass them to the TypeScript source language in the order you want them applied. When two plugins have a rule for the same call, the later one wins.
+
+```ts
+import { createNarrator } from "@usenarrator/core";
+import { typescript } from "@usenarrator/lang-ts";
+import { oxcParser } from "@usenarrator/lang-ts/oxc";
+import { en } from "@usenarrator/locale-en";
+import { drizzle } from "@usenarrator/plugin-drizzle";
+import { zod } from "@usenarrator/plugin-zod";
+
+const narrator = createNarrator({
+  languages: [typescript({ parser: oxcParser, plugins: [zod(), drizzle()] })],
+  locale: en,
+});
+```
+
+`plugins` also accepts arrays of plugins, so a codebase can bundle its own conventions with the libraries it uses and export them as one value.
+
+## Plugins for your own code
+
+The most useful plugin is often the one for your own codebase. It can add your domain's abbreviations to the glossary, mark plumbing parameters like `ctx` as ambient so they disappear from sentences, name your error classes, and explain in-house helpers. See [Writing a plugin](/guides/writing-a-plugin).

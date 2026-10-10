@@ -1,0 +1,92 @@
+---
+title: "Locale"
+description: "The type an output language implements."
+---
+
+```ts
+import type { Locale, Grammar, CorePhrases } from "@usenarrator/core";
+import { en } from "@usenarrator/locale-en";
+```
+
+```ts
+interface Locale {
+  id: string;
+  grammar: Grammar;
+  phrases: CorePhrases;
+  plugins?: Record<string, unknown>;
+}
+```
+
+<ParamField path="id" type="string" required>
+  A BCP 47 tag such as `"en"`, `"es"` or `"pt-BR"`. Plugins look up their own phrasebooks by this id.
+</ParamField>
+<ParamField path="grammar" type="Grammar" required>
+  Word mechanics for this language.
+</ParamField>
+<ParamField path="phrases" type="CorePhrases" required>
+  Every phrase the TypeScript engine can produce.
+</ParamField>
+<ParamField path="plugins" type="Record<string, unknown>">
+  Phrasebooks for plugins that don't ship this locale, keyed by plugin name. These take priority over the plugin's own phrasebooks.
+</ParamField>
+
+## Grammar
+
+```ts
+interface Grammar {
+  list(items: string[], conj?: "and" | "or"): string;
+  formatNumber(n: number): string;
+  article(noun: string): string;
+  possessive(noun: string): string;
+  plural(noun: string): string;
+  singular(noun: string): string;
+  isPlural(noun: string): boolean;
+  negatePredicateHead(head: string): string;
+  bareNoun(phrase: string): string;
+  isTimeLike(phrase: string): boolean;
+}
+```
+
+| Method | English behaviour |
+| --- | --- |
+| `list` | `["a", "b", "c"]` becomes "a, b, and c" |
+| `article` | "a" or "an" |
+| `possessive` | "customer" becomes "customer's", "users" becomes "users'" |
+| `negatePredicateHead` | "is" becomes "is not", "has" becomes "has no", "can" becomes "cannot" |
+| `bareNoun` | "a number" becomes "number", for use after "a list of" |
+| `isTimeLike` | `true` for phrases like "expires at" or "now", so comparisons read "before" and "after" |
+
+All of these receive strings that may contain [markup](/concepts/markup).
+
+## CorePhrases
+
+`CorePhrases` groups phrases by area. Each phrase is a function from already-rendered pieces to a string, or a plain string for fixed words.
+
+| Area | Covers | Example phrase |
+| --- | --- | --- |
+| `expressions` | Values, operators, member access, arrays, objects, ternaries, assignment, lambdas, JSX, errors | `ops["+"]`, `member.countOf`, `ternary.inline` |
+| `calls` | Calls no plugin claimed | `action`, `predicate`, `convert`, `newInstance` |
+| `conditions` | Yes or no conditions | `isEmpty`, `equals`, `compare["<"]`, `instanceOf` |
+| `statements` | Control flow | `ifThen`, `forOf`, `return`, `throw`, `try`, `switch` |
+| `declarations` | Functions, classes, variables, type headings | `let`, `signature`, `class`, `title.converter` |
+| `types` | Type annotations and the type explainer | `listOf`, `oneOf`, `objectWith`, `pick`, `omit` |
+
+The complete, commented type is in `packages/core/src/locale.ts`, and the English implementation lives in `packages/locale-en/src/phrases/`, one file per area.
+
+## Example
+
+```ts
+import type { Locale } from "@usenarrator/core";
+import { en } from "@usenarrator/locale-en";
+
+const es: Locale = {
+  id: "es",
+  grammar: en.grammar,
+  phrases: {
+    ...en.phrases,
+    statements: { ...en.phrases.statements, ifThen: ({ condition, action }) => `Si ${condition}, ${action}` },
+  },
+};
+```
+
+See [Translating Narrator](/guides/translating) for a full walkthrough.

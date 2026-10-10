@@ -1,0 +1,53 @@
+---
+title: "Markup"
+description: "How narrated lines remember which words are names, functions, types and literals."
+---
+
+Narration is more useful when the words stay connected to the code. If a sentence mentions `order`, a viewer should be able to highlight every other mention of `order`. If it mentions `notifyFinance`, a click should jump to that function. Narrator keeps that connection by embedding small markup tokens inside each line's text.
+
+## The five kinds
+
+Each token has a kind, an optional payload (usually the original identifier), and the display text.
+
+| Kind | Meaning | Example source | Display text |
+| --- | --- | --- | --- |
+| `v` | A value or variable name | `paidAt` | paid at |
+| `f` | A reference to a function | `notifyFinance` | notify finance |
+| `t` | A type name | `Subscription` | Subscription |
+| `l` | A literal | `"canceled"` | "canceled" |
+| `c` | Raw code, used when nothing could narrate a node | `a ^ b` | a ^ b |
+
+The tokens use characters from Unicode's private use area (`U+E000` to `U+E002`), so they never collide with real text. You will rarely need to look at them directly. Use one of the renderers in `@usenarrator/core` instead.
+
+## Rendering
+
+{/* run file="examples/markup.ts" */}
+```ts markup.ts
+import { createNarrator, plain, toHtml } from "@usenarrator/core";
+import { typescript } from "@usenarrator/lang-ts";
+import { oxcParser } from "@usenarrator/lang-ts/oxc";
+import { en } from "@usenarrator/locale-en";
+
+const narrator = createNarrator({ languages: [typescript({ parser: oxcParser })], locale: en });
+const [line] = narrator.narrate(`if (order.total > limit) notifyFinance(order);`, "order.ts").lines;
+
+console.log(plain(line!.text));
+console.log(toHtml(line!.text, (name, kind) => (kind === "f" ? `#fn-${name}` : null)));
+```
+
+```console Output
+If order's total is more than limit, notify finance (order).
+If <span class="v" data-n="order">order</span>'s <span class="v" data-n="total">total</span> is more than <span class="v" data-n="limit">limit</span>, <a href="#fn-notifyFinance" title="notifyFinance"><span class="f">notify finance</span></a> (<span class="v" data-n="order">order</span>).
+```
+
+- `plain(text)` strips the markup and wraps type names in parentheses. This is what `renderText` uses by default.
+- `toHtml(text, resolve)` wraps each token in a `<span>` with the kind as its class. Your `resolve` callback can return a link for function and value references, or `null` to leave them unlinked. Values also get a `data-n` attribute so a viewer can highlight every use of the same name.
+- `toAnsi(text)` colours tokens for a terminal. The CLI uses it unless you pass `--plain`.
+
+## Writing markup in a plugin
+
+When a plugin builds a phrase, it receives arguments that are already rendered markup strings, so in most cases you never create tokens yourself. If you do need one, `mk(kind, text, payload)` creates it, and the engine's `e.ref(name)` and `e.prop(key)` helpers create value tokens with the right display words.
+
+<Tip>
+  Grammar helpers in a locale must be markup aware. For example, English `possessive` adds `'s` after the closing token marker, not inside it. If you write a locale, test with names, not only plain words.
+</Tip>

@@ -1,0 +1,83 @@
+---
+title: "Units and diffs"
+description: "How Narrator lines up two versions of a file and shows what changed in meaning."
+---
+
+A text diff tells you which characters changed. A Narrator diff tells you which sentences changed. To make that work, Narrator needs to know which part of the old file corresponds to which part of the new file. It does that with units.
+
+## Units
+
+A unit is a top-level declaration together with the English lines that describe it. Each unit has a key, which is the declaration's name, so the old and new versions of `countOpenSeats` can be matched even if the function moved within the file. Classes are split one level further, into a unit per member, so a change to one method does not pull the whole class into the diff.
+
+{/* run file="examples/units.ts" */}
+```ts units.ts
+import { createNarrator, renderText } from "@usenarrator/core";
+import { typescript } from "@usenarrator/lang-ts";
+import { oxcParser } from "@usenarrator/lang-ts/oxc";
+import { en } from "@usenarrator/locale-en";
+
+const narrator = createNarrator({ languages: [typescript({ parser: oxcParser })], locale: en });
+
+const source = `
+const MAX_RETRIES = 3;
+
+export class Queue {
+  jobs: Job[] = [];
+  push(job: Job) {
+    this.jobs.push(job);
+  }
+  next() {
+    return this.jobs.shift();
+  }
+}
+`;
+
+for (const unit of narrator.fileNarrator("queue.ts").units(source, "queue.ts")) {
+	console.log(`[${unit.key}] ${unit.title}`);
+	console.log(renderText(unit.lines.map((l) => ({ ...l, d: l.d + 1 }))));
+}
+```
+
+```text Output
+[MAX_RETRIES] MAX_RETRIES
+  Let max retries be 3.
+[Queue] Class Queue
+  Class Queue:
+[Queue.jobs] Queue › jobs
+    Field jobs starts as an empty list.
+[Queue.push] Queue › push
+    To push — given job (Job):
+      Add job to this's jobs.
+[Queue.next] Queue › next
+    Next:
+      Give back take the first item off this's jobs.
+```
+
+Statements that are not declarations, such as a top-level `app.get(...)` call, get a key built from the callee and its first argument. When the same key appears twice in a file, the second one becomes `key#2`.
+
+## Diffing
+
+`narrator.diff(files)` takes a list of changed files, each with its old and new source, and returns one report per file. For each pair of matching units it runs a line diff over the English, then pairs similar removed and added lines into modifications with word-level changes.
+
+The diff also looks across the whole change set:
+
+- A unit removed from one file and added to another with similar English is reported as **moved**, and the old location is marked **moved-away**.
+- A unit whose name changed but whose body reads almost the same is reported as **renamed**.
+- Long runs of unchanged lines are folded, keeping three lines of context around each change.
+
+The [Getting started](/getting-started#narrate-a-diff) page shows a complete diff example with real output.
+
+## The report format
+
+`narrator.diff` returns `FileJson[]`, a format built for rendering in a browser. Every cell carries HTML from [`toHtml`](/concepts/markup) and the source line range it describes, so a viewer can link each sentence back to the code.
+
+```ts
+type FileJson = { path: string; oldPath: string | null; status: string; adds: number; dels: number; units: UnitJson[] };
+type UnitJson = { key: string; title: string; status: string; other?: { path: string; title: string }; adds: number; dels: number; rows: RowJson[] };
+type RowJson = { kind: string; count?: number; left: CellJson | null; right: CellJson | null; merged?: string; hidden?: RowJson[] };
+type CellJson = { d: number; kind: string; html: string; from: number | null; to: number | null };
+```
+
+Row kinds are `same`, `add`, `del`, `mod` (a modified line, with `merged` holding an inline word diff) and `fold` (hidden unchanged lines). Unit statuses are `added`, `removed`, `modified`, `unchanged`, `moved`, `renamed` and `moved-away`.
+
+If you want lines instead of HTML, call the lower-level functions yourself: `fileNarrator(path).units(src, path)` for each side, then `diffUnits(before, after)` and `diffLines(a, b)` from `@usenarrator/core`.

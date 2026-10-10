@@ -1,0 +1,77 @@
+---
+title: "Better Auth"
+description: "Read Better Auth configuration as a description of how sign-in works."
+---
+
+<span className="nr-pill">@usenarrator/plugin-better-auth</span>
+
+An auth configuration is a list of decisions about security, and it is easy to miss one in a long object literal. The [Better Auth](https://www.better-auth.com) plugin reads the configuration as a bulleted setup, with durations in human units and plugins by what they do.
+
+```ts
+import { betterAuth } from "@usenarrator/plugin-better-auth";
+
+typescript({ parser: oxcParser, plugins: [betterAuth()] });
+```
+
+## Examples
+
+{/* narrate plugins="better-auth" path="auth.ts" */}
+```ts Server configuration
+export const auth = betterAuth({
+  appName: "Acme",
+  database: drizzleAdapter(db, { provider: "pg" }),
+  emailAndPassword: { enabled: true, requireEmailVerification: true, minPasswordLength: 10 },
+  socialProviders: {
+    github: { clientId: process.env.GITHUB_CLIENT_ID!, clientSecret: process.env.GITHUB_CLIENT_SECRET! },
+  },
+  session: { expiresIn: 60 * 60 * 24 * 7, updateAge: 60 * 60 * 24 },
+  plugins: [twoFactor(), organization(), passkey()],
+  trustedOrigins: ["https://app.acme.com"],
+});
+```
+
+```text English
+Set up authentication as auth, with:
+  • the app is called "Acme"
+  • stores its data in DB through Drizzle (PostgreSQL)
+  • email and password sign-in:
+    • users must verify their email before signing in
+    • passwords need at least 10 characters
+  • sign-in with GitHub:
+    • client ID: the GITHUB_CLIENT_ID environment variable
+    • client secret: the GITHUB_CLIENT_SECRET environment variable
+  • sessions:
+    • sessions expire after 7 days
+    • a session in use is extended once it's 1 day old
+  • plugins:
+    • two-factor authentication
+    • organizations
+    • passkey sign-in
+  • accepts requests from "https://app.acme.com"
+```
+
+{/* narrate plugins="better-auth" path="auth-client.ts" */}
+```ts Client setup
+export const authClient = createAuthClient({
+  baseURL: "https://app.acme.com",
+  plugins: [organizationClient()],
+});
+```
+
+```text English
+Set up the auth client as auth client, with:
+  • talks to the auth server at "https://app.acme.com"
+  • client plugins:
+    • organizations
+```
+
+## What it covers
+
+- `betterAuth({...})` and `createAuthClient({...})`, including database adapters, email and password settings, social providers, sessions, rate limits, trusted origins and advanced options.
+- Built-in and official plugins, named by what they add (two-factor authentication, organizations, admin tools, passkeys, magic links and more).
+- Route handler exports such as `export const { GET, POST } = toNextJsHandler(auth)`.
+- Calls to the server and client APIs, read by the endpoint they hit.
+
+## Translating
+
+The English phrasebook is exported as `en` and typed as `BetterAuthPhrases`.
