@@ -26,6 +26,8 @@ export type TsPlugin<P = any> = {
 	/** Unique name; locales can override this plugin's phrases under `locale.plugins[name]`. */
 	name: string;
 	phrases?: Phrasebooks<P>;
+	/** The library this plugin reads and the semver range of its versions it was written against, e.g. `{ name: "better-auth", versions: ">=1.6 <2" }`. */
+	library?: { name: string; versions: string };
 	vocabulary?: Vocabulary;
 	/** Identifiers that are plumbing: dropped from argument lists and member chains (e.g. `ctx`). */
 	ambient?: string[];
