@@ -1,0 +1,29 @@
+{
+	"name": "@usenarrator/plugin-sql",
+	"version": "0.0.0",
+	"private": true,
+	"description": "TS plugin: SQL embedded in TS/JS (postgres.js, Bun.sql, pg, better-sqlite3, bun:sqlite, Prisma raw, kysely/slonik/Neon templates).",
+	"type": "module",
+	"sideEffects": false,
+	"exports": {
+		".": "./src/index.ts",
+		"./pgsql": "./src/pgsql.ts"
+	},
+	"dependencies": {
+		"@usenarrator/core": "workspace:*",
+		"@usenarrator/lang-ts": "workspace:*"
+	},
+	"peerDependencies": {
+		"pgsql-ast-parser": "^12"
+	},
+	"peerDependenciesMeta": {
+		"pgsql-ast-parser": {
+			"optional": true
+		}
+	},
+	"devDependencies": {
+		"@usenarrator/plugin-drizzle": "workspace:*",
+		"@usenarrator/testkit": "workspace:*",
+		"pgsql-ast-parser": "^12.0.2"
+	}
+}
