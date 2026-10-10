@@ -1,6 +1,6 @@
 import { D } from "@usenarrator/core";
 import { type N, unwrap } from "@usenarrator/lang-ts";
-import { type Ctx, callbackStep, concurrency, duration, isFn, make, noun, type OpTable, step, stepIf } from "../context";
+import { type Ctx, callbackStep, concurrency, duration, isFn, make, type OpTable, step, stepIf } from "../context";
 import type { EffectPhrases } from "../phrases";
 import { predicate } from "./effect";
 import { scheduleHow } from "./schedule";
@@ -19,19 +19,19 @@ const sink = (pick: (s: EffectPhrases) => string) =>
 const effectArg = (pick: (s: EffectPhrases) => (p: { effect: string }) => string) =>
 	make((c, [x]) => {
 		if (!x) return null;
-		const v = noun(c, x);
+		const v = c.e.noun(x);
 		return D(pick(c.say)({ effect: v.t }), v.kids);
 	});
 const otherStream = (pick: (s: EffectPhrases) => (p: { other: string }) => string) =>
 	step(1, (c, [x]) => {
 		if (!x) return null;
-		const v = noun(c, x);
+		const v = c.e.noun(x);
 		return D(pick(c.say)({ other: v.t }), v.kids);
 	});
 
 const shared: OpTable = {
 	"Stream.make": make((c, args) => D(c.say.stream.make({ items: c.e.g.list(args.map((a) => c.e.noun(a).t)) }))),
-	"Stream.fromIterable": make((c, [xs]) => (xs ? D(c.say.stream.fromIterable({ items: noun(c, xs).t })) : null)),
+	"Stream.fromIterable": make((c, [xs]) => (xs ? D(c.say.stream.fromIterable({ items: c.e.noun(xs).t })) : null)),
 	"Stream.range": make((c, [a, b]) => (a && b ? D(c.say.stream.range({ from: c.e.noun(a).t, to: c.e.noun(b).t })) : null)),
 	"Stream.fromEffect": effectArg((s) => s.stream.fromEffect),
 	"Stream.tick": make((c, [d]) => (d ? D(c.say.stream.tick({ duration: duration(c, d).t })) : null)),
@@ -75,13 +75,13 @@ const catchAll = step(1, (c, [fn]) => (fn ? callbackStep(c, c.say.steps.catchAll
 const v3: OpTable = {
 	"Stream.repeatEffect": effectArg((s) => s.stream.repeatEffect),
 	"Stream.catchAll": catchAll,
-	"Stream.fromChunk": make((c, [xs]) => (xs ? D(c.say.stream.fromIterable({ items: noun(c, xs).t })) : null)),
+	"Stream.fromChunk": make((c, [xs]) => (xs ? D(c.say.stream.fromIterable({ items: c.e.noun(xs).t })) : null)),
 };
 
 const v4: OpTable = {
 	"Stream.fromEffectRepeat": effectArg((s) => s.stream.repeatEffect),
 	"Stream.catch": catchAll,
-	"Stream.fromArray": make((c, [xs]) => (xs ? D(c.say.stream.fromIterable({ items: noun(c, xs).t })) : null)),
+	"Stream.fromArray": make((c, [xs]) => (xs ? D(c.say.stream.fromIterable({ items: c.e.noun(xs).t })) : null)),
 };
 
 export const streamOps = { shared, v3, v4 };

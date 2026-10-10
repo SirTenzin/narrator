@@ -1,12 +1,12 @@
 import { D, mk } from "@usenarrator/core";
 import { unwrap } from "@usenarrator/lang-ts";
-import { type Ctx, curried, form, make, noun, type OpTable, step, strLit } from "../context";
+import { type Ctx, curried, form, make, type OpTable, serviceName, step, strLit } from "../context";
 import type { EffectPhrases } from "../phrases";
-import { serviceName, thunkValue } from "./effect";
+import { thunkValue } from "./effect";
 
 const list = (c: Ctx, xs: unknown[]) => {
 	const flat = xs.flatMap((x: any) => (unwrap(x)?.type === "ArrayExpression" ? unwrap(x).elements : [x]));
-	return c.e.g.list(flat.map((x) => noun(c, x).t));
+	return c.e.g.list(flat.map((x) => c.e.noun(x).t));
 };
 
 /** `Layer.x(Tag, value)` or v4's curried `Layer.x(Tag)(value)`. */
@@ -19,7 +19,7 @@ const layerOf = (render: (c: Ctx, tag: any, value: any) => ReturnType<typeof D> 
 const builtBy = (pick: (s: EffectPhrases) => (p: { service: string; effect: string }) => string) =>
 	layerOf((c, tag, eff) => {
 		if (unwrap(eff).type === "MemberExpression" && unwrap(eff).property.name === "make") return D(c.say.layer.fromMake({ service: serviceName(c, tag) }));
-		const v = noun(c, eff);
+		const v = c.e.noun(eff);
 		return D(pick(c.say)({ service: serviceName(c, tag), effect: v.t }), v.kids);
 	});
 
@@ -29,7 +29,7 @@ const configKinds = ["string", "number", "integer", "boolean", "redacted", "url"
 
 const shared: OpTable = {
 	"Layer.succeed": layerOf((c, tag, impl) => {
-		const v = noun(c, impl);
+		const v = c.e.noun(impl);
 		return D(c.say.layer.succeed({ service: serviceName(c, tag), impl: v.t }), v.kids);
 	}),
 	"Layer.effect": builtBy((s) => s.layer.effect),
@@ -42,7 +42,7 @@ const shared: OpTable = {
 	"Layer.provide": layerList((s) => s.layer.provide),
 	"Layer.provideMerge": layerList((s) => s.layer.provideMerge),
 	"Layer.launch": step(0, (c) => D(c.say.layer.launch)),
-	"ManagedRuntime.make": make((c, [layer]) => (layer ? D(c.say.layer.runtime({ layer: noun(c, layer).t })) : null)),
+	"ManagedRuntime.make": make((c, [layer]) => (layer ? D(c.say.layer.runtime({ layer: c.e.noun(layer).t })) : null)),
 
 	...Object.fromEntries(
 		configKinds.map((k) => [
@@ -54,20 +54,20 @@ const shared: OpTable = {
 			),
 		]),
 	),
-	"Config.withDefault": step(1, (c, [v]) => (v ? D(c.say.config.withDefault({ value: noun(c, v).t })) : null)),
+	"Config.withDefault": step(1, (c, [v]) => (v ? D(c.say.config.withDefault({ value: c.e.noun(v).t })) : null)),
 
-	"Ref.make": make((c, [v], mode) => (v ? D(form(c.say.ref.make, mode, { value: noun(c, v).t })) : null)),
-	"Ref.get": make((c, [r], mode) => (r ? D(form(c.say.ref.get, mode, { ref: noun(c, r).t })) : null)),
-	"Ref.set": make((c, [r, v]) => (r && v ? D(c.say.ref.set({ ref: noun(c, r).t, value: noun(c, v).t })) : null)),
+	"Ref.make": make((c, [v], mode) => (v ? D(form(c.say.ref.make, mode, { value: c.e.noun(v).t })) : null)),
+	"Ref.get": make((c, [r], mode) => (r ? D(form(c.say.ref.get, mode, { ref: c.e.noun(r).t })) : null)),
+	"Ref.set": make((c, [r, v]) => (r && v ? D(c.say.ref.set({ ref: c.e.noun(r).t, value: c.e.noun(v).t })) : null)),
 	"Ref.update": make((c, [r, f]) => {
 		if (!r || !f) return null;
 		const v = thunkValue(c, f);
-		return D(c.say.ref.update({ ref: noun(c, r).t, value: v.t }), v.kids);
+		return D(c.say.ref.update({ ref: c.e.noun(r).t, value: v.t }), v.kids);
 	}),
-	"Fiber.join": make((c, [f], mode) => (f ? D(form(c.say.fiber.join, mode, { fiber: noun(c, f).t })) : null)),
-	"Fiber.interrupt": make((c, [f]) => (f ? D(c.say.fiber.interrupt({ fiber: noun(c, f).t })) : null)),
+	"Fiber.join": make((c, [f], mode) => (f ? D(form(c.say.fiber.join, mode, { fiber: c.e.noun(f).t })) : null)),
+	"Fiber.interrupt": make((c, [f]) => (f ? D(c.say.fiber.interrupt({ fiber: c.e.noun(f).t })) : null)),
 	"Scope.make": make((c) => D(c.say.scope.make)),
-	"Scope.close": make((c, [scope]) => (scope ? D(c.say.scope.close({ scope: noun(c, scope).t })) : null)),
+	"Scope.close": make((c, [scope]) => (scope ? D(c.say.scope.close({ scope: c.e.noun(scope).t })) : null)),
 };
 
 /** `Context.GenericTag("Db")` (v3) / `Context.Service("Db")` (v4 function form). */

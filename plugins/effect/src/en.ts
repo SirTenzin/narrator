@@ -2,8 +2,29 @@ import { plain } from "@usenarrator/core";
 import type { EffectPhrases } from "./phrases";
 
 const count = (n: string, noun: string) => (plain(n) === "1" ? noun : `${noun}s`);
+const errorKind = (kind: string) => (/\b(error|exception|failure)$/i.test(plain(kind)) ? kind : `${kind} error`);
+const nothing = { noun: "an effect that does nothing", act: "do nothing" };
+const never = { noun: "an effect that never finishes", act: "wait forever" };
 
 export const en: EffectPhrases = {
+	constants: {
+		"Effect.void": nothing.noun,
+		"Effect.never": never.noun,
+		"Effect.interrupt": "an effect that stops itself",
+		"Effect.yieldNow": "an effect that lets other fibers run first",
+		"Effect.scope": "the current scope",
+		"Layer.empty": "an empty layer",
+		"Stream.empty": "an empty stream",
+		"Stream.never": "a stream that never produces anything",
+		"Schedule.forever": "a schedule that repeats forever",
+		"Schedule.once": "a schedule that runs one more time",
+		"Duration.zero": "no time",
+		"Duration.infinity": "forever",
+		"Clock.currentTimeMillis": "the current time in milliseconds",
+		"Random.next": "a random number between 0 and 1",
+		"Cause.empty": "an empty cause",
+		"Exit.void": "a successful exit with no value",
+	},
 	common: {
 		it: "it",
 		theFollowing: "the following",
@@ -27,8 +48,10 @@ export const en: EffectPhrases = {
 		fnBare: "an effect function that runs these steps",
 		fnAfter: "Then apply these steps to the whole thing",
 		run: ({ effect }) => `run ${effect}`,
-		nothing: { noun: "an effect that does nothing", act: "do nothing" },
-		never: { noun: "an effect that never finishes", act: "wait forever" },
+		yieldNow: "let other fibers run first",
+		interrupt: "stop here, interrupting this fiber",
+		nothing,
+		never,
 	},
 	pipe: {
 		noun: "the result of these steps",
@@ -49,6 +72,7 @@ export const en: EffectPhrases = {
 		awaitFiber: ({ fiber }) => `wait for ${fiber} to finish`,
 		readRef: ({ ref }) => `read the current value of ${ref}`,
 		awaitDeferred: ({ deferred }) => `wait for ${deferred} to be completed`,
+		result: ({ effect }) => `the result of ${effect}`,
 	},
 	make: {
 		succeed: { noun: ({ value }) => `an effect that succeeds with ${value}`, act: ({ value }) => `succeed with ${value}` },
@@ -230,6 +254,8 @@ export const en: EffectPhrases = {
 		schemaClass: ({ name, fields }) => `Schema class ${name}, with ${fields}`,
 		field: ({ name, type }) => `${name} (${type})`,
 		optionalField: ({ name, type }) => `${name} (${type}, optional)`,
+		newError: ({ kind }) => errorKind(kind),
+		newErrorWith: ({ kind, fields }) => `${errorKind(kind)} (${fields})`,
 	},
 	schema: {
 		of: ({ type }) => `a schema for ${type}`,

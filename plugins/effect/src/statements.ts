@@ -1,34 +1,8 @@
 import { capFirst, D, type Doc } from "@usenarrator/core";
 import { type N, unwrap } from "@usenarrator/lang-ts";
-import { act, type Ctx, calleeKey, curriedCall, isFn, isPascal, memberKey, noun, objProp } from "./context";
-import { afterLines, serviceName } from "./ops/effect";
+import { act, type Ctx, calleeKey, delegate, endsTheProgram, FORKS, isFn, isPascal, memberKey, objProp, serviceName, yieldAction } from "./context";
+import { afterLines } from "./ops/effect";
 import { structFields } from "./ops/schema";
-
-const delegate = (n: N) => {
-	const u = unwrap(n);
-	return u?.type === "YieldExpression" && u.delegate ? unwrap(u.argument) : null;
-};
-
-const FAILS = new Set(["Effect.fail", "Effect.failSync", "Effect.die", "Effect.dieMessage", "Effect.interrupt"]);
-const FORKS = new Set(["Effect.fork", "Effect.forkDaemon", "Effect.forkScoped", "Effect.forkChild", "Effect.forkDetach", "Effect.forkIn"]);
-const endsTheProgram = (arg: N) => arg.type === "NewExpression" || FAILS.has(calleeKey(arg) ?? "");
-
-/** What `yield* arg` does, as an action. */
-function yieldAction(c: Ctx, arg: N): Doc {
-	const y = c.say.yield;
-	if (arg.type === "NewExpression") {
-		const err = c.e.noun(arg);
-		return D(y.failWith({ error: err.t }), err.kids);
-	}
-	if (arg.type === "Identifier") {
-		const name = c.e.ref(arg.name);
-		if (c.state.fibers.has(arg.name)) return D(y.awaitFiber({ fiber: name }));
-		if (c.state.refs.has(arg.name)) return D(y.readRef({ ref: name }));
-		if (c.state.deferreds.has(arg.name)) return D(y.awaitDeferred({ deferred: name }));
-		if (isPascal(arg)) return D(y.service({ service: serviceName(c, arg) }));
-	}
-	return act(c, arg);
-}
 
 /** v3 fibers, refs and deferreds are effects themselves, so a later `yield* x` waits on or reads them. */
 function remember(c: Ctx, name: string, arg: N) {
@@ -95,30 +69,6 @@ export function effectFnDeclaration(c: Ctx, n: N, d: number): boolean {
 	return true;
 }
 
-/** Statements whose value is a curried Effect builder the engine can't dispatch on its own. */
-export function curriedStatement(c: Ctx, n: N, d: number): boolean {
-	const p = c.say.common;
-	if (n.type === "ReturnStatement" && n.argument) {
-		const v = curriedCall(c, n.argument, "noun");
-		if (!v) return false;
-		c.e.emitDoc(d, D(p.giveBack({ value: v.t }), v.kids), n);
-		return true;
-	}
-	if (n.type === "ExpressionStatement") {
-		const v = curriedCall(c, n.expression, "act");
-		if (!v) return false;
-		c.e.emitDoc(d, v, n);
-		return true;
-	}
-	if (n.type !== "VariableDeclaration" || n.declarations.length !== 1) return false;
-	const decl = n.declarations[0];
-	if (decl.id.type !== "Identifier" || !decl.init) return false;
-	const v = curriedCall(c, decl.init, "noun");
-	if (!v) return false;
-	c.e.emitDoc(d, D(p.letBe({ name: c.e.ref(decl.id.name), value: v.t }), v.kids), n);
-	return true;
-}
-
 type ClassInfo = { heading: string; extra: Doc[]; error?: boolean };
 
 /** Fields of a type literal like `<{ readonly id: string; note?: string }>`. */
@@ -145,23 +95,23 @@ function serviceInfo(c: Ctx, name: string, shape: N | null, opts: N | null): Cla
 	const extra: Doc[] = [];
 	const built = objProp(opts, "effect") ?? objProp(opts, "scoped") ?? objProp(opts, "make");
 	if (built) {
-		const v = noun(c, built);
+		const v = c.e.noun(built);
 		extra.push(D(s.built({ effect: v.t }), v.kids));
 	}
 	const succeed = objProp(opts, "succeed");
 	if (succeed) {
-		const v = noun(c, succeed);
+		const v = c.e.noun(succeed);
 		extra.push(D(s.alwaysProvides({ value: v.t }), v.kids));
 	}
 	const sync = objProp(opts, "sync");
 	if (sync) {
 		const ex = isFn(sync) ? c.e.lambdaExpr(unwrap(sync)) : null;
-		const v = noun(c, ex ?? sync);
+		const v = c.e.noun(ex ?? sync);
 		extra.push(D(s.computed({ value: v.t }), v.kids));
 	}
 	const deps = objProp(opts, "dependencies");
 	if (deps && unwrap(deps).type === "ArrayExpression" && unwrap(deps).elements.length)
-		extra.push(D(s.needs({ deps: c.e.g.list(unwrap(deps).elements.map((x: N) => noun(c, x).t)) })));
+		extra.push(D(s.needs({ deps: c.e.g.list(unwrap(deps).elements.map((x: N) => c.e.noun(x).t)) })));
 	return { heading, extra };
 }
 
@@ -224,7 +174,6 @@ export function classStatement(c: Ctx, n: N, d: number): boolean {
 	if (n.type !== "ClassDeclaration") return false;
 	const info = classInfo(c, n);
 	if (!info) return false;
-	if (info.error) c.e.errorNames.add(n.id.name);
 	const at = c.e.lines.length;
 	const outer = c.state.currentClass;
 	c.state.currentClass = n.id.name;

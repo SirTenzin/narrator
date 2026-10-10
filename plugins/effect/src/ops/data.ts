@@ -1,13 +1,13 @@
 import { D } from "@usenarrator/core";
 import type { N } from "@usenarrator/lang-ts";
-import { type Ctx, callbackStep, fixed, make, noun, type OpTable, step } from "../context";
+import { type Ctx, callbackStep, fixed, make, type OpTable, step } from "../context";
 import type { EffectPhrases } from "../phrases";
 import { matchFirst, thunkValue } from "./effect";
 
 const one = (pick: (s: EffectPhrases) => (p: any) => string, key: string) =>
 	make((c, [x]) => {
 		if (!x) return null;
-		const v = noun(c, x);
+		const v = c.e.noun(x);
 		return D(pick(c.say)({ [key]: v.t }), v.kids);
 	});
 

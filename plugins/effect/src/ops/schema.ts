@@ -1,6 +1,6 @@
 import { D, mk } from "@usenarrator/core";
 import { type N, unwrap } from "@usenarrator/lang-ts";
-import { type Ctx, calleeKey, curried, form, isFn, isObj, type Mode, make, memberKey, noun, type OpTable, objProp } from "../context";
+import { type Ctx, calleeKey, curried, form, isFn, isObj, type Mode, make, memberKey, type OpTable, objProp } from "../context";
 import type { EffectPhrases } from "../phrases";
 
 type Types = EffectPhrases["schema"]["types"];
@@ -236,7 +236,7 @@ const decoder = (which: DecodeForm) =>
 		if (!schema) return null;
 		const type = schemaType(c, schema, false)!;
 		if (!outer?.[0]) return D(which === "encode" ? c.say.schema.encoder({ type }) : c.say.schema.decoder({ type }));
-		const input = noun(c, outer[0]);
+		const input = c.e.noun(outer[0]);
 		return D(form(c.say.schema[which], mode, { input: input.t, type }), input.kids);
 	});
 

@@ -27,7 +27,7 @@ const program = Effect.gen(function* () {
 	test("service access", () => expect(text).toContain("Get the Database service, and call it DB."));
 	test("run and name the result", () => expect(text).toContain(`Query DB ("select * from users"), and call the result rows.`));
 	test("destructured results", () => expect(text).toContain("Run load profile, and take its ID and name."));
-	test("yielding an error fails", () => expect(text).toContain('If rows is empty, fail with a new user not found (ID: "1").'));
+	test("yielding an error fails", () => expect(text).toContain('If rows is empty, fail with a user not found error (ID: "1").'));
 	test("log and sleep", () => {
 		expect(text).toContain(`Log "loaded" and the number of rows.`);
 		expect(text).toContain("Wait 1 second.");
@@ -86,10 +86,10 @@ const d = Effect.promise(() => fetch(url))
 const e = Effect.tryPromise({ try: () => fetch(url), catch: (cause) => new FetchError({ cause }) })
 const f = Effect.try(() => JSON.parse(raw))`);
 		expect(text).toContain("Let a be an effect that succeeds with 42.");
-		expect(text).toContain("Let b be an effect that fails with a new not found.");
+		expect(text).toContain("Let b be an effect that fails with a not found error.");
 		expect(text).toContain("Let c be an effect that computes the current time.");
 		expect(text).toContain("Let d be an effect that waits for fetch (URL).");
-		expect(text).toContain("Let e be an effect that waits for fetch (URL), turning any failure into a fetch error.");
+		expect(text).toContain("Let e be an effect that waits for fetch (URL), turning any failure into a fetch error (cause).");
 		expect(text).toContain("Let f be an effect that tries to compute raw parsed from JSON.");
 	});
 
@@ -248,7 +248,7 @@ const find = Effect.gen(function* () {
   return yield* new NotFound({ id: "x" })
 })`);
 		expect(text).toContain("Error type NotFound, carrying ID (text) and hint (text, optional).");
-		expect(text).toContain("Fail with a not found.");
+		expect(text).toContain(`Fail with a not found error (ID: "x").`);
 	});
 
 	test("Schema.TaggedError (v3) and Schema.TaggedErrorClass (v4)", () => {
@@ -273,7 +273,7 @@ if (Result.isFailure(ok)) console.log("bad")`);
 		expect(text).toContain(`Let label be one of these, depending on maybe user:
   • if it's empty: "guest"
   • if it has a value (call it u): u's name`);
-		expect(text).toContain("Let some mean an Option holding 1.");
+		expect(text).toContain("Let some be an Option holding 1.");
 		expect(text).toContain("Let none be an empty Option.");
 		expect(text).toContain(`Let name be maybe name, then use "anon" if it's empty.`);
 		expect(text).toContain("If maybe user has a value, log");

@@ -9,6 +9,8 @@ type Cond = (p: { subject: string; neg: boolean }) => string;
 
 /** Every English fragment the Effect plugin produces. Translators implement this type in `src/<locale>.ts`. */
 export type EffectPhrases = {
+	/** Exact source text of bare Effect values (`Effect.void`, `Layer.empty`) -> how to say them; merged by the engine. */
+	constants: Record<string, string>;
 	common: {
 		it: string;
 		theFollowing: string;
@@ -27,6 +29,8 @@ export type EffectPhrases = {
 		fnBare: string;
 		fnAfter: string;
 		run: P<"effect">;
+		yieldNow: string;
+		interrupt: string;
 		nothing: { noun: string; act: string };
 		never: { noun: string; act: string };
 	};
@@ -49,6 +53,8 @@ export type EffectPhrases = {
 		awaitFiber: P<"fiber">;
 		readRef: P<"ref">;
 		awaitDeferred: P<"deferred">;
+		/** A `yield*` inside a larger expression: `(yield* getA) + 1`. */
+		result: P<"effect">;
 	};
 	make: {
 		succeed: Form<"value">;
@@ -161,6 +167,8 @@ export type EffectPhrases = {
 		schemaClass: P<"name" | "fields">;
 		field: P<"name" | "type">;
 		optionalField: P<"name" | "type">;
+		newError: P<"kind">;
+		newErrorWith: P<"kind" | "fields">;
 	};
 	schema: {
 		of: P<"type">;
