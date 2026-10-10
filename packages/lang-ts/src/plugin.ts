@@ -18,6 +18,12 @@ export type DisplayText = {
 	glossary?: Record<string, string>;
 };
 
+/** Narrates a property read like `c.env.DB`. Keys: `Obj.prop`, `*.owner.prop`, `*.prop`. */
+export type MemberRule<P = any> = (ctx: { node: N; obj: N; prop: string; e: Engine; say: P }) => RuleResult;
+
+/** Where an imported local name came from: `import { a as b } from "x"` -> b: { from: "x", name: "a" }. */
+export type ImportInfo = { from: string; name: string };
+
 /** Phrasebooks keyed by locale id. English is required: it's the fallback and the reference for translators. */
 export type Phrasebooks<P> = { en: P } & { [locale: string]: P };
 
@@ -37,9 +43,10 @@ export type TsPlugin<P = any> = {
 	errorLabels?: Record<string, string>;
 	/** Exact source text -> phrase, e.g. `{ "Number.MAX_SAFE_INTEGER": "no limit" }`. */
 	constants?: Record<string, string>;
-	/** Keyed by callee: `foo`, `Obj.method`, `*.method` (any receiver), `new Foo`, `Effect.fn()` (curried: `Effect.fn(a)(b)`), `sql``` (tagged template). Later plugins win. */
+	/** Keyed by callee: `foo`, `Obj.method`, `*.method` (any receiver), `new Foo`, `Effect.fn()` (curried: `Effect.fn(a)(b)`), `sql``` / `*.sql``` / `sql.typeAlias()``` (tagged templates). Later plugins win. */
 	calls?: Record<string, CallRule<P>>;
 	conditions?: Record<string, CondRule<P>>;
+	members?: Record<string, MemberRule<P>>;
 	statements?: StmtRule<P>[];
 	/** Describes a schema-builder expression (e.g. `z.object({...})`) as a type, or null if it isn't one. */
 	describeSchema?: (e: Engine, n: N, say: P) => string | null;

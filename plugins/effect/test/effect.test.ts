@@ -231,7 +231,7 @@ export const getUser = Effect.fn("getUser")(function* (id: string) {
   const users = yield* Users
   return yield* users.find(id)
 }, Effect.withSpan("users.get"), Effect.timeout(Duration.seconds(3)))`);
-		expect(text).toBe(`To get user — given ID:
+		expect(text).toBe(`To get user, given ID:
   Get the Users service, and call it users.
   Find users (ID), and give back the result.
   Then apply these steps to the whole thing:

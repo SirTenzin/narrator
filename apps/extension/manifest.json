@@ -3,29 +3,17 @@
 	"name": "Narrator for GitHub",
 	"version": "0.3.0",
 	"description": "Read pull request and commit diffs as plain English, generated deterministically from the code's syntax tree.",
-	"permissions": [
-		"storage"
-	],
-	"host_permissions": [
-		"https://github.com/*",
-		"https://api.github.com/*",
-		"https://raw.githubusercontent.com/*"
-	],
+	"permissions": ["storage"],
+	"host_permissions": ["https://github.com/*", "https://api.github.com/*", "https://raw.githubusercontent.com/*"],
 	"background": {
 		"service_worker": "background.js",
-		"scripts": [
-			"background.js"
-		],
+		"scripts": ["background.js"],
 		"type": "module"
 	},
 	"content_scripts": [
 		{
-			"matches": [
-				"https://github.com/*"
-			],
-			"js": [
-				"content.js"
-			],
+			"matches": ["https://github.com/*"],
+			"js": ["content.js"],
 			"run_at": "document_idle"
 		}
 	],
@@ -41,9 +29,7 @@
 			"id": "narrator@usenarrator.dev",
 			"strict_min_version": "140.0",
 			"data_collection_permissions": {
-				"required": [
-					"none"
-				]
+				"required": ["none"]
 			}
 		}
 	}

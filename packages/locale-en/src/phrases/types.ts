@@ -2,7 +2,7 @@ import type { TypePhrases } from "@usenarrator/core";
 import { grammar } from "../grammar";
 
 const orNothing = (optional: boolean) => (optional ? " (or nothing)" : "");
-const quoted = (doc: string | null) => (doc ? ` — “${doc}”` : "");
+const quoted = (doc: string | null) => (doc ? ` (“${doc}”)` : "");
 
 const ORDINALS = ["first", "second", "third", "fourth", "fifth"];
 

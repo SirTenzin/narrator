@@ -1,25 +1,25 @@
 {
-  "name": "@usenarrator/lang-ts",
-  "version": "0.0.0",
-  "private": true,
-  "description": "TS/JS source language: AST walker, plugin API, standard-library rules.",
-  "type": "module",
-  "exports": {
-    ".": "./src/index.ts",
-    "./oxc": "./src/oxc.ts",
-    "./wasm": "./src/wasm.ts"
-  },
-  "dependencies": {
-    "@usenarrator/core": "workspace:*",
-    "oxc-parser": "^0.153.0"
-  },
-  "peerDependencies": {
-    "@oxc-parser/wasm": "0.60.0"
-  },
-  "peerDependenciesMeta": {
-    "@oxc-parser/wasm": {
-      "optional": true
-    }
-  },
-  "sideEffects": false
+	"name": "@usenarrator/lang-ts",
+	"version": "0.0.0",
+	"private": true,
+	"description": "TS/JS source language: AST walker, plugin API, standard-library rules.",
+	"type": "module",
+	"exports": {
+		".": "./src/index.ts",
+		"./oxc": "./src/oxc.ts",
+		"./wasm": "./src/wasm.ts"
+	},
+	"dependencies": {
+		"@usenarrator/core": "workspace:*",
+		"oxc-parser": "^0.153.0"
+	},
+	"peerDependencies": {
+		"@oxc-parser/wasm": "0.60.0"
+	},
+	"peerDependenciesMeta": {
+		"@oxc-parser/wasm": {
+			"optional": true
+		}
+	},
+	"sideEffects": false
 }

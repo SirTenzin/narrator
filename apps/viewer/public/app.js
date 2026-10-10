@@ -40,10 +40,10 @@ function lineEl(line, hasKids) {
 	}
 	let html = line.html;
 	if (line.kind === "head") {
-		const i = html.indexOf(" — ");
-		if (i > 0 && html.lastIndexOf("<", i) <= html.lastIndexOf(">", i)) {
-			const sig = html.slice(i + 3).replace(/:$/, "");
-			html = `${html.slice(0, i)}<span class="sig">${sig.charAt(0).toUpperCase()}${sig.slice(1)}</span>`;
+		const [title, details] = html.split('<wbr data-details="">');
+		if (details !== undefined) {
+			const sig = details.trim().replace(/:$/, "");
+			html = `${title.replace(/,$/, "")}<span class="sig">${sig.charAt(0).toUpperCase()}${sig.slice(1)}</span>`;
 		}
 	}
 	el.innerHTML = (hasKids ? `<button class="fold" aria-label="Fold" tabindex="-1"><svg viewBox="0 0 10 10" width="9" height="9"><path d="M1 3l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></button>` : "") + html;
@@ -717,8 +717,8 @@ function cellHtml(c, cls, side) {
 	if (!c) return `<div class="dcell side-${side} empty"></div>`;
 	let html = c.html;
 	if (c.kind === "head") {
-		const i = html.indexOf(" — ");
-		if (i > 0 && html.lastIndexOf("<", i) <= html.lastIndexOf(">", i)) html = `${html.slice(0, i)}<span class="sig">${html.slice(i + 3).replace(/:$/, "")}</span>`;
+		const [title, details] = html.split('<wbr data-details="">');
+		if (details !== undefined) html = `${title.replace(/,$/, "")}<span class="sig">${details.trim().replace(/:$/, "")}</span>`;
 	}
 	const sign = cls === "del" ? "−" : cls === "add" ? "+" : cls === "mod" ? "±" : "";
 	return `<div class="dcell side-${side} ${cls} ${c.kind}" style="--d:${c.d}" data-from="${c.from ?? ""}" data-to="${c.to ?? ""}">${sign ? `<span class="sign">${sign}</span>` : ""}${html}</div>`;

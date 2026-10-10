@@ -281,7 +281,7 @@ const timed = program.pipe(Metric.trackDuration(latency), Metric.tagged("route",
 		expect(text).toContain(`Let requests be a counter named "http_requests".`);
 		expect(text).toContain(`Add "userId": ID to the current trace span.`);
 		expect(text).toContain("Add 1 to requests.");
-		expect(text).toContain(`To get user — given ID:\n  Traced as the span "UserRepo.getUser".`);
+		expect(text).toContain(`To get user, given ID:\n  Traced as the span "UserRepo.getUser".`);
 		expect(text).toContain(`  2. Record how long it takes in latency\n  3. Tag its metrics with "route": "/users"`);
 	});
 	test("v4 metrics", () => {

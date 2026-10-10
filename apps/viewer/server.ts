@@ -3,14 +3,17 @@ import { autumn } from "@usenarrator/example-autumn";
 import { type Engine, TypeExplainer, typeRefName, typescript, unwrap } from "@usenarrator/lang-ts";
 import { oxcParser as parseSync } from "@usenarrator/lang-ts/oxc";
 import { en } from "@usenarrator/locale-en";
+import { aiSdk } from "@usenarrator/plugin-ai-sdk";
 import { betterAuth } from "@usenarrator/plugin-better-auth";
 import { effect } from "@usenarrator/plugin-effect";
-import { testing } from "@usenarrator/plugin-testing";
-import { aiSdk } from "@usenarrator/plugin-ai-sdk";
+import { effectPlatform } from "@usenarrator/plugin-effect/platform";
+import { effectSql } from "@usenarrator/plugin-effect/sql";
+import { effectTesting } from "@usenarrator/plugin-effect/testing";
 import { elysia } from "@usenarrator/plugin-elysia";
 import { hono } from "@usenarrator/plugin-hono";
 import { sql } from "@usenarrator/plugin-sql";
 import { pgsqlParser } from "@usenarrator/plugin-sql/pgsql";
+import { testing } from "@usenarrator/plugin-testing";
 import { zod } from "@usenarrator/plugin-zod";
 import { Glob } from "bun";
 
@@ -27,7 +30,24 @@ const crossFileTypes = ({ engine, path }: { engine: Engine; path: string }) => {
 		}
 	};
 };
-const ts = typescript({ parser: parseSync, plugins: [zod(), testing(), effect(), betterAuth(), hono(), elysia(), aiSdk(), autumn(), sql({ parser: pgsqlParser })], setup: crossFileTypes });
+const ts = typescript({
+	parser: parseSync,
+	plugins: [
+		zod(),
+		testing(),
+		effect(),
+		effectPlatform(),
+		effectSql(),
+		effectTesting(),
+		betterAuth(),
+		hono(),
+		elysia(),
+		aiSdk(),
+		autumn(),
+		sql({ parser: pgsqlParser }),
+	],
+	setup: crossFileTypes,
+});
 const narrator = createNarrator({ languages: [ts], locale: en });
 
 const ROOT = process.env.ROOT ?? "/workspace/autumn";

@@ -27,10 +27,10 @@ export const declarations: DeclarationPhrases = {
 	},
 	signature: ({ title, params, returns, async }) => {
 		const parts = [params !== null && `given ${params}`, returns !== null && `gives back ${returns}`].filter(Boolean);
-		return `${title}${parts.length ? ` — ${parts.join("; ")}` : ""}${async ? " (async)" : ""}`;
+		return `${title}${async ? " (async)" : ""}${parts.length ? `, ${parts.join("; ")}` : ""}`;
 	},
 	class: ({ name, base }) => `Class ${name}${base !== null ? ` (extends ${base})` : ""}`,
-	constructor: ({ params }) => `When created${params !== null ? ` — given ${params}` : ""}`,
+	constructor: ({ params }) => `When created${params !== null ? `, given ${params}` : ""}`,
 	fieldInit: ({ field, value }) => `Field ${field} starts as ${value}`,
 	field: ({ field }) => `Field ${field}`,
 };

@@ -1,16 +1,19 @@
+import initWasm, { parseSync } from "@oxc-parser/wasm/web/oxc_parser_wasm.js";
 import { type ChangedFile, createNarrator, type FileJson, type Narrator } from "@usenarrator/core";
 import { autumn } from "@usenarrator/example-autumn";
 import { typescript } from "@usenarrator/lang-ts";
 import { oxcWasmParser } from "@usenarrator/lang-ts/wasm";
 import { en } from "@usenarrator/locale-en";
+import { aiSdk } from "@usenarrator/plugin-ai-sdk";
 import { betterAuth } from "@usenarrator/plugin-better-auth";
 import { effect } from "@usenarrator/plugin-effect";
-import { testing } from "@usenarrator/plugin-testing";
-import { aiSdk } from "@usenarrator/plugin-ai-sdk";
+import { effectPlatform } from "@usenarrator/plugin-effect/platform";
+import { effectSql } from "@usenarrator/plugin-effect/sql";
+import { effectTesting } from "@usenarrator/plugin-effect/testing";
 import { elysia } from "@usenarrator/plugin-elysia";
 import { hono } from "@usenarrator/plugin-hono";
+import { testing } from "@usenarrator/plugin-testing";
 import { zod } from "@usenarrator/plugin-zod";
-import initWasm, { parseSync } from "@oxc-parser/wasm/web/oxc_parser_wasm.js";
 
 export type DiffRequest = { kind: "pull"; owner: string; repo: string; number: string } | { kind: "commit"; owner: string; repo: string; sha: string };
 export type DiffReport = { title: string; subtitle: string; url: string; base: string; head: string; skipped: number; files: FileJson[] };
@@ -18,7 +21,15 @@ export type DiffResponse = { ok: true; report: DiffReport } | { ok: false; error
 export type Progress = { type: "progress"; text: string };
 
 const parser = oxcWasmParser((src, opts) => parseSync(src, { ...opts, sourceFilename: opts.sourceFilename.replace(/\.(m|c)?js$/, ".ts") }));
-const narrator: Narrator = createNarrator({ languages: [typescript({ parser, plugins: [zod(), testing(), effect(), betterAuth(), hono(), elysia(), aiSdk(), autumn()] })], locale: en });
+const narrator: Narrator = createNarrator({
+	languages: [
+		typescript({
+			parser,
+			plugins: [zod(), testing(), effect(), effectPlatform(), effectSql(), effectTesting(), betterAuth(), hono(), elysia(), aiSdk(), autumn()],
+		}),
+	],
+	locale: en,
+});
 
 let parserReady: Promise<unknown> | null = null;
 const ensureParser = () => (parserReady ??= initWasm({ module_or_path: chrome.runtime.getURL("oxc_parser_wasm_bg.wasm") }));

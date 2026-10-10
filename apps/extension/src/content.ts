@@ -75,8 +75,8 @@ function githubify(html: string): string {
 function lineHtml(c: CellJson): string {
 	let html = githubify(c.html);
 	if (c.kind === "head") {
-		const i = html.indexOf(" — ");
-		if (i > 0 && html.lastIndexOf("<", i) <= html.lastIndexOf(">", i)) html = `${html.slice(0, i)}<span class="pe-sig"> — ${html.slice(i + 3)}</span>`;
+		const [title, details] = html.split('<wbr data-details="">');
+		if (details !== undefined) html = `${title}<span class="pe-sig">${details}</span>`;
 	}
 	return `<span class="pe-line pe-${c.kind}" style="--pe-d:${c.d}">${html}</span>`;
 }

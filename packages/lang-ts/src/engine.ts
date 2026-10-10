@@ -2,6 +2,7 @@ import {
 	type CorePhrases,
 	capFirst,
 	D,
+	DETAILS,
 	type Doc,
 	type ExpressionPhrases,
 	type Grammar,
@@ -15,7 +16,7 @@ import {
 	vlen,
 } from "@usenarrator/core";
 import type { Parser } from "./parser";
-import type { CallRule, CondRule, DisplayText, StmtRule, TsPlugin } from "./plugin";
+import type { CallRule, CondRule, DisplayText, ImportInfo, MemberRule, StmtRule, TsPlugin } from "./plugin";
 
 export type N = any;
 
@@ -23,6 +24,27 @@ export type N = any;
 type Bound<R extends (ctx: any) => any> = (ctx: Omit<Parameters<R>[0], "say">) => ReturnType<R>;
 
 type RelOp = "<" | ">" | "<=" | ">=";
+
+/** Every `import` in a file, keyed by the local name it binds. */
+export function importsOf(program: N): Map<string, ImportInfo> {
+	const out = new Map<string, ImportInfo>();
+	for (const st of program?.body ?? []) {
+		if (st.type !== "ImportDeclaration") continue;
+		for (const sp of st.specifiers ?? []) {
+			const name = sp.type === "ImportDefaultSpecifier" ? "default" : sp.type === "ImportNamespaceSpecifier" ? "*" : (sp.imported?.name ?? sp.imported?.value);
+			out.set(sp.local.name, { from: st.source.value, name });
+		}
+	}
+	return out;
+}
+
+/** Splits a signature after its title (and any "(async)"-style suffix up to the first separator) for UIs that style details apart. */
+const markDetails = (said: string, title: string) => {
+	if (!said.startsWith(title)) return said;
+	const rest = said.slice(title.length);
+	const cut = rest.search(/[,;:]\s/);
+	return cut < 0 ? said : `${title}${rest.slice(0, cut + 1)}${DETAILS}${rest.slice(cut + 1)}`;
+};
 
 const asDoc = (x: Doc | string) => (typeof x === "string" ? D(x) : x);
 
@@ -104,6 +126,10 @@ export class Engine {
 	calls: Record<string, Bound<CallRule>[]> = {};
 	conds: Record<string, Bound<CondRule>[]> = {};
 	stmtRules: Bound<StmtRule>[] = [];
+	members: Record<string, Bound<MemberRule>[]> = {};
+	/** The current file's AST and its imports (local name -> where it came from), set by `narrate`. */
+	program: N = null;
+	imports = new Map<string, ImportInfo>();
 	aliases = new Map<string, string>();
 	/** variable -> type spec: `Type` or `@Type.field`. */
 	varTypes = new Map<string, string>();
@@ -148,6 +174,7 @@ export class Engine {
 		for (const [k, r] of Object.entries(d.calls ?? {})) (this.calls[k] ??= []).unshift(bind(r));
 		for (const [k, r] of Object.entries(d.conditions ?? {})) (this.conds[k] ??= []).unshift(bind(r));
 		this.stmtRules.push(...(d.statements ?? []).map(bind));
+		for (const [k, r] of Object.entries(d.members ?? {})) (this.members[k] ??= []).unshift(bind(r));
 		return this;
 	}
 
@@ -223,6 +250,8 @@ export class Engine {
 		if (n.type === "LogicalExpression" && n.operator !== "??") return this.looksBoolean(n.left) && this.looksBoolean(n.right);
 		if (isBoolLit(n)) return true;
 		if (n.type === "CallExpression") {
+			const exact = this.ruleKeyOf(unwrap(n.callee));
+			if (exact && !exact.startsWith("*.") && !this.conds[exact] && this.claimsExactly(exact, n)) return false;
 			const c = calleeName(n);
 			if (c && (this.lex.isPredicateName(c) || /^(includes|has|some|every|startsWith|endsWith|isArray|test|Boolean|notNullish|nullish|eq|and|or)$/.test(c)))
 				return true;
@@ -336,7 +365,7 @@ export class Engine {
 			case "Super":
 				return D(p.parentClass);
 			case "MemberExpression":
-				return this.member(n);
+				return this.memberRule(n) ?? this.member(n);
 			case "CallExpression":
 				return this.call(n, false);
 			case "NewExpression":
@@ -373,18 +402,21 @@ export class Engine {
 			case "ImportExpression":
 				return this.wrap(this.noun(n.source), (t) => p.dynamicImport({ path: t }));
 			case "TaggedTemplateExpression": {
-				const key = this.ruleKeyOf(unwrap(n.tag));
-				for (const rule of key ? (this.calls[`${key}\`\``] ?? []) : []) {
+				const tag = unwrap(n.tag);
+				const inner = tag.type === "CallExpression" ? this.ruleKeyOf(unwrap(tag.callee)) : null;
+				const key = inner ? `${inner}()` : this.ruleKeyOf(tag);
+				const wild = tag.type === "MemberExpression" && !tag.computed && !key?.startsWith("*.") ? `*.${tag.property.name}` : null;
+				for (const rule of [key, wild].flatMap((k) => (k ? (this.calls[`${k}\`\``] ?? []) : []))) {
 					const r = rule({ node: n, args: [n.quasi], obj: null, e: this, stmt: false });
 					if (r) return asDoc(r);
 				}
-				const tag = this.code(n.tag);
+				const tagCode = this.code(n.tag);
 				const text = n.quasi.quasis
 					.map((q: N) => q.value.cooked)
 					.join("{…}")
 					.replace(/\s+/g, " ")
 					.trim();
-				if (/sql/i.test(tag)) return D(p.sql({ query: mk("c", text) }));
+				if (/sql/i.test(tagCode)) return D(p.sql({ query: mk("c", text) }));
 				return D(this.raw(n));
 			}
 			case "ClassExpression":
@@ -946,12 +978,50 @@ export class Engine {
 		return out;
 	}
 
+	/** Plugin member rules: keys `Obj.prop`, `*.owner.prop`, `*.prop`, most specific first. */
+	memberRule(n: N): Doc | null {
+		if (n.computed || n.property?.type !== "Identifier") return null;
+		const obj = unwrap(n.object);
+		const prop = n.property.name;
+		const keys = [
+			obj.type === "Identifier" ? `${obj.name}.${prop}` : null,
+			obj.type === "MemberExpression" && !obj.computed ? `*.${obj.property.name}.${prop}` : null,
+			`*.${prop}`,
+		];
+		for (const key of keys)
+			for (const rule of key ? (this.members[key] ?? []) : []) {
+				const r = rule({ node: n, obj: n.object, prop, e: this });
+				if (r) return asDoc(r);
+			}
+		return null;
+	}
+
 	/** `Effect.fn` -> "Effect.fn", `x.y.z` -> "*.z": the key a curried call's inner callee is matched by. */
 	ruleKeyOf(c: N): string | null {
 		if (c.type === "Identifier") return c.name;
 		if (c.type !== "MemberExpression" || c.computed) return null;
 		const obj = unwrap(c.object);
 		return obj.type === "Identifier" ? `${obj.name}.${c.property.name}` : `*.${c.property.name}`;
+	}
+
+	/** Whether a rule registered under exactly `key` (not a wildcard) claims this call. */
+	claimsExactly(key: string, n: N): boolean {
+		const rules = this.calls[key];
+		if (!rules) return false;
+		const saved = { ...this.stats, fallbackTypes: { ...this.stats.fallbackTypes } };
+		const usedComments = new Set(this.usedComments);
+		const lineCount = this.lines.length;
+		this.orphanFrames.push([]);
+		try {
+			const c = unwrap(n.callee);
+			const obj = c.type === "MemberExpression" ? c.object : null;
+			return rules.some((rule) => !!rule({ node: n, args: n.arguments, obj, e: this, stmt: false }));
+		} finally {
+			this.orphanFrames.pop();
+			this.stats = saved;
+			this.usedComments = usedComments;
+			this.lines.length = lineCount;
+		}
 	}
 
 	/** Whether a dialect rule claims this call (without counting it as rendered). */
@@ -1657,7 +1727,8 @@ export class Engine {
 		const params = given.length ? this.g.list(given) : null;
 		const returns = ret && ret !== this.say.types.nothing ? ret : null;
 		this.collectTypes(fn);
-		const text = this.say.declarations.signature({ title, params, returns, async: !!fn.async });
+		const said = this.say.declarations.signature({ title, params, returns, async: !!fn.async });
+		const text = params !== null || returns !== null ? markDetails(said, title) : said;
 		this.emitHead(d, text, params === null && returns === null ? text : title, n);
 		const ex = fn.body.type === "BlockStatement" ? null : fn.body;
 		if (ex) this.returnLike(ex, d + 1, ex);
@@ -2052,6 +2123,8 @@ export class Engine {
 		this.headTitles = new Map();
 		const lang = /\.(tsx|jsx)$/.test(filename) ? filename : filename.replace(/\.(m|c)?js$/, ".ts");
 		const { program, errors, comments } = this.parse(lang, src);
+		this.program = program;
+		this.imports = importsOf(program);
 		this.comments = comments ?? [];
 		this.collectTypes(program);
 		let prevTop = false;

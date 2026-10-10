@@ -6,8 +6,11 @@ const RE = /\uE000(\w)\uE001([^\uE001]*)\uE001([^\uE002]*)\uE002/g;
 
 export const mk = (kind: "v" | "f" | "t" | "l" | "c", text: string, payload = "") => `${S}${kind}${SEP}${payload}${SEP}${text}${E}`;
 
-export const plain = (s: string) => s.replace(RE, (_, k, _p, t) => (k === "t" ? `(${t})` : t));
-export const vlen = (s: string) => s.replace(RE, (_, _k, _p, t) => t).length;
+/** Marks where a heading's title ends and its details (inputs, output) begin; invisible in text. */
+export const DETAILS = "\uE003";
+
+export const plain = (s: string) => s.replace(RE, (_, k, _p, t) => (k === "t" ? `(${t})` : t)).replaceAll(DETAILS, "");
+export const vlen = (s: string) => s.replace(RE, (_, _k, _p, t) => t).replaceAll(DETAILS, "").length;
 
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
@@ -23,8 +26,8 @@ export function toHtml(s: string, resolve: (name: string, kind: string) => strin
 		out += href ? `<a href="${href}" title="${esc(payload!)}">${inner}</a>` : inner;
 		last = m.index! + m[0].length;
 	}
-	return out + esc(s.slice(last));
+	return (out + esc(s.slice(last))).replace(DETAILS, '<wbr data-details="">');
 }
 
 const ANSI: Record<string, string> = { v: "\x1b[36m", f: "\x1b[1;33m", t: "\x1b[2m", l: "\x1b[32m", c: "\x1b[2;35m" };
-export const toAnsi = (s: string) => s.replace(RE, (_, k, _p, t) => `${ANSI[k]}${k === "t" ? `(${t})` : t}\x1b[0m`);
+export const toAnsi = (s: string) => s.replace(RE, (_, k, _p, t) => `${ANSI[k]}${k === "t" ? `(${t})` : t}\x1b[0m`).replaceAll(DETAILS, "");
