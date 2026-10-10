@@ -1,0 +1,18 @@
+{
+	"name": "@usenarrator/plugin-hono",
+	"version": "0.0.0",
+	"private": true,
+	"description": "TS plugin: Hono (apps, routes, context, middleware, validation, RPC client, streaming, factory).",
+	"type": "module",
+	"sideEffects": false,
+	"exports": {
+		".": "./src/index.ts"
+	},
+	"dependencies": {
+		"@usenarrator/core": "workspace:*",
+		"@usenarrator/lang-ts": "workspace:*"
+	},
+	"devDependencies": {
+		"@usenarrator/testkit": "workspace:*"
+	}
+}

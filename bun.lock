@@ -154,6 +154,17 @@
         "@usenarrator/testkit": "workspace:*",
       },
     },
+    "plugins/hono": {
+      "name": "@usenarrator/plugin-hono",
+      "version": "0.0.0",
+      "dependencies": {
+        "@usenarrator/core": "workspace:*",
+        "@usenarrator/lang-ts": "workspace:*",
+      },
+      "devDependencies": {
+        "@usenarrator/testkit": "workspace:*",
+      },
+    },
     "plugins/testing": {
       "name": "@usenarrator/plugin-testing",
       "version": "0.0.0",
@@ -269,6 +280,8 @@
     "@usenarrator/plugin-drizzle": ["@usenarrator/plugin-drizzle@workspace:plugins/drizzle"],
 
     "@usenarrator/plugin-effect": ["@usenarrator/plugin-effect@workspace:plugins/effect"],
+
+    "@usenarrator/plugin-hono": ["@usenarrator/plugin-hono@workspace:plugins/hono"],
 
     "@usenarrator/plugin-testing": ["@usenarrator/plugin-testing@workspace:plugins/testing"],
 
