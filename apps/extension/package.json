@@ -1,18 +1,21 @@
 {
-	"name": "@usenarrator/extension",
-	"version": "0.0.0",
-	"private": true,
-	"type": "module",
-	"dependencies": {
-		"@usenarrator/core": "workspace:*",
-		"@usenarrator/lang-ts": "workspace:*",
-		"@usenarrator/locale-en": "workspace:*",
-		"@usenarrator/plugin-zod": "workspace:*",
-		"@usenarrator/plugin-testing": "workspace:*",
-		"@usenarrator/example-autumn": "workspace:*",
-		"@oxc-parser/wasm": "0.60.0",
-		"@usenarrator/plugin-effect": "workspace:*",
-		"@usenarrator/plugin-better-auth": "workspace:*",
-		"@usenarrator/plugin-drizzle": "workspace:*"
-	}
+  "name": "@usenarrator/extension",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@usenarrator/core": "workspace:*",
+    "@usenarrator/lang-ts": "workspace:*",
+    "@usenarrator/locale-en": "workspace:*",
+    "@usenarrator/plugin-zod": "workspace:*",
+    "@usenarrator/plugin-testing": "workspace:*",
+    "@usenarrator/example-autumn": "workspace:*",
+    "@oxc-parser/wasm": "0.60.0",
+    "@usenarrator/plugin-effect": "workspace:*",
+    "@usenarrator/plugin-better-auth": "workspace:*",
+    "@usenarrator/plugin-drizzle": "workspace:*",
+    "@usenarrator/plugin-hono": "workspace:*",
+    "@usenarrator/plugin-elysia": "workspace:*",
+    "@usenarrator/plugin-ai-sdk": "workspace:*"
+  }
 }

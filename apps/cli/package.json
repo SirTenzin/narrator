@@ -1,23 +1,26 @@
 {
-	"name": "@usenarrator/cli",
-	"version": "0.0.0",
-	"private": true,
-	"type": "module",
-	"bin": {
-		"narrate": "./narrate.ts"
-	},
-	"exports": {
-		".": "./narrate.ts"
-	},
-	"dependencies": {
-		"@usenarrator/core": "workspace:*",
-		"@usenarrator/lang-ts": "workspace:*",
-		"@usenarrator/locale-en": "workspace:*",
-		"@usenarrator/plugin-zod": "workspace:*",
-		"@usenarrator/plugin-testing": "workspace:*",
-		"@usenarrator/example-autumn": "workspace:*",
-		"@usenarrator/plugin-effect": "workspace:*",
-		"@usenarrator/plugin-better-auth": "workspace:*",
-		"@usenarrator/plugin-drizzle": "workspace:*"
-	}
+  "name": "@usenarrator/cli",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "narrate": "./narrate.ts"
+  },
+  "exports": {
+    ".": "./narrate.ts"
+  },
+  "dependencies": {
+    "@usenarrator/core": "workspace:*",
+    "@usenarrator/lang-ts": "workspace:*",
+    "@usenarrator/locale-en": "workspace:*",
+    "@usenarrator/plugin-zod": "workspace:*",
+    "@usenarrator/plugin-testing": "workspace:*",
+    "@usenarrator/example-autumn": "workspace:*",
+    "@usenarrator/plugin-effect": "workspace:*",
+    "@usenarrator/plugin-better-auth": "workspace:*",
+    "@usenarrator/plugin-drizzle": "workspace:*",
+    "@usenarrator/plugin-hono": "workspace:*",
+    "@usenarrator/plugin-elysia": "workspace:*",
+    "@usenarrator/plugin-ai-sdk": "workspace:*"
+  }
 }

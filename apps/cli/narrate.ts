@@ -6,11 +6,14 @@ import { en } from "@usenarrator/locale-en";
 import { betterAuth } from "@usenarrator/plugin-better-auth";
 import { effect } from "@usenarrator/plugin-effect";
 import { testing } from "@usenarrator/plugin-testing";
+import { aiSdk } from "@usenarrator/plugin-ai-sdk";
+import { elysia } from "@usenarrator/plugin-elysia";
+import { hono } from "@usenarrator/plugin-hono";
 import { zod } from "@usenarrator/plugin-zod";
 
 /** The narrator the CLI and dev tools use: TS/JS in, English out, with Autumn's conventions. */
 export const narrator = createNarrator({
-	languages: [typescript({ parser: oxcParser, plugins: [zod(), testing(), effect(), betterAuth(), autumn()] })],
+	languages: [typescript({ parser: oxcParser, plugins: [zod(), testing(), effect(), betterAuth(), hono(), elysia(), aiSdk(), autumn()] })],
 	locale: en,
 });
 

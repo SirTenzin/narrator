@@ -6,6 +6,9 @@ import { en } from "@usenarrator/locale-en";
 import { betterAuth } from "@usenarrator/plugin-better-auth";
 import { effect } from "@usenarrator/plugin-effect";
 import { testing } from "@usenarrator/plugin-testing";
+import { aiSdk } from "@usenarrator/plugin-ai-sdk";
+import { elysia } from "@usenarrator/plugin-elysia";
+import { hono } from "@usenarrator/plugin-hono";
 import { zod } from "@usenarrator/plugin-zod";
 import initWasm, { parseSync } from "@oxc-parser/wasm/web/oxc_parser_wasm.js";
 
@@ -15,7 +18,7 @@ export type DiffResponse = { ok: true; report: DiffReport } | { ok: false; error
 export type Progress = { type: "progress"; text: string };
 
 const parser = oxcWasmParser((src, opts) => parseSync(src, { ...opts, sourceFilename: opts.sourceFilename.replace(/\.(m|c)?js$/, ".ts") }));
-const narrator: Narrator = createNarrator({ languages: [typescript({ parser, plugins: [zod(), testing(), effect(), betterAuth(), autumn()] })], locale: en });
+const narrator: Narrator = createNarrator({ languages: [typescript({ parser, plugins: [zod(), testing(), effect(), betterAuth(), hono(), elysia(), aiSdk(), autumn()] })], locale: en });
 
 let parserReady: Promise<unknown> | null = null;
 const ensureParser = () => (parserReady ??= initWasm({ module_or_path: chrome.runtime.getURL("oxc_parser_wasm_bg.wasm") }));
