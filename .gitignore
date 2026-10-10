@@ -1,3 +1,5 @@
 node_modules
 dist
 *.zip
+apps/extension/safari
+apps/extension/safari-build

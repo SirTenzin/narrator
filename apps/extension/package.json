@@ -17,5 +17,11 @@
     "@usenarrator/plugin-hono": "workspace:*",
     "@usenarrator/plugin-elysia": "workspace:*",
     "@usenarrator/plugin-ai-sdk": "workspace:*"
+  },
+  "scripts": {
+    "build": "bun build.ts",
+    "firefox": "bun build.ts && web-ext run -s dist",
+    "lint:firefox": "web-ext lint -s dist",
+    "safari": "./safari.sh"
   }
 }
