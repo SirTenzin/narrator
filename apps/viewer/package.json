@@ -16,6 +16,8 @@
     "@usenarrator/plugin-drizzle": "workspace:*",
     "@usenarrator/plugin-hono": "workspace:*",
     "@usenarrator/plugin-elysia": "workspace:*",
-    "@usenarrator/plugin-ai-sdk": "workspace:*"
+    "@usenarrator/plugin-ai-sdk": "workspace:*",
+    "@usenarrator/plugin-sql": "workspace:*",
+    "pgsql-ast-parser": "^12.0.2"
   }
 }

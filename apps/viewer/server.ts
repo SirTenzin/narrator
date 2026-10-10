@@ -9,6 +9,8 @@ import { testing } from "@usenarrator/plugin-testing";
 import { aiSdk } from "@usenarrator/plugin-ai-sdk";
 import { elysia } from "@usenarrator/plugin-elysia";
 import { hono } from "@usenarrator/plugin-hono";
+import { sql } from "@usenarrator/plugin-sql";
+import { pgsqlParser } from "@usenarrator/plugin-sql/pgsql";
 import { zod } from "@usenarrator/plugin-zod";
 import { Glob } from "bun";
 
@@ -25,7 +27,7 @@ const crossFileTypes = ({ engine, path }: { engine: Engine; path: string }) => {
 		}
 	};
 };
-const ts = typescript({ parser: parseSync, plugins: [zod(), testing(), effect(), betterAuth(), hono(), elysia(), aiSdk(), autumn()], setup: crossFileTypes });
+const ts = typescript({ parser: parseSync, plugins: [zod(), testing(), effect(), betterAuth(), hono(), elysia(), aiSdk(), autumn(), sql({ parser: pgsqlParser })], setup: crossFileTypes });
 const narrator = createNarrator({ languages: [ts], locale: en });
 
 const ROOT = process.env.ROOT ?? "/workspace/autumn";
