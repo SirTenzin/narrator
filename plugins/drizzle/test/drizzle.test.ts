@@ -17,7 +17,7 @@ describe("operators", () => {
 		);
 		expect(text).toBe(
 			[
-				"Let rows be look up rows from users:",
+				"Let rows be the rows of users:",
 				"  • where all of these are true:",
 				"    • users' ID is ID",
 				`    • users' role is not "admin"`,
@@ -206,10 +206,10 @@ describe("relational queries", () => {
 				"  • including comments:",
 				"    • leaving out body",
 				"    • sorted by comments' created at (newest first)",
-				"    • at most 5 row(s)",
+				"    • at most 5 rows",
 				"  • sorted by posts' title (lowest first)",
-				"  • at most 10 row(s)",
-				"  • skipping the first 20",
+				"  • at most 10 rows",
+				"  • skipping the first 20 rows",
 				"  • adding lower: the raw SQL lower(${posts.title})",
 			].join("\n"),
 		);
@@ -381,4 +381,62 @@ test("a locale can replace the phrasebook without touching rules", () => {
 		"la primera fila de users donde users' ID es ID",
 	);
 	expect(phrasebookGaps(en, es)).toEqual({ missing: [], extra: [] });
+});
+
+describe("queries used as values read as nouns", () => {
+	test("select, insert, update and delete as values", () => {
+		const text = say(
+			[
+				"async function f() {",
+				"  const all = await db.select().from(users);",
+				"  const page = await db.select({ id: users.id, name: users.name }).from(users).limit(1).offset(1);",
+				"  const removed = await db.delete(chat).where(eq(chat.id, id)).returning();",
+				"  await db.update(chat).set({ title }).where(eq(chat.id, id));",
+				"  return db.insert(user).values({ email }).returning({ id: user.id });",
+				"}",
+			].join("\n"),
+		);
+		expect(text).toBe(
+			[
+				"To f (async):",
+				"  Let all be every row of users.",
+				"  Let page be the rows of users:",
+				"    • picking users' ID and users' name",
+				"    • at most 1 row",
+				"    • skipping the first row",
+				"  Let removed be the rows deleted from chat:",
+				"    • where chat's ID is ID",
+				"  Update chat:",
+				"    • setting an object with title",
+				"    • where chat's ID is ID",
+				"  Give back the rows inserted into user:",
+				"    • the values: an object with email",
+				"    • picking user's ID",
+			].join("\n"),
+		);
+	});
+
+	test("a bare query step has no dangling colon, and counts are plural", () => {
+		expect(say("await db.select().from(users);")).toBe("Look up rows from users.");
+		expect(say("const q = db.select().from(users).where(eq(users.id, id)).limit(50);")).toContain("• at most 50 rows");
+		expect(say("const q = db.delete(sessions).where(eq(sessions.id, id));")).toBe(
+			"Let q be the result of deleting from sessions:\n  • where sessions' ID is ID",
+		);
+	});
+});
+
+describe("drizzle(...) and the sql tag", () => {
+	test("the database handle", () => {
+		expect(say('import { drizzle } from "drizzle-orm/postgres-js";\nconst db = drizzle(client, { schema });')).toBe(
+			"Let DB be a Drizzle database over client, with the tables in schema.",
+		);
+		expect(say('import { drizzle } from "drizzle-orm/node-postgres";\nconst db = drizzle({ client: pool });')).toBe("Let DB be a Drizzle database over pool.");
+		expect(narrate("const db = drizzle(client);", { plugins: [drizzle()] })).toBe(narrate("const db = drizzle(client);"));
+	});
+
+	test("a sql template that isn't imported from drizzle-orm is left to others", () => {
+		const code = 'import postgres from "postgres";\nconst sql = postgres(url);\nconst rows = await sql`select * from users`;';
+		expect(narrate(code, { plugins: [drizzle()] })).toBe(narrate(code));
+		expect(say('import { sql } from "drizzle-orm";\nconst f = sql`now()`;')).toBe("Let f be the raw SQL now().");
+	});
 });

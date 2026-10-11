@@ -1,17 +1,17 @@
 import type { Doc } from "@usenarrator/core";
-import { type CallRule, definePlugin, type Engine, type N, type StmtRule, type TsPlugin, unwrap } from "@usenarrator/lang-ts";
-import { narrateSql, type SqlMode } from "./describe";
+import { type CallRule, definePlugin, type Engine, type MemberRule, type N, type StmtRule, type TsPlugin, unwrap } from "@usenarrator/lang-ts";
+import { narrateSql, registerParser, type SqlMode } from "./describe";
 import { en } from "./en";
 import { memoized, type ParserSource, resolveParser, type SqlParser } from "./parser";
 import type { SqlPhrases } from "./phrases";
 import { arrayBinding, type Binding, fromString, fromTemplate, looksLikeSql, noParams, restBinding, type SqlText, stringValue } from "./source";
 
-export { describeSql, type SqlMode } from "./describe";
+export { describeSql, type SqlMode, tryDescribeSql } from "./describe";
 export { en } from "./en";
 export type { ParserSource, SqlParser } from "./parser";
 export type { DropKind, JoinKind, LockKind, RefAction, SqlPhrases } from "./phrases";
 export type { Binding, Param, SqlText } from "./source";
-export { arrayBinding, fromString, fromTemplate, restBinding } from "./source";
+export { arrayBinding, fromString, fromTemplate, looksLikeSql, restBinding } from "./source";
 
 export type SqlOptions = {
 	/** Without a parser the plugin still claims SQL call sites but shows the SQL as-is. Pass a getter to load it lazily. */
@@ -50,9 +50,15 @@ function tagKind(tag: N): "sql" | "prisma" | "slonik" | null {
 
 const isSqlTag = (n: N) => unwrap(n)?.type === "TaggedTemplateExpression" && tagKind(unwrap(n).tag) !== null;
 
-/** Drizzle's `sql` template is Drizzle's to describe when the Drizzle plugin is loaded. */
-const DRIZZLE_SQL = /import\s*(?:type\s*)?\{[^}]*\bsql\b[^}]*\}\s*from\s*["']drizzle-orm(?:\/[\w-]+)?["']/;
-const BUN_SQLITE = /from\s*["']bun:sqlite["']/;
+const isDrizzleModule = (m: string | undefined) => !!m && (m === "drizzle-orm" || m.startsWith("drizzle-orm/"));
+
+/** A `sql` tag imported from Drizzle (`import { sql }` or `import * as orm` then `orm.sql`). */
+function isDrizzleTag(e: Engine, tag: N): boolean {
+	const t = unwrap(tag);
+	if (t.type === "Identifier") return isDrizzleModule(e.imports.get(t.name)?.from);
+	const obj = t.type === "MemberExpression" && !t.computed ? unwrap(t.object) : null;
+	return obj?.type === "Identifier" && isDrizzleModule(e.imports.get(obj.name)?.from);
+}
 
 /** Identifiers declared in this file whose value is SQL text or a prepared statement. */
 type FileState = { src: string; texts: Map<string, N>; prepared: Map<string, N> };
@@ -107,7 +113,8 @@ export const sql = ({ parser }: SqlOptions = {}): TsPlugin<P> => {
 		return null;
 	};
 
-	const drizzles = (e: Engine, node: N) => tagKind(node.tag) === "sql" && DRIZZLE_SQL.test(e.src) && e.dialects.some((d) => d.name === "drizzle");
+	/** Drizzle's `sql` template is Drizzle's to describe when the Drizzle plugin is loaded. */
+	const drizzles = (e: Engine, node: N) => tagKind(node.tag) === "sql" && isDrizzleTag(e, node.tag) && e.dialects.some((d) => d.name === "drizzle");
 
 	const templateText = (e: Engine, node: N): SqlText => fromTemplate({ e, quasi: unwrap(node).quasi, isSqlTag });
 
@@ -129,7 +136,7 @@ export const sql = ({ parser }: SqlOptions = {}): TsPlugin<P> => {
 			const text = sqlOf(e, args[0], arrayBinding(e, args[1]));
 			if (!text) return null;
 			const method = unwrap(node.callee).property.name;
-			const prepare = prepares || (method === "query" && BUN_SQLITE.test(e.src));
+			const prepare = prepares || (method === "query" && e.usesLibrary("bun:sqlite"));
 			return narrate({ e, say, text, mode: prepare ? "prepared" : stmt ? "action" : "value" });
 		};
 
@@ -185,7 +192,16 @@ export const sql = ({ parser }: SqlOptions = {}): TsPlugin<P> => {
 		return true;
 	};
 
-	return definePlugin({
+	/** `(await pool.query(sql)).rows` / `(await db.execute(sql\`...\`)).rows`: the rows the query reads are the query's value. */
+	const rowsOf: MemberRule<P> = ({ obj, e }) => {
+		const o = unwrap(obj);
+		const call = unwrap(o?.type === "AwaitExpression" ? o.argument : o);
+		const callee = call?.type === "CallExpression" ? unwrap(call.callee) : null;
+		if (callee?.type !== "MemberExpression" || !["query", "execute"].includes(callee.property?.name) || !isDb(e, callee.object)) return null;
+		return e.applyRulesQuiet(call) ? e.noun(call) : null;
+	};
+
+	const plugin = definePlugin({
 		name: "sql",
 		phrases: { en },
 		calls: {
@@ -199,6 +215,9 @@ export const sql = ({ parser }: SqlOptions = {}): TsPlugin<P> => {
 			"*.exec": restRule,
 			...Object.fromEntries(RUN_METHODS.map((m) => [`*.${m}`, runRule])),
 		},
+		members: { "*.rows": rowsOf },
 		statements: [statements],
 	});
+	registerParser(plugin, currentParser);
+	return plugin;
 };

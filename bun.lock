@@ -163,6 +163,7 @@
       "dependencies": {
         "@usenarrator/core": "workspace:*",
         "@usenarrator/lang-ts": "workspace:*",
+        "@usenarrator/plugin-sql": "workspace:*",
       },
       "devDependencies": {
         "@usenarrator/testkit": "workspace:*",
