@@ -76,6 +76,7 @@ const check = v.parser(v.string());`);
 				"  If result's success is missing, report (the problems found in result, grouped by field).",
 				"  If input matches login schema, run go.",
 				"  Check that input matches login schema, failing if it doesn't.",
+				"",
 				"Let check be a function that checks its input against text, failing if it doesn't match.",
 			].join("\n"),
 		);
