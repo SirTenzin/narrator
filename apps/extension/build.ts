@@ -9,12 +9,12 @@ const src = `${root}/src`;
 /** `universal` loads in Chrome and Firefox (for development and Safari); `chrome` and `firefox` are the store packages, each without the other's keys and code. */
 type Target = "universal" | "chrome" | "firefox";
 
-/** emnapi (under the WASM parser) probes `new Function`, which the MV3 CSP blocks anyway; stubbing it keeps eval out of store packages. */
+/** emnapi (under the WASM parser) has `new Function` and `napi_run_script`'s `eval`, never used by oxc and blocked by the MV3 CSP; stubbing keeps eval out of store packages. */
 const noFunctionConstructor: BunPlugin = {
 	name: "no-function-constructor",
 	setup(b) {
 		b.onLoad({ filter: /[\\/]@emnapi[\\/].*\.[cm]?js$/ }, async ({ path }) => ({
-			contents: `const __noFunction = () => { throw new EvalError("Function constructor is disabled"); };\n${(await Bun.file(path).text()).replaceAll("new Function(", "__noFunction(")}`,
+			contents: `const __noFunction = () => { throw new EvalError("Function constructor is disabled"); };\n${(await Bun.file(path).text()).replaceAll("new Function(", "__noFunction(").replace(/\b\w+\.eval\(/g, "__noFunction(")}`,
 			loader: "js",
 		}));
 	},
