@@ -1446,7 +1446,9 @@ export class Engine {
 			}
 			const l = this.noun(L);
 			const r = this.noun(R);
-			const time = this.g.isTimeLike(plain(l.t)) || this.g.isTimeLike(plain(r.t));
+			// A difference of two moments (or its absolute value) is a duration, not a moment.
+			const isSpan = (x: N) => (x.type === "BinaryExpression" && x.operator === "-") || (x.type === "CallExpression" && this.code(x.callee) === "Math.abs");
+			const time = !isSpan(L) && !isSpan(R) && (this.g.isTimeLike(plain(l.t)) || this.g.isTimeLike(plain(r.t)));
 			if (!time && R.type === "Literal" && R.value === 0) return D(k.sign[rel]({ subject: l.t }), l.kids);
 			return D(k.compare[rel]({ left: l.t, right: r.t, time }), [...l.kids, ...r.kids]);
 		}

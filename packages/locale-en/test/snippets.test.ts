@@ -11,7 +11,7 @@ test("guard clause with a missing property", () => {
 
 test("object entries loop with a skip", () => {
 	expect(narrate("for (const [key, value] of Object.entries(prices)) { if (value > 100) continue; log(key); }")).toBe(
-		"For each key key and value value in prices:\n  Skip it if value is more than 100.\n  Log (key).",
+		"For each key and its value in prices:\n  Skip it if value is more than 100.\n  Log (key).",
 	);
 });
 

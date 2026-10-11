@@ -87,7 +87,7 @@ export const en: StdPhrases = {
 		where: ({ item, list, cond, neg }) => {
 			const rest = afterItem(cond, item);
 			if (rest) return `${neg ? "not every" : "every"} ${item} in ${list} ${rest}`;
-			return `${neg ? "not every" : "every"} ${item} in ${list} satisfies: ${cond}`;
+			return neg ? `not every ${item} in ${list} satisfies: ${cond}` : `${cond} for every ${item} in ${list}`;
 		},
 	},
 	isIn: ({ value, list, neg }) => `${value} ${neg ? "is not in" : "is in"} ${list}`,
@@ -199,6 +199,19 @@ export const en: StdPhrases = {
 		isoString: ({ value }) => `${value} as an ISO date string`,
 		now: "the current time",
 		utc: ({ parts }) => `the UTC timestamp for ${parts}`,
+		part: ({ value, part, utc }) => {
+			const name = {
+				FullYear: "year",
+				Month: "month (0-11)",
+				Date: "day of the month",
+				Day: "weekday (0-6)",
+				Hours: "hour",
+				Minutes: "minute",
+				Seconds: "second",
+				Milliseconds: "millisecond",
+			}[part];
+			return `the ${utc ? "UTC " : ""}${name} of ${value}`;
+		},
 	},
 	promise: {
 		then: ({ value, item, result }) => `${value}, then (with the result as ${item}) ${result}`,
@@ -224,6 +237,7 @@ export const en: StdPhrases = {
 	exit: ({ code }) => `exit the process${code ? ` with code ${code}` : ""}`,
 	deepCopy: ({ value }) => `a deep copy of ${value}`,
 	setTimeout: ({ ms, stmt }) => (stmt ? `after ${duration(ms)}, do the following` : `a timer that, after ${duration(ms)}, does the following`),
+	print: ({ value, errors }) => `print ${value}${errors ? " to the error output" : ""}`,
 	bigint: ({ value }) => `${value} as a big integer`,
 	wait: ({ ms }) => `wait ${duration(ms)}`,
 	pause: ({ ms }) => `a pause of ${duration(ms)}`,

@@ -163,7 +163,15 @@ export type StdPhrases = {
 		isNaN: Neg<"value">;
 		isInteger: Neg<"value">;
 	};
-	date: { from: P<"value">; timestamp: P<"value">; isoString: P<"value">; now: string; utc: P<"parts"> };
+	date: {
+		from: P<"value">;
+		timestamp: P<"value">;
+		isoString: P<"value">;
+		now: string;
+		utc: P<"parts">;
+		/** `d.getMonth()` etc.; `part` is the getter's name without `get`/`UTC` (`Month`, `FullYear`, …). */
+		part: (p: { value: string; part: "FullYear" | "Month" | "Date" | "Day" | "Hours" | "Minutes" | "Seconds" | "Milliseconds"; utc: boolean }) => string;
+	};
 	promise: {
 		/** `item` names the resolved result inside the callback. */
 		then: P<"value" | "item" | "result">;
@@ -188,6 +196,8 @@ export type StdPhrases = {
 	};
 	exit: (p: { code: string | null }) => string;
 	bigint: P<"value">;
+	/** `process.stdout.write(x)`; `errors` for stderr. */
+	print: (p: { value: string; errors: boolean }) => string;
 	/** `ms` is a rendered duration in milliseconds. */
 	wait: P<"ms">;
 	/** A pause used as a value, e.g. inside `Promise.race`. */

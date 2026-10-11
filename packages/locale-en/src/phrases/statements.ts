@@ -16,7 +16,7 @@ export const statements: StatementPhrases = {
 	doWhileTail: ({ condition }) => `…and keep repeating while ${condition}`,
 	loopItem: {
 		each: ({ item }) => `each ${item}`,
-		key: ({ key, value }) => `each key ${key}${value ? ` and value ${value}` : ""}`,
+		key: ({ key, value }) => `each ${key}${value ? ` and its ${value}` : ""}`,
 		indexed: ({ item, position }) => `each ${item}${position ? ` (at position ${position})` : ""}`,
 	},
 	forOf: ({ label, collection, async }) => `For ${label} in ${collection}${async ? " (as they arrive)" : ""}`,

@@ -6,6 +6,8 @@ import type { StdPhrases } from "./phrases";
 
 type Calls = Record<string, CallRule<StdPhrases>>;
 
+const DATE_PARTS = ["FullYear", "Month", "Date", "Day", "Hours", "Minutes", "Seconds", "Milliseconds"] as const;
+
 export const valueRules: Calls = {
 	"*.toString": ({ obj, e, say }) => D(say.text.asText({ value: e.text(obj) })),
 	"*.toLowerCase": ({ obj, e, say }) => D(say.text.lowercase({ value: e.text(obj) })),
@@ -82,8 +84,22 @@ export const valueRules: Calls = {
 	},
 	"JSON.stringify": ({ args, e, say }) => D(say.json.stringify({ value: e.text(args[0]) })),
 	"JSON.parse": ({ args, e, say }) => D(say.json.parse({ value: e.text(args[0]) })),
-	"Math.max": ({ args, e, say }) => D(say.math.max({ values: e.g.list(args.map((a: N) => e.text(a))), many: args.length > 2 })),
-	"Math.min": ({ args, e, say }) => D(say.math.min({ values: e.g.list(args.map((a: N) => e.text(a))), many: args.length > 2 })),
+	"Math.max": ({ args, e, say }) => D(say.math.max(extremes(e, args))),
+	"Math.min": ({ args, e, say }) => D(say.math.min(extremes(e, args))),
+	"*.write": ({ obj, args, e, say }) => {
+		const o = unwrap(obj);
+		const stream = o.type === "MemberExpression" && !o.computed && unwrap(o.object).name === "process" ? o.property.name : null;
+		if ((stream !== "stdout" && stream !== "stderr") || args.length !== 1) return null;
+		return D(say.print({ value: e.text(args[0]), errors: stream === "stderr" }));
+	},
+	...Object.fromEntries(
+		DATE_PARTS.flatMap((part) =>
+			[false, true].map((utc) => [
+				`*.get${utc ? "UTC" : ""}${part}`,
+				(({ obj, args, e, say }) => (args.length ? null : D(say.date.part({ value: e.text(obj), part, utc })))) as CallRule<StdPhrases>,
+			]),
+		),
+	),
 	"Math.round": ({ args, e, say }) => D(say.math.round({ value: e.text(args[0]) })),
 	"Math.floor": ({ args, e, say }) => D(say.math.floor({ value: e.text(args[0]) })),
 	"Math.ceil": ({ args, e, say }) => D(say.math.ceil({ value: e.text(args[0]) })),
@@ -130,6 +146,13 @@ function sleepMs(e: Engine, arg: N): N | null {
 }
 
 /** `plainLog`: a lone argument of any kind is the logged message ("log usage"), not a detail. */
+/** `Math.max(a, b)` / `Math.max(...xs)`: the values, and whether there are more than two of them. */
+function extremes(e: Engine, args: N[]): { values: string; many: boolean } {
+	const spread = args.length === 1 && unwrap(args[0]).type === "SpreadElement" ? unwrap(args[0]).argument : null;
+	if (spread) return { values: e.text(spread), many: true };
+	return { values: e.g.list(args.map((a: N) => e.text(a))), many: args.length > 2 };
+}
+
 function logRule({
 	e,
 	obj,
