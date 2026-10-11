@@ -96,10 +96,12 @@ html[data-current-path="/"] #header {
 	border-radius: 6px;
 	font-size: 0.875rem;
 	font-weight: 500;
-	border: 1px solid var(--nr-border);
+	border: 1px solid var(--nr-border) !important;
 	color: var(--nr-fg) !important;
 	background: var(--nr-panel);
 	text-decoration: none !important;
+	box-shadow: none !important;
+	background-image: none !important;
 	transition:
 		background 0.15s ease,
 		border-color 0.15s ease;
@@ -111,7 +113,7 @@ html[data-current-path="/"] #header {
 
 .nr-btn-primary {
 	background: var(--nr-fg);
-	border-color: var(--nr-fg);
+	border-color: var(--nr-fg) !important;
 	color: var(--nr-panel) !important;
 }
 
@@ -336,6 +338,12 @@ html.dark .nr-fn {
 	background: var(--nr-fg) !important;
 	color: var(--nr-panel) !important;
 	border-radius: 6px !important;
+}
+
+#topbar-cta-button svg {
+	color: var(--nr-panel) !important;
+	fill: currentColor;
+	background: transparent !important;
 }
 
 #sidebar-content li[data-active] > a,

@@ -37,14 +37,14 @@ export function Cart({ items, onCheckout }) {
 		label: "TypeScript",
 		file: "renew.ts",
 		plugins: [],
-		code: `export async function renew(sub: Subscription, now: Date) {
-  if (sub.status === "canceled") return;
-  const plan = plans.find((p) => p.id === sub.planId);
+		code: `export async function renew(account: Account, now: Date) {
+  if (account.status === "canceled") return;
+  const plan = plans.find((p) => p.id === account.planId);
   if (!plan) throw new NotFoundError("Unknown plan");
-  for (const seat of sub.seats) {
+  for (const seat of account.seats) {
     if (seat.expiresAt < now) await releaseSeat(seat);
   }
-  await sendReceipt({ to: sub.ownerEmail, amount: plan.price });
+  await sendReceipt({ to: account.ownerEmail, amount: plan.price });
 }`,
 	},
 	{
