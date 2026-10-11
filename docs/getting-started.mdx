@@ -3,11 +3,15 @@ title: "Getting started"
 description: "Install Narrator, narrate files and diffs from the terminal, then do the same from code."
 ---
 
-This page takes you from nothing to narrating your own code and your own diffs, first with the CLI and then from TypeScript. You need Node 20 or newer, or [Bun](https://bun.sh) 1.1 or newer. The `@usenarrator/*` packages are published as ESM JavaScript with type declarations, so they work in Node and Bun without a bundler or TypeScript loader.
+This page takes you from nothing to narrating your own code and your own diffs, first with the CLI and then from code. The `@usenarrator/*` packages are published as ESM JavaScript with type declarations, so they work in Node and Bun without a bundler.
 
-<Note>
-  Version 0.1.0 is the first release. If your package manager can't find the packages yet, clone [the repository](https://github.com/SirTenzin/narrator), run `bun install`, and work inside it. The imports on this page are the same either way, and the CLI runs as `bun apps/cli/narrate.ts` instead of `narrator`.
-</Note>
+| Runtime | What runs |
+| --- | --- |
+| Node 20.19 or newer (or 22.12 or newer on the 22 line) | The packages. Save the examples below as `.mjs` files and drop the type annotations, or run the `.ts` files with `npx tsx`. |
+| Node 22.18 or newer, or Node 23.6 or newer | The packages, the CLI, and the `.ts` examples as written, since Node strips the types itself. |
+| [Bun](https://bun.sh) 1.1 or newer | Everything, including the `.ts` examples. |
+
+The CLI needs Node 22.12 or newer because it uses Node's built-in glob support.
 
 <Steps>
   <Step title="Try the CLI">
@@ -19,7 +23,7 @@ This page takes you from nothing to narrating your own code and your own diffs, 
     npx @usenarrator/cli src/billing.ts
     ```
 
-    Give it files, directories or globs. It prints the English for each TypeScript or JavaScript file it finds, skipping `node_modules`, `dist` and other build folders. With no arguments it reads code from standard input.
+    Give it files, directories or globs. It prints the English for each TypeScript or JavaScript file it finds. Inside directories and globs it skips files people don't write by hand: dependencies, build output such as `dist` and `.next`, vendored code such as `.yarn`, minified files, and anything `.gitattributes` marks `linguist-generated` or `linguist-vendored`. A file you name directly is always narrated. With no arguments it reads code from standard input.
 
     ```bash
     narrator src/billing.ts            # one file
@@ -35,8 +39,8 @@ This page takes you from nothing to narrating your own code and your own diffs, 
     | Option | What it does |
     | --- | --- |
     | `--plugins zod,drizzle` | Load exactly these plugins instead of detecting them. Use `all` or `none` for every plugin or none. |
-    | `--preset autumn` | Add a codebase preset on top of the plugins. `autumn` is the example preset in the repository. |
     | `--locale en` | The output language. Other locales are loaded from `@usenarrator/locale-<id>`. |
+    | `--include-generated` | Also narrate generated, vendored, minified and build files. |
     | `--plain`, `--ansi`, `--json`, `--html` | The output format. The default is coloured text in a terminal and plain text otherwise. |
 
     The [CLI reference](/reference/cli) lists every plugin name and the packages that turn it on.
@@ -51,15 +55,17 @@ This page takes you from nothing to narrating your own code and your own diffs, 
     narrator diff HEAD            # uncommitted changes
     ```
 
-    Each changed declaration is printed as a unit, with removed sentences marked `-` and added sentences marked `+`. The next step shows the same output from code. Use `--json` for structured output, or `--html` for a standalone side-by-side page.
+    Each changed declaration is printed as a unit, with removed sentences marked `-` and added sentences marked `+`. Generated, vendored and minified files are skipped the same way as above and listed with one line each, such as `.yarn/releases/yarn.cjs [deleted, skipped: vendored]`. A file that can't be read, for example because of a syntax error, gets a line starting with `!` and the rest of the diff carries on. The next step shows the same output from code. Use `--json` for structured output, or `--html` for a standalone side-by-side page.
   </Step>
 
   <Step title="Narrate a file from code">
-    Install the Node package and any plugins you want:
+    Install the packages this page imports, plus any plugins you want:
 
     ```bash
-    npm install @usenarrator/node @usenarrator/plugin-zod
+    npm install @usenarrator/core @usenarrator/lang-ts @usenarrator/locale-en @usenarrator/node @usenarrator/plugin-zod
     ```
+
+    `@usenarrator/node` already depends on the other three, but you import from them directly below, so list them yourself. Strict package managers such as pnpm only let you import what you declare. See [What to install](#what-to-install) for the full picture.
 
     `createNodeNarrator` sets up the TypeScript language with the native parser, the English locale, and the dependency manifests of the git repository around your working directory.
 
@@ -96,7 +102,7 @@ This page takes you from nothing to narrating your own code and your own diffs, 
       Give back team's seat limit minus the number of team's members.
     ```
 
-    `narrate` returns an array of `Line` objects, not a string. Each line knows its indent depth, its kind (heading, statement, bullet and so on), and the source offsets it came from. `renderText` is the simplest way to turn them into text. In a browser, or when you want to choose every piece yourself, use `createNarrator` from `@usenarrator/core` instead. See [Embedding in your app](/guides/embedding).
+    `narrate` returns an object whose `lines` are `Line` objects, not a string. Each line knows its indent depth, its kind (heading, statement, bullet and so on), and the source offsets it came from. `renderText` is the simplest way to turn them into text. In a browser, or when you want to choose every piece yourself, use `createNarrator` from `@usenarrator/core` instead. See [Embedding in your app](/guides/embedding).
   </Step>
 
   <Step title="Narrate a diff from code">
@@ -141,8 +147,25 @@ This page takes you from nothing to narrating your own code and your own diffs, 
     ```
 
     The first condition was edited in place, so it shows as a removed line and an added line. The `return` grew into two sentences, which is easier to review than the code change that caused it. To render diffs as HTML instead, use `narrator.diff`, described in [Units and diffs](/concepts/units-and-diffs).
+
+    To build the file list from a git range, the way the CLI does, use `changedFilesFromGit` from `@usenarrator/node`. It also marks generated and vendored files so they are skipped without being read. See the [Node reference](/reference/node).
   </Step>
 </Steps>
+
+## Bad code and failing plugins
+
+Narration never stops for one bad file. `narrate` returns a `problems` list next to the lines, and each entry in a diff has one too. A syntax error is reported with its line number and Narrator keeps whatever it could read. A plugin rule that throws is reported with the plugin's name and the plain reading is used instead. If a file can't be narrated at all, it has no lines and a single problem explaining why, while every other file in the call is narrated as usual. See [`NarrationProblem`](/reference/core#narrationproblem).
+
+## What to install
+
+| You want | Install |
+| --- | --- |
+| The command line tool | `@usenarrator/cli`. It includes the parser and every plugin. |
+| Narration from Node or Bun | `@usenarrator/node`, which brings `@usenarrator/core`, `@usenarrator/lang-ts`, `@usenarrator/locale-en` and the native parser `oxc-parser`. List any of those you import yourself. |
+| A plugin | `@usenarrator/plugin-<name>`. Every plugin has `@usenarrator/core` and `@usenarrator/lang-ts` as peer dependencies, so all plugins share one copy of each. npm and pnpm install peers for you; with Yarn, add them yourself. |
+| Drizzle or Next.js | `@usenarrator/plugin-drizzle` brings `@usenarrator/plugin-sql`, and `@usenarrator/plugin-nextjs` brings `@usenarrator/plugin-react`, as ordinary dependencies. You don't install them separately. |
+| SQL strings | `@usenarrator/plugin-sql`, plus `pgsql-ast-parser` if you use the `@usenarrator/plugin-sql/pgsql` parser. |
+| A browser or edge runtime | `@usenarrator/core`, `@usenarrator/lang-ts`, `@usenarrator/locale-en` and the WASM parser. See [Embedding in your app](/guides/embedding). |
 
 ## What to read next
 

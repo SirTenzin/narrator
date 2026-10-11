@@ -5,7 +5,7 @@ description: "A ready-made narrator for Node and Bun, and the helpers that read 
 ---
 
 ```ts
-import { createNodeNarrator, findRepoRoot, listRepoFiles, loadDependencyIndex } from "@usenarrator/node";
+import { changedFilesFromGit, createNodeNarrator, findRepoRoot, gitAttributeSkips, listRepoFiles, loadDependencyIndex } from "@usenarrator/node";
 ```
 
 This package wires `@usenarrator/core`, `@usenarrator/lang-ts` with the native oxc parser, and `@usenarrator/locale-en` together for server-side use. It depends on `oxc-parser`, so it isn't meant for browsers. See [Embedding in your app](/guides/embedding) for the browser setup.
@@ -29,6 +29,49 @@ function createNodeNarrator(options?: {
 <ParamField path="dependencies" type="false | DependencyIndex">
   Defaults to `loadDependencyIndex({ root: findRepoRoot(process.cwd()) })`, the manifests of the git checkout around the working directory. Pass your own index for another repository, or `false` to rely on imports alone.
 </ParamField>
+
+## changedFilesFromGit
+
+```ts
+function changedFilesFromGit(options: {
+  root: string;
+  range: string;
+  includeGenerated?: boolean;
+  accepts?: (path: string) => boolean;
+}): ChangedFile[];
+```
+
+The files changed in a git range, with both sides' sources, ready for `narrator.diffFiles` or `narrator.diff`. This is what `narrator diff` uses.
+
+<ParamField path="range" type="string" required>
+  `base..head` compares two revisions, `base...head` compares `head` with its merge base, and `base` alone compares a revision with the working tree. An unknown revision throws an error that names it.
+</ParamField>
+<ParamField path="includeGenerated" type="boolean">
+  By default, files that `.gitattributes` marks `linguist-generated` or `linguist-vendored`, and files whose path shows they are build output, dependencies or lockfiles, come back with `skipped` set and empty sources, so they are never read. Minified content is caught later by the narrator. Pass `true` to read everything.
+</ParamField>
+<ParamField path="accepts" type="(path: string) => boolean">
+  Drops other paths before anything is read, for example `narrator.canNarrate`.
+</ParamField>
+
+All sources are read through one `git cat-file --batch` process, so large ranges stay fast.
+
+```ts
+import { renderDiffText } from "@usenarrator/core";
+import { changedFilesFromGit, createNodeNarrator, findRepoRoot } from "@usenarrator/node";
+
+const narrator = createNodeNarrator();
+const root = findRepoRoot(process.cwd());
+const files = changedFilesFromGit({ root, range: "main...HEAD", accepts: narrator.canNarrate });
+console.log(renderDiffText({ files: narrator.diffFiles(files) }));
+```
+
+## gitAttributeSkips
+
+```ts
+function gitAttributeSkips(options: { root: string; paths: string[] }): Map<string, SkipReason>;
+```
+
+The paths that `.gitattributes` marks `linguist-generated` (reason `generated`) or `linguist-vendored` (reason `vendored`). Paths are relative to `root`. Outside git, the map is empty.
 
 ## loadDependencyIndex
 

@@ -1,15 +1,38 @@
-import { type Cell, detectMoves, diffUnits, type Merged, type UnitDiff } from "./diff";
-import type { FileNarrator } from "./language";
+import { type Cell, detectMoves, diffUnits, type Merged, type Unit, type UnitDiff } from "./diff";
+import { type SkipReason, skipReason } from "./generated";
+import type { FileNarrator, NarrationProblem } from "./language";
 import { toHtml } from "./markup";
 
-export type ChangedFile = { path: string; oldPath: string | null; status: "added" | "deleted" | "renamed" | "modified"; oldSrc: string; newSrc: string };
+export type ChangedFile = {
+	path: string;
+	oldPath: string | null;
+	status: "added" | "deleted" | "renamed" | "modified";
+	oldSrc: string;
+	newSrc: string;
+	/** Set when the caller already knows the file isn't hand-written (e.g. from `.gitattributes`); its sources may then be empty. */
+	skipped?: SkipReason;
+};
+
+export type DiffOptions = {
+	/** Narrate generated, vendored, minified and build files too. Off by default: they are skipped and listed with `skipped`. */
+	includeGenerated?: boolean;
+};
 
 export type Resolver = (payload: string, kind: string) => string | null;
 
 export type CellJson = { d: number; kind: string; html: string; from: number | null; to: number | null };
 export type RowJson = { kind: string; count?: number; left: CellJson | null; right: CellJson | null; merged?: string; hidden?: RowJson[] };
 export type UnitJson = { key: string; title: string; status: string; other?: { path: string; title: string }; adds: number; dels: number; rows: RowJson[] };
-export type FileJson = { path: string; oldPath: string | null; status: string; adds: number; dels: number; units: UnitJson[] };
+export type FileJson = {
+	path: string;
+	oldPath: string | null;
+	status: string;
+	adds: number;
+	dels: number;
+	units: UnitJson[];
+	skipped?: SkipReason;
+	problems: NarrationProblem[];
+};
 
 const lineStartsOf = (src: string) => {
 	const starts = [0];
@@ -28,39 +51,75 @@ const lineAt = (starts: number[], off: number) => {
 	return lo + 1;
 };
 
-/** A changed file's declarations, diffed as English lines. */
-export type FileDiff = { path: string; oldPath: string | null; status: ChangedFile["status"]; adds: number; dels: number; units: UnitDiff[] };
+/** A changed file's declarations, diffed as English lines. `skipped` files have no units; `problems` lists what couldn't be read. */
+export type FileDiff = {
+	path: string;
+	oldPath: string | null;
+	status: ChangedFile["status"];
+	adds: number;
+	dels: number;
+	units: UnitDiff[];
+	skipped?: SkipReason;
+	problems: NarrationProblem[];
+};
 
-const hasChanges = (f: { status: string; units: { status: string }[] }) => f.status === "renamed" || f.units.some((u) => u.status !== "unchanged");
+const isReported = (f: { status: string; units: { status: string }[]; skipped?: string; problems: unknown[] }) =>
+	f.status === "renamed" || !!f.skipped || f.problems.length > 0 || f.units.some((u) => u.status !== "unchanged");
 
-function diffChangedFiles({ files, narratorFor }: { files: ChangedFile[]; narratorFor: (path: string) => FileNarrator }) {
-	const safeUnits = (src: string, path: string) => {
-		if (!src) return [];
-		try {
-			return narratorFor(path).units(src, path);
-		} catch {
-			return [];
-		}
-	};
-	const computed = files.map((f) => ({ f, units: diffUnits(safeUnits(f.oldSrc, f.oldPath ?? f.path), safeUnits(f.newSrc, f.path)) }));
+const errorMessage = (e: unknown) => (e instanceof Error ? e.message : String(e));
+
+/** One side's units; a narrator that throws costs this file its units, never the whole change set. */
+function unitsOf({ narratorFor, src, path }: { narratorFor: (path: string) => FileNarrator; src: string; path: string }): {
+	units: Unit[];
+	problems: NarrationProblem[];
+} {
+	if (!src) return { units: [], problems: [] };
+	try {
+		const narrator = narratorFor(path);
+		const units = narrator.units(src, path);
+		return { units, problems: narrator.problems?.() ?? [] };
+	} catch (e) {
+		return { units: [], problems: [{ path, message: errorMessage(e), severity: "error", source: "narrator" }] };
+	}
+}
+
+const hasSyntaxError = (side: { problems: NarrationProblem[] }) => side.problems.some((p) => p.source === "parser");
+
+function diffChangedFiles({ files, narratorFor, includeGenerated }: { files: ChangedFile[]; narratorFor: (path: string) => FileNarrator } & DiffOptions) {
+	const computed = files.map((f) => {
+		const skipped = includeGenerated ? undefined : (f.skipped ?? skipReason({ path: f.path, src: f.newSrc || f.oldSrc }) ?? undefined);
+		if (skipped) return { f, skipped, units: [] as UnitDiff[], problems: [] as NarrationProblem[] };
+		const before = unitsOf({ narratorFor, src: f.oldSrc, path: f.oldPath ?? f.path });
+		const after = unitsOf({ narratorFor, src: f.newSrc, path: f.path });
+		const problems = [...before.problems, ...after.problems];
+		if (problems.some((p) => p.source === "narrator")) return { f, skipped, units: [] as UnitDiff[], problems };
+		// Declarations past a syntax error in the new code are missing, which would otherwise read as removals.
+		const units = diffUnits(before.units, after.units).filter((u) => !(u.status === "removed" && hasSyntaxError(after)));
+		return { f, skipped, units, problems };
+	});
 	detectMoves(computed.map((c) => ({ path: c.f.path, units: c.units })));
 	return computed;
 }
 
+const fileSummary = ({ f, units, skipped, problems }: ReturnType<typeof diffChangedFiles>[number]) => ({
+	path: f.path,
+	oldPath: f.oldPath,
+	status: f.status,
+	adds: units.reduce((n, u) => n + u.adds, 0),
+	dels: units.reduce((n, u) => n + u.dels, 0),
+	...(skipped ? { skipped } : {}),
+	problems,
+});
+
 /** Narrates both sides of every changed file, diffs them and detects moves: structured units with their `Line`s. */
-export function diffFiles({ files, narratorFor }: { files: ChangedFile[]; narratorFor: (path: string) => FileNarrator }): FileDiff[] {
-	return diffChangedFiles({ files, narratorFor })
-		.map(
-			({ f, units }): FileDiff => ({
-				path: f.path,
-				oldPath: f.oldPath,
-				status: f.status,
-				adds: units.reduce((n, u) => n + u.adds, 0),
-				dels: units.reduce((n, u) => n + u.dels, 0),
-				units,
-			}),
-		)
-		.filter(hasChanges);
+export function diffFiles({
+	files,
+	narratorFor,
+	includeGenerated,
+}: { files: ChangedFile[]; narratorFor: (path: string) => FileNarrator } & DiffOptions): FileDiff[] {
+	return diffChangedFiles({ files, narratorFor, includeGenerated })
+		.map((c): FileDiff => ({ ...fileSummary(c), units: c.units }))
+		.filter(isReported);
 }
 
 /** Like `diffFiles`, rendered as HTML-ready rows with source line numbers. */
@@ -68,12 +127,17 @@ export function buildDiffReport({
 	files,
 	narratorFor,
 	resolve,
+	includeGenerated,
 }: {
 	files: ChangedFile[];
 	narratorFor: (path: string) => FileNarrator;
 	resolve: Resolver;
-}): FileJson[] {
-	const computed = diffChangedFiles({ files, narratorFor }).map((c) => ({ ...c, oldStarts: lineStartsOf(c.f.oldSrc), newStarts: lineStartsOf(c.f.newSrc) }));
+} & DiffOptions): FileJson[] {
+	const computed = diffChangedFiles({ files, narratorFor, includeGenerated }).map((c) => ({
+		...c,
+		oldStarts: lineStartsOf(c.f.oldSrc),
+		newStarts: lineStartsOf(c.f.newSrc),
+	}));
 	const oldStartsByPath = new Map(computed.map((c) => [c.f.path, c.oldStarts]));
 
 	const mergedHtml = (m: Merged) =>
@@ -115,13 +179,10 @@ export function buildDiffReport({
 	};
 
 	const result = computed.map(
-		({ f, units, oldStarts, newStarts }): FileJson => ({
-			path: f.path,
-			oldPath: f.oldPath,
-			status: f.status,
-			adds: units.reduce((n, u) => n + u.adds, 0),
-			dels: units.reduce((n, u) => n + u.dels, 0),
-			units: units.map((u) => {
+		(c): FileJson => ({
+			...fileSummary(c),
+			units: c.units.map((u) => {
+				const { oldStarts, newStarts } = c;
 				const leftStarts = u.status === "moved" && u.other ? (oldStartsByPath.get(u.other.path) ?? oldStarts) : oldStarts;
 				return {
 					key: u.key,
@@ -142,5 +203,5 @@ export function buildDiffReport({
 			}),
 		}),
 	);
-	return result.filter(hasChanges);
+	return result.filter(isReported);
 }

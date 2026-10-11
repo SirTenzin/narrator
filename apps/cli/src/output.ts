@@ -1,7 +1,19 @@
-import { type FileDiff, type FileJson, type Line, plain, type Row, renderDiffText, renderText, toAnsi, toHtml } from "@usenarrator/core";
+import {
+	describeProblem,
+	type FileDiff,
+	type FileJson,
+	type Line,
+	type NarrationProblem,
+	plain,
+	type Row,
+	renderDiffText,
+	renderText,
+	toAnsi,
+	toHtml,
+} from "@usenarrator/core";
 import type { Format } from "./args";
 
-export type FileOutput = { path: string; lines: Line[]; errors: number };
+export type FileOutput = { path: string; lines: Line[]; errors: number; problems: NarrationProblem[] };
 
 const lineJson = (l: Line) => ({ depth: l.d, kind: l.kind, text: plain(l.text), start: l.start, end: l.end });
 
@@ -13,7 +25,7 @@ body{font:15px/1.6 system-ui,sans-serif;max-width:72rem;margin:2rem auto;padding
 h2{font:600 14px ui-monospace,monospace;border-bottom:1px solid #ddd;padding-bottom:.25rem}
 .v{color:#0b6e99}.f{color:#8a5a00;font-weight:600}.t{color:#777}.l{color:#1a7f37}.c{font-family:ui-monospace,monospace;color:#8250df}
 .row{display:grid;grid-template-columns:1fr 1fr;gap:1rem}.row>div{white-space:pre-wrap}
-.del .left,.mod .left{background:#ffebe9}.add .right,.mod .right{background:#dafbe1}.fold{color:#777}
+.problem{color:#b42318}.del .left,.mod .left{background:#ffebe9}.add .right,.mod .right{background:#dafbe1}.fold{color:#777}
 </style></head><body>
 ${body}
 </body></html>`;
@@ -24,7 +36,7 @@ const indented = (d: number, html: string) => `<div style="padding-left:${d * 1.
 export function renderFiles({ files, format }: { files: FileOutput[]; format: Format }): string {
 	if (format === "json")
 		return JSON.stringify(
-			files.map((f) => ({ path: f.path, errors: f.errors, lines: f.lines.map(lineJson) })),
+			files.map((f) => ({ path: f.path, errors: f.errors, problems: f.problems, lines: f.lines.map(lineJson) })),
 			null,
 			2,
 		);
@@ -49,11 +61,15 @@ const diffJson = (files: FileDiff[]) => files.map((f) => ({ ...f, units: f.units
 
 const cellHtml = (c: FileJson["units"][number]["rows"][number]["left"]) => (c ? `<span style="padding-left:${c.d * 1.5}rem">${c.html}</span>` : "");
 
+const problemsHtml = (problems: NarrationProblem[]) => problems.map((p) => `<p class="problem">${esc(describeProblem(p))}</p>\n`).join("");
+
 const diffHtml = (files: FileJson[]) =>
 	files
-		.map(
-			(f) => `<section><h2>${esc(f.path)} (${f.status}, +${f.adds} -${f.dels})</h2>
-${f.units
+		.map((f) =>
+			f.skipped
+				? `<section><h2>${esc(f.path)} (${f.status}, skipped: ${f.skipped})</h2></section>`
+				: `<section><h2>${esc(f.path)} (${f.status}, +${f.adds} -${f.dels})</h2>
+${problemsHtml(f.problems)}${f.units
 	.filter((u) => u.status !== "unchanged")
 	.map(
 		(u) => `<h3>${toHtml(u.title, noLinks)} <small>${u.status}${u.other ? ` ${esc(u.other.path)}` : ""}</small></h3>
