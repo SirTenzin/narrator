@@ -20,12 +20,41 @@ describe("std", () => {
 		reads(`const t = items.reduce((s, i) => s + i.amount, start);`, "Let t be start plus the total amount across items.");
 	});
 
+	test("timers, pauses and races", () => {
+		reads(`await new Promise((r) => setTimeout(r, 2000));`, "Wait 2 seconds.");
+		reads(`await Bun.sleep(pollMs);`, "Wait poll ms.");
+		reads(`setTimeout(() => go(), 50);`, "After 50ms, do the following:\n  Run go.");
+		reads(`const t = setInterval(() => sweep(), 1000);`, "Let t be a timer that, every 1 second, does the following:\n  Run sweep.");
+		reads(`clearTimeout(timer);`, "Cancel timer.");
+		reads(
+			`const w = await Promise.race([work(), new Promise((r) => setTimeout(r, 5))]);`,
+			"Let w be whichever of these finishes first:\n  • run work\n  • a pause of 5ms",
+		);
+		reads(`const s = AbortSignal.timeout(5000);`, "Let s be a signal that times out after 5 seconds.");
+	});
+
+	test("dates, big integers, matches and events", () => {
+		reads(`const t = Date.UTC(2026, 7, 22);`, "Let t be the UTC timestamp for 2026, 7, and 22.");
+		reads(`const b = BigInt(x);`, "Let b be x as a big integer.");
+		reads(`const m = s.match(/a/g);`, "Let m be every match of /a/g in s.");
+		reads(`e.preventDefault();`, "Stop the browser's default handling of e.");
+		reads(`const n = Number.NaN;`, "Let n be not-a-number.");
+	});
+
+	test("sized lists and promise finally", () => {
+		reads(`const xs = Array.from({ length: 6 }, () => seed);`, "Let xs be a list of 6 items, each seed.");
+		reads(`const xs = Array.from({ length: n }, (_, i) => i);`, "Let xs be the numbers from 0 up to (but not including) n.");
+		reads(`p.finally(() => cleanup());`, "P, then either way cleanup.");
+	});
+
+	test("push with no arguments is left to the method reading", () => reads(`scenario.push();`, "Push scenario."));
+
 	test("a destructuring find reads as 'whose'", () =>
 		reads(`const first = rows.find(({ id }) => id === target);`, "Let first be the one in rows whose ID is target."));
 
 	test("some, every and has read as conditions", () => {
-		reads(`const ok = list.some((x) => x.ok);`, "Let ok mean list has a x where x's ok is true.");
-		reads(`if (ids.every((id) => seen.has(id))) done();`, "If every ID in IDs satisfies: ID is in seen, run done.");
+		reads(`const ok = list.some((x) => x.ok);`, "Let ok mean list has an x whose ok is true.");
+		reads(`if (ids.every((id) => seen.has(id))) done();`, "If every ID in IDs is in seen, run done.");
 		reads(`if (!names.includes(name)) throw new Error("x");`, `If name is not in names, fail with an error: "x".`);
 	});
 
@@ -36,12 +65,12 @@ describe("std", () => {
 		));
 
 	test("Promise.all over a map runs each item at the same time", () =>
-		reads(`await Promise.all(users.map((u) => notify(u)));`, "For every u in users, all at the same time:\n  notify (u)"));
+		reads(`await Promise.all(users.map((u) => notify(u)));`, "For every u in users, all at the same time:\n  Notify (u)."));
 
 	test("values, logging and constants", () => {
 		reads(`console.log("hello", { userId });`, `Log "hello" (with user ID).`);
 		reads(`const s = name.trim().toLowerCase();`, "Let s be name without surrounding spaces in lowercase.");
-		reads(`const n = Math.max(a, b, c);`, "Let n be the larger of a, b, and c.");
+		reads(`const n = Math.max(a, b, c);`, "Let n be the largest of a, b, and c.");
 		reads(`const big = Number.MAX_SAFE_INTEGER;`, "Let big be the largest possible number.");
 		reads(`cache.set(key, value);`, "Record value under key in cache.");
 	});

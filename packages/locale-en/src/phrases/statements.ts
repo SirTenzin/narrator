@@ -2,6 +2,8 @@ import type { StatementPhrases } from "@usenarrator/core";
 
 export const statements: StatementPhrases = {
 	comment: ({ text }) => `“${text}”`,
+	startWithoutWaiting: ({ action }) => `${action} (without waiting for it to finish)`,
+	waitFor: ({ value }) => `wait for ${value}`,
 	doNothing: "Do nothing",
 	continue: "Move on to the next one",
 	break: "Stop the loop",

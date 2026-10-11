@@ -37,10 +37,53 @@ export const valueRules: Calls = {
 		if (body) return D(say.promise.catch({ value: o.t, fallback: body.t }), [...o.kids, ...body.kids]);
 		return block(say.promise.catchBlock({ value: o.t }), [...o.kids, ...lambdaBlock(e, fn).kids]);
 	},
+	"*.finally": ({ obj, args, e, say }) => {
+		const o = e.noun(obj);
+		const fn = args[0] && unwrap(args[0]);
+		if (!fn || !isFn(fn)) return null;
+		const ex = e.lambdaExpr(fn);
+		if (ex && unwrap(ex).type === "CallExpression") {
+			const act = e.call(unwrap(ex), true);
+			return D(say.promise.finally({ value: o.t, action: act.t }), [...o.kids, ...act.kids]);
+		}
+		return block(say.promise.finallyBlock({ value: o.t }), [...o.kids, ...lambdaBlock(e, fn).kids]);
+	},
+	"*.match": ({ obj, args, e, say }) => {
+		const re = unwrap(args[0]);
+		if (args.length !== 1 || !re) return null;
+		return D(say.text.match({ value: e.text(obj), pattern: e.text(re), all: !!re.regex?.flags?.includes("g") }));
+	},
+	"*.matchAll": ({ obj, args, e, say }) => (args.length === 1 ? D(say.text.matchAll({ value: e.text(obj), pattern: e.text(args[0]) })) : null),
+	"*.preventDefault": ({ obj, args, e, say }) => (args.length ? null : D(say.event.preventDefault({ event: e.text(obj) }))),
+	"*.stopPropagation": ({ obj, args, e, say }) => (args.length ? null : D(say.event.stopPropagation({ event: e.text(obj) }))),
+	"Date.UTC": ({ args, e, say }) => D(say.date.utc({ parts: e.g.list(args.map((a: N) => e.text(a))) })),
+	BigInt: ({ args, e, say }) => (args.length === 1 ? D(say.bigint({ value: e.text(args[0]) })) : null),
+	"AbortSignal.timeout": ({ args, e, say }) => D(say.timeoutSignal({ ms: e.text(args[0]) })),
+	"Bun.sleep": ({ args, e, say, stmt }) => D((stmt ? say.wait : say.pause)({ ms: e.text(args[0]) })),
+	clearTimeout: ({ args, e, say }) => (args.length === 1 ? D(say.clearTimer({ timer: e.text(args[0]) })) : null),
+	clearInterval: ({ args, e, say }) => (args.length === 1 ? D(say.clearTimer({ timer: e.text(args[0]) })) : null),
+	setInterval: ({ args, e, say, stmt }) => {
+		const fn = args[0] && unwrap(args[0]);
+		if (!fn || !isFn(fn) || !args[1]) return null;
+		return block(say.setInterval({ ms: e.text(args[1]), stmt }), lambdaBlock(e, fn).kids);
+	},
+	"Promise.race": ({ args, e, say, stmt }) => {
+		const a = unwrap(args[0]);
+		if (a?.type !== "ArrayExpression") return null;
+		const items = a.elements.map((el: N) => (unwrap(el).type === "CallExpression" ? e.call(unwrap(el), true) : e.noun(el)));
+		return block(
+			say.promise.race({ stmt }),
+			items.flatMap((i: Doc) => e.bullet(i)),
+		);
+	},
+	"new Promise": ({ args, e, say, stmt }) => {
+		const ms = sleepMs(e, args[0]);
+		return ms ? D((stmt ? say.wait : say.pause)({ ms: e.text(ms) })) : D(say.collection.promise);
+	},
 	"JSON.stringify": ({ args, e, say }) => D(say.json.stringify({ value: e.text(args[0]) })),
 	"JSON.parse": ({ args, e, say }) => D(say.json.parse({ value: e.text(args[0]) })),
-	"Math.max": ({ args, e, say }) => D(say.math.max({ values: e.g.list(args.map((a: N) => e.text(a))) })),
-	"Math.min": ({ args, e, say }) => D(say.math.min({ values: e.g.list(args.map((a: N) => e.text(a))) })),
+	"Math.max": ({ args, e, say }) => D(say.math.max({ values: e.g.list(args.map((a: N) => e.text(a))), many: args.length > 2 })),
+	"Math.min": ({ args, e, say }) => D(say.math.min({ values: e.g.list(args.map((a: N) => e.text(a))), many: args.length > 2 })),
 	"Math.round": ({ args, e, say }) => D(say.math.round({ value: e.text(args[0]) })),
 	"Math.floor": ({ args, e, say }) => D(say.math.floor({ value: e.text(args[0]) })),
 	"Math.ceil": ({ args, e, say }) => D(say.math.ceil({ value: e.text(args[0]) })),
@@ -60,10 +103,10 @@ export const valueRules: Calls = {
 	"Promise.resolve": ({ args, e, say }) => (args[0] ? e.noun(args[0]) : D(say.nothing)),
 	"Promise.all": ({ args, e, stmt, say }) => parallel({ e, say, arg: args[0], stmt, settled: false }),
 	"Promise.allSettled": ({ args, e, stmt, say }) => parallel({ e, say, arg: args[0], stmt, settled: true }),
-	setTimeout: ({ args, e, say }) => {
+	setTimeout: ({ args, e, say, stmt }) => {
 		const fn = args[0] && unwrap(args[0]);
 		if (!fn || !isFn(fn)) return null;
-		return block(say.setTimeout({ ms: args[1] ? e.text(args[1]) : "0" }), lambdaBlock(e, fn).kids);
+		return block(say.setTimeout({ ms: args[1] ? e.text(args[1]) : "0", stmt }), lambdaBlock(e, fn).kids);
 	},
 	"*.log": ({ obj, args, e, say }) => logRule({ e, obj, args, phrase: say.log.log }),
 	"*.info": ({ obj, args, e, say }) => logRule({ e, obj, args, phrase: say.log.log }),
@@ -71,6 +114,19 @@ export const valueRules: Calls = {
 	"*.warn": ({ obj, args, e, say }) => logRule({ e, obj, args, phrase: say.log.warn }),
 	"*.error": ({ obj, args, e, say }) => logRule({ e, obj, args, phrase: say.log.error }),
 };
+
+/** `new Promise((r) => setTimeout(r, ms))` -> the `ms` node; null for any other promise. */
+function sleepMs(e: Engine, arg: N): N | null {
+	const fn = arg && unwrap(arg);
+	if (!fn || !isFn(fn)) return null;
+	const resolve = e.paramName(fn.params[0]);
+	const ex = e.lambdaExpr(fn) ?? (fn.body.body?.length === 1 && fn.body.body[0].type === "ExpressionStatement" ? fn.body.body[0].expression : null);
+	const call = ex && unwrap(ex);
+	if (call?.type !== "CallExpression" || unwrap(call.callee).name !== "setTimeout" || call.arguments.length !== 2) return null;
+	const cb = unwrap(call.arguments[0]);
+	const resolves = cb.type === "Identifier" ? cb.name === resolve : isFn(cb) && unwrap(e.lambdaExpr(cb))?.callee?.name === resolve;
+	return resolves ? call.arguments[1] : null;
+}
 
 function logRule({ e, obj, args, phrase }: { e: Engine; obj: N; args: N[]; phrase: StdPhrases["log"]["log"] }): Doc | null {
 	const o = unwrap(obj);
@@ -103,9 +159,7 @@ function parallel({ e, say, arg, stmt, settled }: { e: Engine; say: StdPhrases; 
 		const list = e.noun(unwrap(a.callee).object);
 		const item = e.isDestructured(fn) ? say.item : itemName({ e, fn, say });
 		const ex = e.lambdaExpr(fn);
-		const steps = ex
-			? [{ d: 0, text: unwrap(ex).type === "CallExpression" ? e.call(unwrap(ex), true).t : e.text(ex), start: -1, end: -1, kind: "stmt" as const }]
-			: e.body(fn.body, 0);
+		const steps = ex ? e.body({ type: "ExpressionStatement", expression: ex, start: ex.start, end: ex.end }, 0) : e.body(fn.body, 0);
 		return block(say.parallel.each({ item, list: list.t, stmt, settled }), [...list.kids, ...steps]);
 	}
 	return D(say.parallel.other({ value: e.text(arg), stmt, settled }));

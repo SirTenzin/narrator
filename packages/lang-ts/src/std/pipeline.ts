@@ -63,7 +63,7 @@ function stageDoc({ e, say, step: { m, args, node } }: { e: Engine; say: StdPhra
 		case "filter": {
 			if (fn?.type === "Identifier" && fn.name === "Boolean") return D(pipe.dropEmpty);
 			const c = lam ? lambdaCond(e, fn) : null;
-			if (c) return D((whose ? pipe.keepWhose : pipe.keepWhere)({ cond: c.t }), c.kids);
+			if (c) return D((whose && e.readsWhose(fn, c) ? pipe.keepWhose : pipe.keepWhere)({ cond: c.t }), c.kids);
 			if (lam) return block(pipe.keepCheckBlock({ items: e.g.plural(itemName({ e, fn, say })) }), lambdaBlock(e, fn).kids);
 			return D(pipe.keepPassing({ fn: e.text(fn) }));
 		}
@@ -82,7 +82,7 @@ function stageDoc({ e, say, step: { m, args, node } }: { e: Engine; say: StdPhra
 		case "findLast": {
 			const last = m === "findLast";
 			const c = lam ? lambdaCond(e, fn) : null;
-			if (c) return D((whose ? pipe.takeWhose : pipe.takeWhere)({ cond: c.t, last }), c.kids);
+			if (c) return D((whose && e.readsWhose(fn, c) ? pipe.takeWhose : pipe.takeWhere)({ cond: c.t, last }), c.kids);
 			if (lam) return block(pipe.takeCheckBlock({ last }), lambdaBlock(e, fn).kids);
 			return D(pipe.takePassing({ fn: e.text(fn), last }));
 		}

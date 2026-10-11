@@ -1,6 +1,21 @@
 import { plain } from "@usenarrator/core";
 import type { StdPhrases } from "./phrases";
 
+/** "250ms", "2 seconds", "config's delay ms", "delay milliseconds". */
+const duration = (ms: string) => {
+	const t = plain(ms).replace(/,/g, "");
+	if (/^\d+$/.test(t)) {
+		const n = Number(t);
+		if (n >= 1000 && n % 1000 === 0) return n === 1000 ? "1 second" : `${(n / 1000).toLocaleString("en-US")} seconds`;
+		return `${ms}ms`;
+	}
+	return /\bms$/i.test(t) ? ms : `${ms} milliseconds`;
+};
+
+/** "x is in seen" with item "x" -> "is in seen"; null when the condition isn't about the item itself. */
+const afterItem = (cond: string, item: string) => (cond.startsWith(`${item} `) && !/ (and|or) /.test(plain(cond)) ? cond.slice(item.length + 1) : null);
+const whoseOf = (cond: string, item: string) => (cond.startsWith(`${item}'s `) ? cond.slice(item.length + 3) : null);
+
 const not = (neg: boolean) => (neg ? "not " : "");
 const sameTime = (settled: boolean) => `at the same time${settled ? " (carrying on even if some fail)" : ""}`;
 const firstOrLast = (last: boolean) => (last ? "last" : "first");
@@ -21,6 +36,9 @@ export const en: StdPhrases = {
 		Infinity: "infinity",
 		NaN: "not-a-number",
 		"Number.EPSILON": "a tiny number",
+		"Number.NaN": "not-a-number",
+		"Number.NEGATIVE_INFINITY": "negative infinity",
+		"Number.MIN_SAFE_INTEGER": "the smallest possible number",
 	},
 	map: {
 		passedThrough: ({ list, fn }) => `${list}, each passed through ${fn}`,
@@ -56,13 +74,21 @@ export const en: StdPhrases = {
 		passes: ({ list, fn, neg }) => (neg ? `none of ${list} pass ${fn}` : `at least one of ${list} passes ${fn}`),
 		checkBlock: ({ item, list, neg }) => `${neg ? "no" : "at least one"} ${item} in ${list} passes this check`,
 		whose: ({ list, cond, neg }) => `${list} ${neg ? "has no item" : "has an item"} whose ${cond}`,
-		where: ({ item, list, cond, neg }) => `${list} ${neg ? "has no" : `has ${/^[aeiou]/i.test(plain(item)) ? "an" : "a"}`} ${item} where ${cond}`,
+		where: ({ item, list, cond, neg, article }) => {
+			const whose = whoseOf(cond, item);
+			if (whose) return `${list} ${neg ? "has no" : `has ${article}`} ${item} whose ${whose}`;
+			return `${list} ${neg ? "has no" : `has ${article}`} ${item} where ${cond}`;
+		},
 	},
 	every: {
 		passes: ({ list, fn, neg }) => `${neg ? "not all of" : "all of"} ${list} pass ${fn}`,
 		checkBlock: ({ item, list, neg }) => `${neg ? "not every" : "every"} ${item} in ${list} passes this check`,
 		whose: ({ list, cond, neg }) => `${neg ? "not every one" : "every one"} of ${list} has ${cond}`,
-		where: ({ item, list, cond, neg }) => `${neg ? "not every" : "every"} ${item} in ${list} satisfies: ${cond}`,
+		where: ({ item, list, cond, neg }) => {
+			const rest = afterItem(cond, item);
+			if (rest) return `${neg ? "not every" : "every"} ${item} in ${list} ${rest}`;
+			return `${neg ? "not every" : "every"} ${item} in ${list} satisfies: ${cond}`;
+		},
 	},
 	isIn: ({ value, list, neg }) => `${value} ${neg ? "is not in" : "is in"} ${list}`,
 	isOneOf: ({ value, options, neg }) => `${value} ${neg ? "is none of" : "is one of"} ${options}`,
@@ -124,6 +150,8 @@ export const en: StdPhrases = {
 	arrayFrom: {
 		mapped: ({ source, value }) => `${source} as a list, each turned into ${value}`,
 		sized: ({ count }) => `a list of ${count} items`,
+		sizedEach: ({ count, value }) => `a list of ${count} items, each ${value}`,
+		range: ({ count }) => `the numbers from 0 up to (but not including) ${count}`,
 		list: ({ source }) => `${source} as a list`,
 	},
 	collection: {
@@ -152,6 +180,8 @@ export const en: StdPhrases = {
 		startsWith: ({ value, prefix, neg }) => `${value} ${neg ? "does not start" : "starts"} with ${prefix}`,
 		endsWith: ({ value, suffix, neg }) => `${value} ${neg ? "does not end" : "ends"} with ${suffix}`,
 		matches: ({ value, pattern, neg }) => `${value} ${neg ? "does not match" : "matches"} ${pattern}`,
+		match: ({ value, pattern, all }) => `${all ? "every match" : "the first match"} of ${pattern} in ${value}`,
+		matchAll: ({ value, pattern }) => `every match of ${pattern} in ${value}`,
 	},
 	number: {
 		asNumber: ({ value }) => `${value} as a number`,
@@ -166,19 +196,23 @@ export const en: StdPhrases = {
 		timestamp: ({ value }) => `${value} as a timestamp`,
 		isoString: ({ value }) => `${value} as an ISO date string`,
 		now: "the current time",
+		utc: ({ parts }) => `the UTC timestamp for ${parts}`,
 	},
 	promise: {
 		then: ({ value, item, result }) => `${value}, then (with the result as ${item}) ${result}`,
 		catch: ({ value, fallback }) => `${value} (and if that fails, ${fallback} instead)`,
 		catchBlock: ({ value }) => `${value}, and if that fails`,
+		finally: ({ value, action }) => `${value}, then either way ${action}`,
+		finallyBlock: ({ value }) => `${value}, then either way`,
+		race: ({ stmt }) => (stmt ? "wait for whichever of these finishes first" : "whichever of these finishes first"),
 	},
 	json: {
 		stringify: ({ value }) => `${value} as JSON`,
 		parse: ({ value }) => `${value} parsed from JSON`,
 	},
 	math: {
-		max: ({ values }) => `the larger of ${values}`,
-		min: ({ values }) => `the smaller of ${values}`,
+		max: ({ values, many }) => `the ${many ? "largest" : "larger"} of ${values}`,
+		min: ({ values, many }) => `the ${many ? "smallest" : "smaller"} of ${values}`,
 		round: ({ value }) => `${value}, rounded`,
 		floor: ({ value }) => `${value}, rounded down`,
 		ceil: ({ value }) => `${value}, rounded up`,
@@ -187,7 +221,17 @@ export const en: StdPhrases = {
 	},
 	exit: ({ code }) => `exit the process${code ? ` with code ${code}` : ""}`,
 	deepCopy: ({ value }) => `a deep copy of ${value}`,
-	setTimeout: ({ ms }) => `after ${ms}ms, do the following`,
+	setTimeout: ({ ms, stmt }) => (stmt ? `after ${duration(ms)}, do the following` : `a timer that, after ${duration(ms)}, does the following`),
+	bigint: ({ value }) => `${value} as a big integer`,
+	wait: ({ ms }) => `wait ${duration(ms)}`,
+	pause: ({ ms }) => `a pause of ${duration(ms)}`,
+	timeoutSignal: ({ ms }) => `a signal that times out after ${duration(ms)}`,
+	clearTimer: ({ timer }) => `cancel ${timer}`,
+	setInterval: ({ ms, stmt }) => (stmt ? `every ${duration(ms)}, do the following` : `a timer that, every ${duration(ms)}, does the following`),
+	event: {
+		preventDefault: ({ event }) => `stop the browser's default handling of ${event}`,
+		stopPropagation: ({ event }) => `stop ${event} from reaching outer elements`,
+	},
 	log: {
 		log: logLine("log"),
 		debug: logLine("debug log"),

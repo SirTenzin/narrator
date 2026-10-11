@@ -43,6 +43,7 @@ const ANY_TYPE: Record<string, string> = {
 
 export const en: TestingPhrases = {
 	check: ({ subject, claim }) => `check that ${subject} ${claim}`,
+	checkThat: ({ condition }) => `check that ${condition}`,
 	matchers: {
 		toBe: ({ expected, neg }) => `is${not(neg)} ${expected}`,
 		toEqual: ({ expected, neg }) => `${neg ? "does not equal" : "equals"} ${expected}`,
@@ -100,6 +101,17 @@ export const en: TestingPhrases = {
 		not: ({ matcher }) => `not ${matcher}`,
 	},
 	assertions: ({ count }) => (count ? `expect ${count} ${plain(count) === "1" ? "check" : "checks"} to run` : "expect at least one check to run"),
+	mocks: {
+		spyOn: ({ target }) => `a spy on ${target}`,
+		mockFunction: "a mock function",
+		implementation: ({ mock, once, stmt }) => `${stmt ? `make ${mock} run` : `${mock}, which runs`} this${once ? " (once)" : ""}`,
+		returns: ({ mock, value, once, stmt }) => `${stmt ? `make ${mock} return` : `${mock}, returning`} ${value}${once ? " (once)" : ""}`,
+		resolves: ({ mock, value, once, stmt }) => `${stmt ? `make ${mock} resolve to` : `${mock}, resolving to`} ${value}${once ? " (once)" : ""}`,
+		rejects: ({ mock, value, once, stmt }) => `${stmt ? `make ${mock} fail with` : `${mock}, failing with`} ${value}${once ? " (once)" : ""}`,
+		restore: ({ mock }) => `put back what ${mock} replaced`,
+		clear: ({ mock }) => `clear the calls recorded by ${mock}`,
+		reset: ({ mock }) => `reset ${mock}`,
+	},
 	blocks: {
 		describe: named("Test group"),
 		test: named("Test"),
@@ -107,5 +119,11 @@ export const en: TestingPhrases = {
 		beforeEach: "Before each test",
 		afterAll: "After all tests",
 		afterEach: "After each test",
+		skipped: ({ heading }) => `${heading} (skipped)`,
+		only: ({ heading }) => `${heading} (run on its own)`,
+		onlyWhen: ({ heading, condition }) => `${heading} (only when ${condition})`,
+		skippedWhen: ({ heading, condition }) => `${heading} (skipped when ${condition})`,
+		forEach: ({ heading, rows }) => `${heading}, for each case in ${rows}`,
+		forEachOf: ({ heading, count }) => `${heading}, for each of ${count} ${count === 1 ? "case" : "cases"}`,
 	},
 };

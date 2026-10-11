@@ -78,6 +78,13 @@ const isNullish = (n: N) => {
 		(n.type === "UnaryExpression" && n.operator === "void")
 	);
 };
+/** Whether an `await` sits under any parentheses or casts. */
+const unwrapsAwait = (n: N): boolean => {
+	let cur = n;
+	while (cur && cur.type !== "AwaitExpression" && cur !== unwrap(cur)) cur = cur.expression ?? cur.argument;
+	return cur?.type === "AwaitExpression";
+};
+
 const HTTP_METHODS = new Set(["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"]);
 
 const isBoolLit = (n: N) => unwrap(n)?.type === "Literal" && typeof unwrap(n).value === "boolean";
@@ -240,6 +247,11 @@ export class Engine {
 	/** An identifier as words; HTTP methods and vowelless initialisms (`GET`, `KV`) keep their casing, other constants read as words. */
 	words(name: string): string {
 		return HTTP_METHODS.has(name) || /^[B-DF-HJ-NP-TV-Z][B-DF-HJ-NP-TV-Z0-9]{1,3}$/.test(name) ? name : this.lex.humanize(name);
+	}
+
+	/** A verb-led name, or a function defined in this file, reads as an action. */
+	isActionName(name: string): boolean {
+		return this.lex.startsWithVerb(name) || this.localFns.has(name);
 	}
 
 	fnRef(name: string, text: string) {
@@ -509,7 +521,7 @@ export class Engine {
 			if (ex) {
 				const coll = this.noun(unwrap(root.callee).object);
 				const c = this.cond(ex);
-				const count = this.isDestructured(fn) ? m.countWhose : m.countWhere;
+				const count = this.readsWhose(fn, c) ? m.countWhose : m.countWhere;
 				return D(count({ collection: coll.t, condition: c.t }), [...coll.kids, ...c.kids]);
 			}
 		}
@@ -917,6 +929,11 @@ export class Engine {
 		return this.say.expressions.item;
 	}
 
+	/** A destructuring lambda's condition reads "whose …" unless it opens on a bare "it …" predicate. */
+	readsWhose(fn: N, cond: Doc): boolean {
+		return this.isDestructured(fn) && !plain(cond.t).startsWith(`${plain(this.say.conditions.it)} `);
+	}
+
 	isDestructured(fn: N) {
 		return fn.params[0]?.type === "ObjectPattern";
 	}
@@ -1142,7 +1159,8 @@ export class Engine {
 		const fn = this.fnRef(name, words);
 		const a = this.argList(args);
 		const parts = { fn, owner: via, args: a.t };
-		if (this.lex.startsWithVerb(name) || this.localFns.has(name)) return D(c.action(parts), a.kids);
+		if (stmt && name === "main") return D(c.run(parts), a.kids);
+		if (this.isActionName(name)) return D(c.action(parts), a.kids);
 		if (stmt && this.lex.words(name)[0] === "on") return D(c.trigger(parts), a.kids);
 		if (stmt && this.lex.words(name).length > 1) return D(c.action(parts), a.kids);
 		if (stmt) return D(c.run(parts), a.kids);
@@ -1321,7 +1339,10 @@ export class Engine {
 		if (n.type === "Identifier") {
 			if (this.isBoolName(n.name)) {
 				const aux = /^(is|has|have|can|should|was|were|did|does|will|needs|must|are|had)$/.test(this.lex.words(n.name)[0]!);
-				if (this.lex.isPredicateName(n.name) && aux) return D(this.aliases.get(n.name) ?? mk("v", this.predicatePhrase(n.name, neg), n.name));
+				if (this.lex.isPredicateName(n.name) && aux) {
+					const alias = this.aliases.get(n.name);
+					return D(alias ?? k.subjectPredicate({ subject: k.it, predicate: mk("v", this.predicatePhrase(n.name, neg), n.name) }));
+				}
 				return D(k.flag({ subject: this.ref(n.name), neg }));
 			}
 			return D(k.isSet({ subject: this.ref(n.name), neg }));
@@ -1397,7 +1418,11 @@ export class Engine {
 				const inner = this.noun(L.object);
 				return D(k.isEmpty({ subject: inner.t, neg: !eq }), inner.kids);
 			}
-			if (R.type === "Literal" && typeof R.value === "boolean") return this.cond(L, eq ? !R.value : R.value);
+			if (R.type === "Literal" && typeof R.value === "boolean") {
+				const isFalse = eq ? !R.value : R.value;
+				if (this.looksBoolean(L)) return this.cond(L, isFalse);
+				return this.wrap(this.noun(L), (t) => k.flag({ subject: t, neg: isFalse }));
+			}
 			if (this.looksBoolean(L) && this.looksBoolean(R)) {
 				const lc = this.cond(L);
 				const rc = this.cond(R);
@@ -1613,6 +1638,10 @@ export class Engine {
 			}
 			return this.emitDoc(d, this.call(u, true), n);
 		}
+		if (u.type === "NewExpression") {
+			const ruled = this.applyRules(this.calls, u, { stmt: true });
+			if (ruled) return this.emitDoc(d, ruled, n);
+		}
 		if (u.type === "AssignmentExpression") return this.emitDoc(d, this.assign(u), n);
 		if (u.type === "UpdateExpression") return this.emitDoc(d, this.noun(u), n);
 		if (u.type === "LogicalExpression" && u.operator === "&&") {
@@ -1621,6 +1650,20 @@ export class Engine {
 			return this.emitDoc(d, D(s.ifThen({ condition: c.t, action: r.t }), [...c.kids, ...r.kids]), n);
 		}
 		if (u.type === "Literal" && typeof u.value === "string") return;
+		if (u.type === "UnaryExpression" && u.operator === "void" && unwrap(u.argument)?.type === "CallExpression") {
+			const call = this.call(unwrap(u.argument), true);
+			return this.emitDoc(
+				d,
+				this.wrap(call, (t) => s.startWithoutWaiting({ action: t })),
+				n,
+			);
+		}
+		if (unwrapsAwait(expr) && (u.type === "Identifier" || u.type === "MemberExpression"))
+			return this.emitDoc(
+				d,
+				this.wrap(this.noun(u), (t) => s.waitFor({ value: t })),
+				n,
+			);
 		return this.emitDoc(d, this.noun(u), n);
 	}
 
@@ -1640,6 +1683,10 @@ export class Engine {
 			}
 			const name = this.ref(id.name);
 			if (!init) return this.emit(d, `${dc.uninitialized({ name })}.`, n);
+			if (kind === "let" && isBoolLit(init)) {
+				this.bools.add(id.name);
+				return this.emit(d, `${capFirst(dc.letStart({ name, value: this.literal(init) }))}.`, n);
+			}
 			if (this.looksBoolean(init) || (init.type === "LogicalExpression" && this.isBoolName(id.name))) {
 				this.bools.add(id.name);
 				const c = this.cond(init);
@@ -1647,7 +1694,7 @@ export class Engine {
 			}
 			if (init.type === "CallExpression") {
 				const fname = calleeName(init);
-				const verbal = fname && (this.lex.startsWithVerb(fname) || this.localFns.has(fname)) && !this.lex.converterParts(fname) && !this.applyRulesQuiet(init);
+				const verbal = fname && this.isActionName(fname) && !this.lex.converterParts(fname) && !this.applyRulesQuiet(init);
 				if (verbal) {
 					const call = this.call(init, true);
 					const { text, colon } = colonSplit(call.t);
@@ -1802,7 +1849,7 @@ export class Engine {
 		}
 		if (u.type === "CallExpression") {
 			const name = calleeName(u);
-			if (name && (this.lex.startsWithVerb(name) || this.localFns.has(name)) && !this.lex.converterParts(name) && !this.applyRulesQuiet(u)) {
+			if (name && this.isActionName(name) && !this.lex.converterParts(name) && !this.applyRulesQuiet(u)) {
 				const call = this.call(u, true);
 				const { text, colon } = colonSplit(call.t);
 				return this.emitDoc(d, D(`${s.returnCall({ call: text })}${colon}`, call.kids), n);

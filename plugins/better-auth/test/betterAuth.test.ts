@@ -72,7 +72,7 @@ export const auth = betterAuth({
 	test("enabled: false reads as turned off and conditional enabling says when", () => {
 		const text = readClean(`const auth = betterAuth({ emailAndPassword: { enabled: false }, rateLimit: { enabled: isProd, window: 60, max: 100 } });`);
 		expect(text).toContain("• email and password sign-in turned off");
-		expect(text).toContain("rate limiting, but only if is prod (counted over 1 minute; at most 100 requests per window)");
+		expect(text).toContain("rate limiting, but only if it is prod (counted over 1 minute; at most 100 requests per window)");
 	});
 
 	test("boolean options read both ways", () => {

@@ -54,6 +54,28 @@ test("promises, thrown errors and asymmetric matchers", () => {
 	);
 });
 
+test("toBe(true/false) on a yes/no subject reads as the condition itself", () => {
+	reads(`expect(Array.isArray(x)).toBe(true);`, "Check that x is a list.");
+	reads(`expect(isValid(y)).toBe(false);`, "Check that y is not valid.");
+	reads(`expect(x.enabled).toBe(true);`, "Check that x's enabled is true.");
+});
+
+test("test variants", () => {
+	reads(`test.concurrent("a", () => { run(); });`, `Test "a":\n  Run.`);
+	reads(`test.skip("b", () => { run(); });`, `Test "b" (skipped):\n  Run.`);
+	reads(`test.todo("c");`, `Test "c" (skipped).`);
+	reads(`test.if(isLinux)("d", () => { run(); });`, `Test "d" (only when it is linux):\n  Run.`);
+	reads(`test.each([1, 2])("e %i", (n) => { expect(n).toBe(n); });`, `Test "e %i", for each case in a list of 1 and 2:\n  Check that n is n.`);
+});
+
+test("mocks and spies", () => {
+	const text = narrateWithStats(
+		`import { spyOn } from "bun:test";\nconst spy = spyOn(service, "getFull").mockResolvedValue(row);\nfetcher.mockReturnValueOnce(1);\nspy.mockRestore();`,
+		{ plugins: [testing()] },
+	).text;
+	expect(text).toBe("Let spy be a spy on service's get full, resolving to row.\nMake fetcher return 1 (once).\nPut back what spy replaced.");
+});
+
 test("a partial translation reports what it is missing", () => {
 	const gaps = phrasebookGaps(testingEn, { check: () => "", matchers: { toBe: () => "" }, blocks: { test: () => "" } });
 	expect(gaps.missing).toContain("matchers.toEqual");

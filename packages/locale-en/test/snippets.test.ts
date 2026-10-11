@@ -17,7 +17,7 @@ test("object entries loop with a skip", () => {
 
 test("predicate function signature and boolean return", () => {
 	expect(narrate('export function isActive(sub: Subscription): boolean { return sub.status === "active" && sub.items.length > 0; }')).toBe(
-		"Is active?, given subscription (Subscription); gives back true/false:\n  Give back whether subscription's status is \"active\" and subscription's items is not empty.",
+		"Is active?, given subscription (Subscription); gives back true/false:\n  Give back whether subscription's status is \"active\" and subscription's items are not empty.",
 	);
 });
 
@@ -38,5 +38,5 @@ test("type alias with an optional member", () => {
 });
 
 test("inline ternary", () => {
-	expect(narrate('const label = isTrial ? "trial" : "paid";')).toBe('Let label be "trial" if is trial, otherwise "paid".');
+	expect(narrate('const label = isTrial ? "trial" : "paid";')).toBe('Let label be "trial" if it is trial, otherwise "paid".');
 });

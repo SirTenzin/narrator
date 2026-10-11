@@ -49,7 +49,7 @@ export const arrayRules: Calls = {
 		if (fn.type === "Identifier" && fn.name === "Boolean") return D(say.filter.dropEmpty({ list: list.t }), list.kids);
 		if (!isFn(fn)) return D(say.filter.passing({ list: list.t, fn: e.text(fn) }), list.kids);
 		const c = lambdaCond(e, fn);
-		const keep = e.isDestructured(fn) ? say.filter.whose : say.filter.where;
+		const keep = c && e.readsWhose(fn, c) ? say.filter.whose : say.filter.where;
 		if (c) return D(keep({ list: list.t, cond: c.t }), [...list.kids, ...c.kids]);
 		return block(say.filter.checkBlock({ list: list.t, items: e.g.plural(itemName({ e, fn, say })) }), [...list.kids, ...lambdaBlock(e, fn).kids]);
 	},
@@ -59,7 +59,7 @@ export const arrayRules: Calls = {
 		if (!fn || !isFn(fn)) return null;
 		const c = lambdaCond(e, fn);
 		const item = itemName({ e, fn, say });
-		if (c && e.isDestructured(fn)) return D(say.find.whose({ list: list.t, cond: c.t }), [...list.kids, ...c.kids]);
+		if (c && e.readsWhose(fn, c)) return D(say.find.whose({ list: list.t, cond: c.t }), [...list.kids, ...c.kids]);
 		if (c) return D(say.find.firstWhere({ item, list: list.t, cond: c.t }), [...list.kids, ...c.kids]);
 		return block(say.find.firstCheckBlock({ item, list: list.t }), [...list.kids, ...lambdaBlock(e, fn).kids]);
 	},
@@ -145,6 +145,7 @@ export const arrayRules: Calls = {
 		return D(say.concat({ list: list.t, rest: e.g.list(rest.map((r: Doc) => r.t)) }), [...list.kids, ...rest.flatMap((r: Doc) => r.kids)]);
 	},
 	"*.push": ({ obj, args, e, say }) => {
+		if (!args.length) return null;
 		const list = e.noun(obj);
 		if (args.length === 1 && unwrap(args[0]).type === "SpreadElement") {
 			const x = e.noun(unwrap(args[0]).argument);
@@ -182,12 +183,19 @@ export const arrayRules: Calls = {
 	"Array.from": ({ args, e, say }) => {
 		const src = e.noun(args[0]);
 		const fn = args[1] && unwrap(args[1]);
+		const a = unwrap(args[0]);
+		const length = a?.type === "ObjectExpression" && a.properties.length === 1 ? a.properties.find((p: N) => p.key?.name === "length")?.value : null;
+		if (length && fn && isFn(fn) && e.paramName(fn.params[1]) && unwrap(e.lambdaExpr(fn))?.name === e.paramName(fn.params[1]))
+			return D(say.arrayFrom.range({ count: e.text(length) }));
+		if (length && fn && isFn(fn)) {
+			const value = e.lambdaExpr(fn) ? e.noun(e.lambdaExpr(fn)) : null;
+			if (value) return D(say.arrayFrom.sizedEach({ count: e.text(length), value: value.t }), value.kids);
+		}
+		if (length) return D(say.arrayFrom.sized({ count: e.text(length) }));
 		if (fn && isFn(fn)) {
 			const body = lambdaNoun({ e, fn, say, eachAlias: true });
 			if (body) return D(say.arrayFrom.mapped({ source: src.t, value: body.t }), [...src.kids, ...body.kids]);
 		}
-		const a = unwrap(args[0]);
-		if (a?.type === "ObjectExpression") return D(say.arrayFrom.sized({ count: e.noun(a.properties.find((p: N) => p.key?.name === "length")?.value).t }));
 		return D(say.arrayFrom.list({ source: src.t }), src.kids);
 	},
 	"Array.isArray": ({ args, e, say }) => D(say.whether({ cond: say.isList({ value: e.text(args[0]), neg: false }) })),
@@ -212,7 +220,6 @@ export const arrayRules: Calls = {
 	"new Map": ({ args, e, say }) => D(args[0] ? say.collection.lookupFrom({ value: e.text(args[0]) }) : say.collection.emptyLookup),
 	"new WeakMap": ({ say }) => D(say.collection.emptyLookup),
 	"new Date": ({ args, e, say }) => D(args.length ? say.date.from({ value: e.text(args[0]) }) : say.date.now),
-	"new Promise": ({ say }) => D(say.collection.promise),
 };
 
 const whether = (say: StdPhrases, c: Doc | null) => (c ? D(say.whether({ cond: c.t }), c.kids) : null);
@@ -228,8 +235,8 @@ export function someEvery({ e, say, obj, args, neg, kind }: CondArgs & { kind: "
 	const item = itemName({ e, fn, say });
 	const c = lambdaCond(e, fn);
 	if (!c) return block(phrases.checkBlock({ item, list: list.t, neg }), [...list.kids, ...lambdaBlock(e, fn).kids]);
-	if (e.isDestructured(fn)) return D(phrases.whose({ list: list.t, cond: c.t, neg }), [...list.kids, ...c.kids]);
-	return D(phrases.where({ item, list: list.t, cond: c.t, neg }), [...list.kids, ...c.kids]);
+	if (e.readsWhose(fn, c)) return D(phrases.whose({ list: list.t, cond: c.t, neg }), [...list.kids, ...c.kids]);
+	return D(phrases.where({ item, list: list.t, cond: c.t, neg, article: e.g.article(plain(item)) }), [...list.kids, ...c.kids]);
 }
 
 export function includes({ e, say, obj, args, neg }: CondArgs): Doc {

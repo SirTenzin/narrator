@@ -217,6 +217,10 @@ export interface ConditionPhrases {
 /** Control flow. Block intros omit their trailing colon; the walker adds it. */
 export interface StatementPhrases {
 	comment: Phrase<{ text: string }>;
+	/** `void run();`: start something without waiting for it to finish. */
+	startWithoutWaiting: Phrase<{ action: string }>;
+	/** `await pending;` on a value that isn't a call. */
+	waitFor: Phrase<{ value: string }>;
 	doNothing: string;
 	continue: string;
 	break: string;

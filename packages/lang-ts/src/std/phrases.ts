@@ -17,6 +17,9 @@ export type StdPhrases = {
 		Infinity: string;
 		NaN: string;
 		"Number.EPSILON": string;
+		"Number.NaN": string;
+		"Number.NEGATIVE_INFINITY": string;
+		"Number.MIN_SAFE_INTEGER": string;
 	};
 	map: {
 		passedThrough: P<"list" | "fn">;
@@ -56,7 +59,7 @@ export type StdPhrases = {
 		passes: Neg<"list" | "fn">;
 		checkBlock: Neg<"item" | "list">;
 		whose: Neg<"list" | "cond">;
-		where: Neg<"item" | "list" | "cond">;
+		where: Neg<"item" | "list" | "cond" | "article">;
 	};
 	every: {
 		passes: Neg<"list" | "fn">;
@@ -65,6 +68,7 @@ export type StdPhrases = {
 		where: Neg<"item" | "list" | "cond">;
 	};
 	isIn: Neg<"value" | "list">;
+	/** `article` is the locale's article for `item`. */
 	/** `options` is already a rendered "a, b, or c" list. */
 	isOneOf: Neg<"value" | "options">;
 	isList: Neg<"value">;
@@ -117,7 +121,7 @@ export type StdPhrases = {
 		copyInto: P<"sources" | "target">;
 		copiedInto: P<"sources" | "target">;
 	};
-	arrayFrom: { mapped: P<"source" | "value">; sized: P<"count">; list: P<"source"> };
+	arrayFrom: { mapped: P<"source" | "value">; sized: P<"count">; sizedEach: P<"count" | "value">; range: P<"count">; list: P<"source"> };
 	collection: {
 		/** `ownerPossessive` is `owner` run through the locale's possessive. */
 		get: P<"owner" | "ownerPossessive" | "key">;
@@ -145,6 +149,9 @@ export type StdPhrases = {
 		startsWith: Neg<"value" | "prefix">;
 		endsWith: Neg<"value" | "suffix">;
 		matches: Neg<"value" | "pattern">;
+		/** `text.match(re)`; `all` when the pattern is global. */
+		match: (p: { value: string; pattern: string; all: boolean }) => string;
+		matchAll: P<"value" | "pattern">;
 	};
 	number: {
 		asNumber: P<"value">;
@@ -155,17 +162,23 @@ export type StdPhrases = {
 		isNaN: Neg<"value">;
 		isInteger: Neg<"value">;
 	};
-	date: { from: P<"value">; timestamp: P<"value">; isoString: P<"value">; now: string };
+	date: { from: P<"value">; timestamp: P<"value">; isoString: P<"value">; now: string; utc: P<"parts"> };
 	promise: {
 		/** `item` names the resolved result inside the callback. */
 		then: P<"value" | "item" | "result">;
 		catch: P<"value" | "fallback">;
 		catchBlock: P<"value">;
+		/** `p.finally(() => x)`: `action` runs whether `value` succeeds or fails. */
+		finally: P<"value" | "action">;
+		finallyBlock: P<"value">;
+		/** `Promise.race([...])`, read as a block of the racers. */
+		race: (p: { stmt: boolean }) => string;
 	};
 	json: { stringify: P<"value">; parse: P<"value"> };
 	math: {
-		max: P<"values">;
-		min: P<"values">;
+		/** `many`: more than two values. */
+		max: (p: { values: string; many: boolean }) => string;
+		min: (p: { values: string; many: boolean }) => string;
 		round: P<"value">;
 		floor: P<"value">;
 		ceil: P<"value">;
@@ -173,8 +186,18 @@ export type StdPhrases = {
 		random: string;
 	};
 	exit: (p: { code: string | null }) => string;
+	bigint: P<"value">;
+	/** `ms` is a rendered duration in milliseconds. */
+	wait: P<"ms">;
+	/** A pause used as a value, e.g. inside `Promise.race`. */
+	pause: P<"ms">;
+	timeoutSignal: P<"ms">;
+	clearTimer: P<"timer">;
+	setInterval: (p: { ms: string; stmt: boolean }) => string;
+	event: { preventDefault: P<"event">; stopPropagation: P<"event"> };
 	deepCopy: P<"value">;
-	setTimeout: P<"ms">;
+	/** `stmt`: scheduled as a step; otherwise the timer is kept as a value. */
+	setTimeout: (p: { ms: string; stmt: boolean }) => string;
 	/** `message` is the logged text (if any); `details` is a rendered list of the other logged values (if any). */
 	log: Record<"log" | "debug" | "warn" | "error", (p: { message: string | null; details: string | null }) => string>;
 	parallel: {

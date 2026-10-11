@@ -36,6 +36,11 @@ function expectChain({ e, node, say }: { e: Engine; node: N; say: TestingPhrases
 			if (c.type === "Identifier" && c.name === "expect") {
 				const last = steps[0];
 				if (!last) return null;
+				const truth = settle ? null : truthClaim({ m: last.m, args: last.args, neg });
+				if (truth !== null && e.looksBoolean(cur.arguments[0])) {
+					const cond = e.cond(cur.arguments[0], !truth);
+					return D(say.checkThat({ condition: cond.t }), cond.kids);
+				}
 				return claimDoc({ e, say, subject: subjectOf({ e, node: cur.arguments[0], say }), matcher: last.m, args: last.args, neg, settle });
 			}
 			const m = c.type === "MemberExpression" ? c.property.name : null;
@@ -51,6 +56,20 @@ function expectChain({ e, node, say }: { e: Engine; node: N; say: TestingPhrases
 		cur = unwrap(cur.object);
 	}
 	return null;
+}
+
+/** Whether a matcher asserts plain truth (`toBe(true)`, `toBeFalsy()`, …): true/false for which, null otherwise. */
+function truthClaim({ m, args, neg }: { m: string; args: N[]; neg: boolean }): boolean | null {
+	const a = unwrap(args[0]);
+	const lit = a?.type === "Literal" && typeof a.value === "boolean" ? a.value : null;
+	const said = /^(toBe|toEqual|toStrictEqual)$/.test(m)
+		? lit
+		: m === "toBeTruthy" || m === "toBeTrue"
+			? true
+			: m === "toBeFalsy" || m === "toBeFalse"
+				? false
+				: null;
+	return said === null ? null : said !== neg;
 }
 
 function claimDoc({
@@ -90,13 +109,36 @@ function testBlock({ e, fn, heading }: { e: Engine; fn: N; heading: () => string
 	if (!f || !isFn(f)) return null;
 	const title = heading();
 	const body = f.body.type === "BlockStatement" ? f.body : { type: "ExpressionStatement", expression: f.body, start: f.body.start, end: f.body.end };
-	return D(`${title}:`, e.body(body, 0));
+	const lines = e.body(body, 0);
+	return lines.length ? D(`${title}:`, lines) : D(title);
 }
 
+type Mode = "plain" | "skip" | "only" | "if" | "skipIf" | "each";
+
+/** `describe`/`test` and their variants; curried forms (`test.if(c)(…)`) read their extra argument off the inner call. */
 const named =
-	(block: "describe" | "test"): CallRule<TestingPhrases> =>
-	({ args: [name, fn], e, say }) =>
-		testBlock({ e, fn, heading: () => say.blocks[block]({ name: name ? e.text(name) : null }) });
+	(block: "describe" | "test", mode: Mode = "plain"): CallRule<TestingPhrases> =>
+	({ node, args: [name, fn], e, say }) => {
+		const inner = unwrap(node.callee).type === "CallExpression" ? unwrap(node.callee).arguments[0] : null;
+		if ((mode === "if" || mode === "skipIf" || mode === "each") && !inner) return null;
+		const heading = () => {
+			const h = say.blocks[block]({ name: name ? e.text(name) : null });
+			const b = say.blocks;
+			if (mode === "skip") return b.skipped({ heading: h });
+			if (mode === "only") return b.only({ heading: h });
+			if (mode === "if") return b.onlyWhen({ heading: h, condition: e.cond(inner).t });
+			if (mode === "skipIf") return b.skippedWhen({ heading: h, condition: e.cond(inner).t });
+			if (mode === "each") {
+				const rows = e.noun(inner);
+				if (!rows.kids.length) return b.forEach({ heading: h, rows: rows.t });
+				const u = unwrap(inner);
+				return u.type === "ArrayExpression" ? b.forEachOf({ heading: h, count: u.elements.length }) : b.forEach({ heading: h, rows: e.code(inner) });
+			}
+			return h;
+		};
+		if (mode === "skip" && !fn) return D(heading());
+		return testBlock({ e, fn, heading });
+	};
 
 const hook =
 	(block: "beforeAll" | "beforeEach" | "afterAll" | "afterEach"): CallRule<TestingPhrases> =>
@@ -148,6 +190,68 @@ const OTHER_MATCHERS = [
 	"toReject",
 ];
 
+function variants(callee: string, block: "describe" | "test"): Record<string, CallRule<TestingPhrases>> {
+	return {
+		[callee]: named(block),
+		[`${callee}.concurrent`]: named(block),
+		[`${callee}.serial`]: named(block),
+		[`${callee}.skip`]: named(block, "skip"),
+		[`${callee}.todo`]: named(block, "skip"),
+		[`${callee}.only`]: named(block, "only"),
+		[`${callee}.if()`]: named(block, "if"),
+		[`${callee}.skipIf()`]: named(block, "skipIf"),
+		[`${callee}.each()`]: named(block, "each"),
+	};
+}
+
+const isTestImport = (e: Engine, local: string) => /^(bun:test|vitest|@jest\/globals)$/.test(e.imports.get(local)?.from ?? "");
+
+const mockSubject = (e: Engine, obj: N | null) => (obj ? e.noun(obj) : null);
+
+const mockRule =
+	(kind: "implementation" | "returns" | "resolves" | "rejects" | "restore" | "clear" | "reset", once = false): CallRule<TestingPhrases> =>
+	({ obj, args, e, say, stmt }) => {
+		const m = mockSubject(e, obj);
+		if (!m) return null;
+		const k = say.mocks;
+		if (kind === "restore" || kind === "clear" || kind === "reset") return args.length ? null : D(k[kind]({ mock: m.t }), m.kids);
+		if (kind === "implementation") {
+			const fn = args[0] && unwrap(args[0]);
+			if (!fn || !isFn(fn)) return null;
+			const body = fn.body.type === "BlockStatement" ? fn.body : { type: "ExpressionStatement", expression: fn.body, start: fn.body.start, end: fn.body.end };
+			return D(`${k.implementation({ mock: m.t, once, stmt })}:`, [...m.kids, ...e.body(body, 0)]);
+		}
+		const v = args[0] ? e.noun(args[0]) : D(e.say.expressions.nothing);
+		return D(k[kind]({ mock: m.t, value: v.t, once, stmt }), [...m.kids, ...v.kids]);
+	};
+
+const spyOnRule: CallRule<TestingPhrases> = ({ args, e, say }) => {
+	const [target, method] = args.map((a) => unwrap(a));
+	if (!target || method?.type !== "Literal" || typeof method.value !== "string") return null;
+	const t = e.noun(target);
+	return D(say.mocks.spyOn({ target: e.say.expressions.member.chain({ path: [t.t, e.prop(method.value)] }) }), t.kids);
+};
+
+const mockRules: Record<string, CallRule<TestingPhrases>> = {
+	spyOn: (ctx) => (isTestImport(ctx.e, "spyOn") ? spyOnRule(ctx) : null),
+	"vi.spyOn": spyOnRule,
+	"jest.spyOn": spyOnRule,
+	"vi.fn": ({ args, say }) => (args.length ? null : D(say.mocks.mockFunction)),
+	"jest.fn": ({ args, say }) => (args.length ? null : D(say.mocks.mockFunction)),
+	mock: ({ args, e, say }) => (isTestImport(e, "mock") && !args.length ? D(say.mocks.mockFunction) : null),
+	"*.mockImplementation": mockRule("implementation"),
+	"*.mockImplementationOnce": mockRule("implementation", true),
+	"*.mockReturnValue": mockRule("returns"),
+	"*.mockReturnValueOnce": mockRule("returns", true),
+	"*.mockResolvedValue": mockRule("resolves"),
+	"*.mockResolvedValueOnce": mockRule("resolves", true),
+	"*.mockRejectedValue": mockRule("rejects"),
+	"*.mockRejectedValueOnce": mockRule("rejects", true),
+	"*.mockRestore": mockRule("restore"),
+	"*.mockClear": mockRule("clear"),
+	"*.mockReset": mockRule("reset"),
+};
+
 const expectRule: CallRule<TestingPhrases> = ({ node, e, say }) => expectChain({ e, node, say });
 
 const asymmetric =
@@ -168,9 +272,9 @@ const asymmetric =
 	};
 
 const testRules: Record<string, CallRule<TestingPhrases>> = {
-	describe: named("describe"),
-	test: named("test"),
-	it: named("test"),
+	...variants("describe", "describe"),
+	...variants("test", "test"),
+	...variants("it", "test"),
 	beforeAll: hook("beforeAll"),
 	beforeEach: hook("beforeEach"),
 	afterAll: hook("afterAll"),
@@ -192,6 +296,7 @@ const testRules: Record<string, CallRule<TestingPhrases>> = {
 	"expect.anything": ({ say }) => D(say.asymmetric.anything),
 	"expect.assertions": ({ args, e, say }) => D(say.assertions({ count: args[0] ? e.text(args[0]) : null })),
 	"expect.hasAssertions": ({ say }) => D(say.assertions({ count: null })),
+	...mockRules,
 };
 
 /** bun:test, vitest and jest: `describe`/`test`/`it` blocks and `expect(...)` matchers. */

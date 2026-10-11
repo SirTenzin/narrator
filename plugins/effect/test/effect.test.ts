@@ -27,7 +27,7 @@ const program = Effect.gen(function* () {
 	test("service access", () => expect(text).toContain("Get the Database service, and call it DB."));
 	test("run and name the result", () => expect(text).toContain(`Query DB ("select * from users"), and call the result rows.`));
 	test("destructured results", () => expect(text).toContain("Run load profile, and take its ID and name."));
-	test("yielding an error fails", () => expect(text).toContain('If rows is empty, fail with a user not found error (ID: "1").'));
+	test("yielding an error fails", () => expect(text).toContain('If rows are empty, fail with a user not found error (ID: "1").'));
 	test("log and sleep", () => {
 		expect(text).toContain(`Log "loaded" and the number of rows.`);
 		expect(text).toContain("Wait 1 second.");

@@ -39,6 +39,8 @@ type MatcherName =
 export type TestingPhrases = {
 	/** `expect(subject).<matcher>(…)`; `claim` is one of `matchers`. */
 	check: (p: { subject: string; claim: string }) => string;
+	/** `expect(isReady(x)).toBe(true)`: the subject is already a yes/no condition. */
+	checkThat: (p: { condition: string }) => string;
 	matchers: Record<MatcherName, Claim>;
 	/** `expect(fn).toHaveBeenNthCalledWith(n, …)`: `n` is the 1-based call number, `expected` the remaining arguments. */
 	nthCall: (p: { n: string; expected: string; neg: boolean }) => string;
@@ -65,6 +67,19 @@ export type TestingPhrases = {
 	};
 	/** `expect.assertions(n)` / `expect.hasAssertions()`. */
 	assertions: (p: { count: string | null }) => string;
+	/** Jest-style mocks; `mock` is the rendered mock, `target` the spied-on method. */
+	mocks: {
+		spyOn: (p: { target: string }) => string;
+		mockFunction: string;
+		/** `once`: only for the next call. `stmt`: run as a step rather than read as a value. The implementation follows as a block. */
+		implementation: (p: { mock: string; once: boolean; stmt: boolean }) => string;
+		returns: (p: { mock: string; value: string; once: boolean; stmt: boolean }) => string;
+		resolves: (p: { mock: string; value: string; once: boolean; stmt: boolean }) => string;
+		rejects: (p: { mock: string; value: string; once: boolean; stmt: boolean }) => string;
+		restore: (p: { mock: string }) => string;
+		clear: (p: { mock: string }) => string;
+		reset: (p: { mock: string }) => string;
+	};
 	/** Block headings; `name` is the rendered test name, or null when there is none. */
 	blocks: {
 		describe: (p: { name: string | null }) => string;
@@ -73,5 +88,13 @@ export type TestingPhrases = {
 		beforeEach: string;
 		afterAll: string;
 		afterEach: string;
+		/** A heading with how the block runs: `test.skip`, `test.todo`, `test.only`, `test.if(c)`, `test.skipIf(c)`, `test.each(rows)`. */
+		skipped: (p: { heading: string }) => string;
+		only: (p: { heading: string }) => string;
+		onlyWhen: (p: { heading: string; condition: string }) => string;
+		skippedWhen: (p: { heading: string; condition: string }) => string;
+		forEach: (p: { heading: string; rows: string }) => string;
+		/** `test.each([...])` whose cases are too long to list inline. */
+		forEachOf: (p: { heading: string; count: number }) => string;
 	};
 };

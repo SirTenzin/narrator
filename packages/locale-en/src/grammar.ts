@@ -75,6 +75,54 @@ export const grammar: Grammar = {
 	isTimeLike: (s) => TIME_WORDS.test(s) || /\b(now|date)\b/i.test(s),
 };
 
+const SINGULAR_S = new Set([
+	"ms",
+	"this",
+	"its",
+	"has",
+	"was",
+	"yes",
+	"always",
+	"plus",
+	"news",
+	"series",
+	"species",
+	"canvas",
+	"alias",
+	"atlas",
+	"bias",
+	"gas",
+	"lens",
+	"chaos",
+	"perhaps",
+	"whereas",
+	"unless",
+	"sometimes",
+	"analytics",
+]);
+
+/** Whether a rendered subject's head noun is plural: "customer's items" yes, "the number of items" and "status" no. */
+export const pluralSubject = (subject: string) => {
+	const text = plain(subject);
+	const [front = "", ...after] = text.split(/ (?:of|in|across) /);
+	// "the unique values of codes' size": a possessive after "of" makes the last word the head.
+	const owned = after.length > 0 && /['’]s? \S+$/.test(after.join(" ").split(/[,(]/)[0]!);
+	const phrase = owned
+		? text.split(/[,(]/)[0]!
+		: front.split(/ (?:for|from|with|where|whose|keeping|that|which|without|minus|plus|times|divided|joined|if|or|and|as)\b|[,(:]/)[0]!;
+	const head = phrase.trim().split(/\s+/).at(-1) ?? "";
+	if (/^[A-Z]+s$/.test(head)) return true;
+	const w = head.toLowerCase();
+	if (SINGULAR_S.has(w) || /(ss|us|is|'s)$/.test(w)) return false;
+	return /[a-z]s$/.test(w) || w === "people" || w === "children";
+};
+
+/** "is"/"are" (and friends) agreeing with a rendered subject. */
+export const verbFor = (subject: string) => {
+	const many = pluralSubject(subject);
+	return { is: many ? "are" : "is", isNot: many ? "are not" : "is not", has: many ? "have" : "has", does: many ? "do" : "does" };
+};
+
 /** Owner-first possessive chain: ["customer", "plan", "name"] -> "customer's plan's name". */
 export const possessiveChain = (path: string[]) => path.map((w, i) => (i < path.length - 1 ? possessive(w) : w)).join(" ");
 

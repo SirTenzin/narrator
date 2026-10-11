@@ -53,3 +53,39 @@ describe("schemas", () => {
 		);
 	});
 });
+
+describe("agreement", () => {
+	test("plural subjects take are/have; 'the number of …' and possessive heads decide by their head noun", () => {
+		expect(narrate("if (ids.length && !customer.products && status && c.prices.length > 3 && items.length > 2) x();")).toBe(
+			"If all of these are true:\n  • IDs are not empty\n  • customer's products are missing\n  • status is set\n  • c's prices have more than 3 items\n  • there are more than 2 items\nthen:\n  Run x.",
+		);
+		expect(narrate("if (new Set(codes).size !== codes.length) x();")).toBe("If the unique values of codes' size is not the number of codes, run x.");
+	});
+});
+
+describe("flags", () => {
+	test("a bare yes/no name reads with 'it'; comparing to false says false", () => {
+		expect(narrate("if (isCustomer && !hasVariants) x();")).toBe("If it is customer and it has no variants, run x.");
+		expect(narrate("if (settings.enabled === false) x();")).toBe("If settings' enabled is false, run x.");
+	});
+
+	test("a destructured yes/no field keeps 'where it …' rather than 'whose it …'", () => {
+		expect(narrate("const ys = xs.filter(({ isActive }) => isActive);")).toBe("Let ys be xs, keeping only those where it is active.");
+	});
+
+	test("a let flag starts as its value", () => {
+		expect(narrate("let stopping = false;")).toBe("Let stopping start as false.");
+	});
+});
+
+describe("statements", () => {
+	test("void and bare awaits", () => {
+		expect(narrate("async function f() { void receiver.run(); await ticking; }")).toBe(
+			"To f (async):\n  Run receiver (without waiting for it to finish).\n  Wait for ticking.",
+		);
+	});
+
+	test("main() runs", () => {
+		expect(narrate("function main() { go(); }\nmain();")).toBe("To main:\n  Run go.\n\nRun main.");
+	});
+});
