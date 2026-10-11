@@ -232,24 +232,28 @@
     },
     "plugins/express": {
       "name": "@usenarrator/plugin-express",
-      "version": "0.0.0",
-      "dependencies": {
-        "@usenarrator/core": "workspace:*",
-        "@usenarrator/lang-ts": "workspace:*",
-      },
+      "version": "0.1.0",
       "devDependencies": {
-        "@usenarrator/testkit": "workspace:*",
+        "@usenarrator/core": "workspace:^",
+        "@usenarrator/lang-ts": "workspace:^",
+        "@usenarrator/testkit": "workspace:^",
+      },
+      "peerDependencies": {
+        "@usenarrator/core": "workspace:^",
+        "@usenarrator/lang-ts": "workspace:^",
       },
     },
     "plugins/fastify": {
       "name": "@usenarrator/plugin-fastify",
-      "version": "0.0.0",
-      "dependencies": {
-        "@usenarrator/core": "workspace:*",
-        "@usenarrator/lang-ts": "workspace:*",
-      },
+      "version": "0.1.0",
       "devDependencies": {
-        "@usenarrator/testkit": "workspace:*",
+        "@usenarrator/core": "workspace:^",
+        "@usenarrator/lang-ts": "workspace:^",
+        "@usenarrator/testkit": "workspace:^",
+      },
+      "peerDependencies": {
+        "@usenarrator/core": "workspace:^",
+        "@usenarrator/lang-ts": "workspace:^",
       },
     },
     "plugins/hono": {
@@ -314,13 +318,15 @@
     },
     "plugins/tanstack-query": {
       "name": "@usenarrator/plugin-tanstack-query",
-      "version": "0.0.0",
-      "dependencies": {
-        "@usenarrator/core": "workspace:*",
-        "@usenarrator/lang-ts": "workspace:*",
-      },
+      "version": "0.1.0",
       "devDependencies": {
-        "@usenarrator/testkit": "workspace:*",
+        "@usenarrator/core": "workspace:^",
+        "@usenarrator/lang-ts": "workspace:^",
+        "@usenarrator/testkit": "workspace:^",
+      },
+      "peerDependencies": {
+        "@usenarrator/core": "workspace:^",
+        "@usenarrator/lang-ts": "workspace:^",
       },
     },
     "plugins/testing": {
@@ -338,14 +344,16 @@
     },
     "plugins/trpc": {
       "name": "@usenarrator/plugin-trpc",
-      "version": "0.0.0",
-      "dependencies": {
-        "@usenarrator/core": "workspace:*",
-        "@usenarrator/lang-ts": "workspace:*",
-      },
+      "version": "0.1.0",
       "devDependencies": {
-        "@usenarrator/plugin-zod": "workspace:*",
-        "@usenarrator/testkit": "workspace:*",
+        "@usenarrator/core": "workspace:^",
+        "@usenarrator/lang-ts": "workspace:^",
+        "@usenarrator/plugin-zod": "workspace:^",
+        "@usenarrator/testkit": "workspace:^",
+      },
+      "peerDependencies": {
+        "@usenarrator/core": "workspace:^",
+        "@usenarrator/lang-ts": "workspace:^",
       },
     },
     "plugins/zod": {

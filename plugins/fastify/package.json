@@ -1,18 +1,39 @@
 {
 	"name": "@usenarrator/plugin-fastify",
-	"version": "0.0.0",
-	"private": true,
+	"version": "0.1.0",
 	"description": "TS plugin: Fastify v4 and v5 (routes, schemas, replies, hooks, plugins, decorators, listen).",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/SirTenzin/narrator.git",
+		"directory": "plugins/fastify"
+	},
+	"homepage": "https://github.com/SirTenzin/narrator#readme",
 	"type": "module",
 	"sideEffects": false,
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
 	"exports": {
-		".": "./src/index.ts"
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js",
+			"default": "./dist/index.js"
+		},
+		"./package.json": "./package.json"
 	},
-	"dependencies": {
-		"@usenarrator/core": "workspace:*",
-		"@usenarrator/lang-ts": "workspace:*"
+	"files": [
+		"dist"
+	],
+	"publishConfig": {
+		"access": "public"
+	},
+	"peerDependencies": {
+		"@usenarrator/core": "workspace:^",
+		"@usenarrator/lang-ts": "workspace:^"
 	},
 	"devDependencies": {
-		"@usenarrator/testkit": "workspace:*"
+		"@usenarrator/core": "workspace:^",
+		"@usenarrator/lang-ts": "workspace:^",
+		"@usenarrator/testkit": "workspace:^"
 	}
 }
