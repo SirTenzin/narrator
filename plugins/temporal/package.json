@@ -1,0 +1,39 @@
+{
+	"name": "@usenarrator/plugin-temporal",
+	"version": "0.1.0",
+	"description": "TS plugin: Temporal TypeScript SDK (workflows, activities, signals/queries/updates, child workflows, workers, client, schedules).",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/SirTenzin/narrator.git",
+		"directory": "plugins/temporal"
+	},
+	"homepage": "https://github.com/SirTenzin/narrator#readme",
+	"type": "module",
+	"sideEffects": false,
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js",
+			"default": "./dist/index.js"
+		},
+		"./package.json": "./package.json"
+	},
+	"files": [
+		"dist"
+	],
+	"publishConfig": {
+		"access": "public"
+	},
+	"peerDependencies": {
+		"@usenarrator/core": "workspace:^",
+		"@usenarrator/lang-ts": "workspace:^"
+	},
+	"devDependencies": {
+		"@usenarrator/core": "workspace:^",
+		"@usenarrator/lang-ts": "workspace:^",
+		"@usenarrator/testkit": "workspace:^"
+	}
+}

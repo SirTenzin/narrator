@@ -177,6 +177,19 @@
         "@usenarrator/lang-ts": "workspace:^",
       },
     },
+    "plugins/bullmq": {
+      "name": "@usenarrator/plugin-bullmq",
+      "version": "0.1.0",
+      "devDependencies": {
+        "@usenarrator/core": "workspace:^",
+        "@usenarrator/lang-ts": "workspace:^",
+        "@usenarrator/testkit": "workspace:^",
+      },
+      "peerDependencies": {
+        "@usenarrator/core": "workspace:^",
+        "@usenarrator/lang-ts": "workspace:^",
+      },
+    },
     "plugins/decimal": {
       "name": "@usenarrator/plugin-decimal",
       "version": "0.1.0",
@@ -269,6 +282,19 @@
         "@usenarrator/lang-ts": "workspace:^",
       },
     },
+    "plugins/inngest": {
+      "name": "@usenarrator/plugin-inngest",
+      "version": "0.1.0",
+      "devDependencies": {
+        "@usenarrator/core": "workspace:^",
+        "@usenarrator/lang-ts": "workspace:^",
+        "@usenarrator/testkit": "workspace:^",
+      },
+      "peerDependencies": {
+        "@usenarrator/core": "workspace:^",
+        "@usenarrator/lang-ts": "workspace:^",
+      },
+    },
     "plugins/nextjs": {
       "name": "@usenarrator/plugin-nextjs",
       "version": "0.1.0",
@@ -329,8 +355,34 @@
         "@usenarrator/lang-ts": "workspace:^",
       },
     },
+    "plugins/temporal": {
+      "name": "@usenarrator/plugin-temporal",
+      "version": "0.1.0",
+      "devDependencies": {
+        "@usenarrator/core": "workspace:^",
+        "@usenarrator/lang-ts": "workspace:^",
+        "@usenarrator/testkit": "workspace:^",
+      },
+      "peerDependencies": {
+        "@usenarrator/core": "workspace:^",
+        "@usenarrator/lang-ts": "workspace:^",
+      },
+    },
     "plugins/testing": {
       "name": "@usenarrator/plugin-testing",
+      "version": "0.1.0",
+      "devDependencies": {
+        "@usenarrator/core": "workspace:^",
+        "@usenarrator/lang-ts": "workspace:^",
+        "@usenarrator/testkit": "workspace:^",
+      },
+      "peerDependencies": {
+        "@usenarrator/core": "workspace:^",
+        "@usenarrator/lang-ts": "workspace:^",
+      },
+    },
+    "plugins/trigger-dev": {
+      "name": "@usenarrator/plugin-trigger-dev",
       "version": "0.1.0",
       "devDependencies": {
         "@usenarrator/core": "workspace:^",
@@ -511,6 +563,8 @@
 
     "@usenarrator/plugin-better-auth": ["@usenarrator/plugin-better-auth@workspace:plugins/better-auth"],
 
+    "@usenarrator/plugin-bullmq": ["@usenarrator/plugin-bullmq@workspace:plugins/bullmq"],
+
     "@usenarrator/plugin-decimal": ["@usenarrator/plugin-decimal@workspace:plugins/decimal"],
 
     "@usenarrator/plugin-drizzle": ["@usenarrator/plugin-drizzle@workspace:plugins/drizzle"],
@@ -525,6 +579,8 @@
 
     "@usenarrator/plugin-hono": ["@usenarrator/plugin-hono@workspace:plugins/hono"],
 
+    "@usenarrator/plugin-inngest": ["@usenarrator/plugin-inngest@workspace:plugins/inngest"],
+
     "@usenarrator/plugin-nextjs": ["@usenarrator/plugin-nextjs@workspace:plugins/nextjs"],
 
     "@usenarrator/plugin-react": ["@usenarrator/plugin-react@workspace:plugins/react"],
@@ -533,7 +589,11 @@
 
     "@usenarrator/plugin-tanstack-query": ["@usenarrator/plugin-tanstack-query@workspace:plugins/tanstack-query"],
 
+    "@usenarrator/plugin-temporal": ["@usenarrator/plugin-temporal@workspace:plugins/temporal"],
+
     "@usenarrator/plugin-testing": ["@usenarrator/plugin-testing@workspace:plugins/testing"],
+
+    "@usenarrator/plugin-trigger-dev": ["@usenarrator/plugin-trigger-dev@workspace:plugins/trigger-dev"],
 
     "@usenarrator/plugin-trpc": ["@usenarrator/plugin-trpc@workspace:plugins/trpc"],
 
