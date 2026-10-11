@@ -130,6 +130,21 @@ export class Engine {
 	/** The current file's AST and its imports (local name -> where it came from), set by `narrate`. */
 	program: N = null;
 	imports = new Map<string, ImportInfo>();
+	/** The current file's package dependencies (name -> version range), when the host knows them. */
+	dependencies: Record<string, string> = {};
+
+	/** Whether this file imports `lib` (or a subpath like `lib/x`), or its package depends on it. */
+	usesLibrary(lib: string): boolean {
+		if (this.dependencies[lib] !== undefined) return true;
+		for (const { from } of this.imports.values()) if (from === lib || from.startsWith(`${lib}/`)) return true;
+		return false;
+	}
+
+	/** The major version of `lib` the current package declares, e.g. "^4.2.0" -> 4. */
+	libraryMajor(lib: string): number | null {
+		const m = this.dependencies[lib]?.match(/(\d+)/);
+		return m ? Number(m[1]) : null;
+	}
 	aliases = new Map<string, string>();
 	/** variable -> type spec: `Type` or `@Type.field`. */
 	varTypes = new Map<string, string>();
