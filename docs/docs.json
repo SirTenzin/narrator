@@ -73,7 +73,7 @@
 				"groups": [
 					{
 						"group": "Use Narrator",
-						"pages": ["guides/browser-extension", "guides/embedding"]
+						"pages": ["guides/browser-extension", "privacy", "guides/embedding"]
 					},
 					{
 						"group": "Extend Narrator",
