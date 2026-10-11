@@ -95,7 +95,7 @@ export const bullmq = (): TsPlugin<BullmqPhrases> => {
 		if (callee.type !== "MemberExpression" || !ACTIONS.has(callee.property?.name)) return false;
 		const act = own(ctx(e, say), init, true);
 		if (!act) return false;
-		e.emitDoc(d, D(say.resultAs({ action: act.t.replace(/:$/, ""), name: e.ref(v.id.name) }), act.kids), node);
+		e.emitDoc(d, D(e.say.declarations.callAs({ call: act.t.replace(/:$/, ""), name: e.ref(v.id.name) }), act.kids), node);
 		return true;
 	};
 

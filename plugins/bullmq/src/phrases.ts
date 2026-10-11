@@ -209,8 +209,6 @@ export type BullmqPhrases = {
 		add: (p: { flow: string; children: boolean }) => string;
 		addBulk: string;
 	};
-	/** `const job = await queue.add(…)`: the action, then the name its result is kept under. */
-	resultAs: Phrase<"action" | "name">;
 	errorLabels: {
 		UnrecoverableError: string;
 		DelayedError: string;
