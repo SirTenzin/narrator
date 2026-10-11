@@ -1,0 +1,19 @@
+{
+	"name": "@usenarrator/plugin-trpc",
+	"version": "0.0.0",
+	"private": true,
+	"description": "TS plugin: tRPC v11 and v10 (routers, procedures, middleware, context, vanilla and React Query clients).",
+	"type": "module",
+	"sideEffects": false,
+	"exports": {
+		".": "./src/index.ts"
+	},
+	"dependencies": {
+		"@usenarrator/core": "workspace:*",
+		"@usenarrator/lang-ts": "workspace:*"
+	},
+	"devDependencies": {
+		"@usenarrator/testkit": "workspace:*",
+		"@usenarrator/plugin-zod": "workspace:*"
+	}
+}
