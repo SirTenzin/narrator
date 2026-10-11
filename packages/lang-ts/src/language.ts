@@ -17,6 +17,26 @@ export type TypeScriptOptions = {
 
 const TS_FILE = /\.(m|c)?[tj]sx?$/;
 
+const parserError = (what: string) =>
+	new Error(
+		`Narrator: typescript({ parser }) ${what}. Pass \`oxcParser\` from "@usenarrator/lang-ts/oxc", or \`await createWasmParser()\` from "@usenarrator/lang-ts/wasm".`,
+	);
+
+/** Fails with a readable message when the parser is mis-wired, e.g. `createWasmParser` passed without calling and awaiting it. */
+function checkedParser(parser: Parser): Parser {
+	if (typeof (parser as any)?.then === "function") throw parserError("got a Promise; await createWasmParser() before creating the narrator");
+	if (typeof parser !== "function") throw parserError(`needs a function, but got ${parser === null ? "null" : typeof parser}`);
+	return (filename, src) => {
+		const out: any = parser(filename, src);
+		if (typeof out?.then === "function") {
+			out.then(undefined, () => {});
+			throw parserError("returned a Promise; pass the result of `await createWasmParser()`, not createWasmParser itself");
+		}
+		if (!Array.isArray(out?.program?.body)) throw parserError("returned something that is not a parsed program");
+		return out;
+	};
+}
+
 /** The TS/JS source language. Narrates `.ts`, `.tsx`, `.js`, `.jsx`, `.mjs`, `.cjs` (not `.d.ts`). */
 export function typescript({
 	parser,
@@ -25,6 +45,7 @@ export function typescript({
 	dependencies,
 }: TypeScriptOptions): SourceLanguage & { engine(locale: Parameters<SourceLanguage["create"]>[0]): Engine } {
 	const all = [std, ...plugins.flat()];
+	parser = checkedParser(parser);
 	const engine: (locale: Parameters<SourceLanguage["create"]>[0]) => Engine = (locale) => {
 		return new Engine({ parser, plugins: all, locale });
 	};

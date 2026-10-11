@@ -35,7 +35,7 @@ async function build(target: Target, out: string) {
 		manifest.permissions = manifest.permissions.filter((p: string) => p !== "offscreen");
 	}
 	await Bun.write(`${out}/manifest.json`, `${JSON.stringify(manifest, null, "\t")}\n`);
-	await cp(`${root}/../../node_modules/@oxc-parser/wasm/web/oxc_parser_wasm_bg.wasm`, `${out}/oxc_parser_wasm_bg.wasm`);
+	await cp(Bun.resolveSync("@oxc-parser/binding-wasm32-wasip1/wasm", root), `${out}/oxc-parser.wasm`);
 	await cp(`${root}/icon128.png`, `${out}/icon128.png`);
 }
 

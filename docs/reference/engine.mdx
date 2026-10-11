@@ -6,7 +6,7 @@ description: "The TypeScript source language and the engine API that rules call.
 ```ts
 import { typescript, Engine } from "@usenarrator/lang-ts";
 import { oxcParser } from "@usenarrator/lang-ts/oxc";
-import { oxcWasmParser } from "@usenarrator/lang-ts/wasm";
+import { createWasmParser } from "@usenarrator/lang-ts/wasm";
 ```
 
 ## typescript()
@@ -21,7 +21,7 @@ function typescript(options: {
 ```
 
 <ParamField path="parser" type="Parser" required>
-  `oxcParser` for Node and Bun, or `oxcWasmParser(parseSync)` for browsers. See [Embedding](/guides/embedding).
+  `oxcParser` for Node and Bun, or the parser that `await createWasmParser()` resolves to for browsers, workers and edge runtimes. `typescript()` throws a readable error if you pass something else, such as the Promise itself. See [Embedding](/guides/embedding).
 </ParamField>
 <ParamField path="plugins" type="(TsPlugin | TsPlugin[])[]">
   Library and codebase plugins, applied after the built-in `std` plugin. Nested arrays are flattened. Later plugins win.
@@ -39,6 +39,20 @@ The language handles `.ts`, `.tsx`, `.js`, `.jsx`, `.mjs` and `.cjs`, but not `.
 type Parser = (filename: string, src: string) => ParseOutput;
 type ParseOutput = { program: any; comments: { type: string; value: string; start: number; end: number }[]; errors: unknown[] };
 ```
+
+## createWasmParser()
+
+```ts
+function createWasmParser(options?: {
+  wasm?: URL | string | Response | ArrayBuffer | ArrayBufferView | WebAssembly.Module | PromiseLike<Response | WebAssembly.Module>;
+}): Promise<Parser>;
+```
+
+Loads oxc's WASM build from the optional peer dependency `@oxc-parser/binding-wasm32-wasip1` and resolves to a synchronous `Parser`. Create it once and reuse it: every call starts a new WASM instance.
+
+<ParamField path="wasm" type="URL | string | Response | bytes | WebAssembly.Module">
+  Where the `.wasm` file comes from. Leave it out in Node, Bun and bundlers that turn `new URL(…, import.meta.url)` into an asset, such as Vite. Pass a compiled module on Cloudflare Workers, and a URL inside a browser extension. If the value is not a WebAssembly file, for example an HTML page served instead of the `.wasm`, the error says so.
+</ParamField>
 
 ## The Engine inside rules
 

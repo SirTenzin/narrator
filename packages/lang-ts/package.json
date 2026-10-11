@@ -41,11 +41,11 @@
 		"@usenarrator/core": "workspace:^"
 	},
 	"peerDependencies": {
-		"@oxc-parser/wasm": "~0.60.0",
+		"@oxc-parser/binding-wasm32-wasip1": ">=0.153.0 <1",
 		"oxc-parser": ">=0.153.0 <1"
 	},
 	"peerDependenciesMeta": {
-		"@oxc-parser/wasm": {
+		"@oxc-parser/binding-wasm32-wasip1": {
 			"optional": true
 		},
 		"oxc-parser": {
@@ -53,7 +53,7 @@
 		}
 	},
 	"devDependencies": {
-		"@oxc-parser/wasm": "0.60.0",
+		"@oxc-parser/binding-wasm32-wasip1": "0.153.0",
 		"oxc-parser": "^0.153.0"
 	}
 }

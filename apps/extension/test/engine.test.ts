@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { narrate } from "../src/engine";
 
-const wasmUrl = Bun.pathToFileURL(`${import.meta.dir}/../../../node_modules/@oxc-parser/wasm/web/oxc_parser_wasm_bg.wasm`).href;
+const wasmUrl = Bun.pathToFileURL(Bun.resolveSync("@oxc-parser/binding-wasm32-wasip1/wasm", import.meta.dir)).href;
 const text = (files: Awaited<ReturnType<typeof narrate>>["files"]) =>
 	files.flatMap((f) => f.units.flatMap((u) => u.rows.map((r) => (r.right?.html ?? "").replace(/<[^>]+>/g, "")))).join("\n");
 
