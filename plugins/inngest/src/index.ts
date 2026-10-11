@@ -2,7 +2,7 @@ import { D, mk } from "@usenarrator/core";
 import { type CallRule, definePlugin, type Engine, type N, type StmtRule, type TsPlugin, unwrap } from "@usenarrator/lang-ts";
 import { en } from "./en";
 import { functionCalls, functionParts, triggersText } from "./functions";
-import type { InngestPhrases } from "./phrases";
+import type { InngestPhrases as __PluginPhrases, InngestPhrases } from "./phrases";
 import { type Ctx, codeText, factsReader, framed, importedAs, objectArg, propOf, type Rule, usesInngest } from "./shared";
 import { isStepCall, serveDoc, stepCalls, stepDoc } from "./steps";
 
@@ -86,3 +86,9 @@ export const inngest = (): TsPlugin<InngestPhrases> => {
 		statements: [framed(serveStatement), framed(define), framed(stepResult)],
 	});
 };
+
+declare module "@usenarrator/core" {
+	interface PluginPhrases {
+		inngest: __PluginPhrases;
+	}
+}

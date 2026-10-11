@@ -2,7 +2,7 @@ import { D, type Doc } from "@usenarrator/core";
 import { type CallRule, definePlugin, type N, type TsPlugin, unwrap } from "@usenarrator/lang-ts";
 import { clientDoc, extendsDoc } from "./client";
 import { en } from "./en";
-import type { PrismaPhrases } from "./phrases";
+import type { PrismaPhrases as __PluginPhrases, PrismaPhrases } from "./phrases";
 import { aggregateDoc, countDoc, findDoc, groupByDoc } from "./queries";
 import { active, type Ctx, entryDoc, isHandle, MODEL_METHODS, type ModelCall, modelCall } from "./shared";
 import { transactionDoc } from "./transaction";
@@ -60,3 +60,9 @@ export const prisma = (): TsPlugin<P> => {
 		calls,
 	});
 };
+
+declare module "@usenarrator/core" {
+	interface PluginPhrases {
+		prisma: __PluginPhrases;
+	}
+}

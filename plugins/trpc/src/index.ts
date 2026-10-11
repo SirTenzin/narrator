@@ -2,7 +2,7 @@ import { D, type Doc } from "@usenarrator/core";
 import { type CallRule, definePlugin, type Engine, type MemberRule, type StmtRule, type TsPlugin, unwrap } from "@usenarrator/lang-ts";
 import { clientCreateDoc, HELPERS, HOOKS, helperCall, hookCall, mutateTracked, UTILS, utilsCall, vanillaCall } from "./client";
 import { en } from "./en";
-import type { TrpcPhrases } from "./phrases";
+import type { TrpcPhrases as __PluginPhrases, TrpcPhrases } from "./phrases";
 import { adapterDoc, errorDoc, helperDoc, initDoc, middlewareDoc, nextDoc, procedureDoc, routerDoc, tMemberDoc } from "./server";
 import { type Ctx, factsReader, isClientRoot, isUtilsCall } from "./shared";
 
@@ -75,3 +75,9 @@ export const trpc = (): TsPlugin<TrpcPhrases> => {
 		errors: ["TRPCError"],
 	});
 };
+
+declare module "@usenarrator/core" {
+	interface PluginPhrases {
+		trpc: __PluginPhrases;
+	}
+}

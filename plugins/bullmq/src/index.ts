@@ -2,7 +2,7 @@ import { D, type Doc } from "@usenarrator/core";
 import { type CallRule, definePlugin, type Engine, type MemberRule, type N, type StmtRule, type TsPlugin, unwrap } from "@usenarrator/lang-ts";
 import { en } from "./en";
 import { flowCalls } from "./flow";
-import type { BullmqPhrases } from "./phrases";
+import type { BullmqPhrases as __PluginPhrases, BullmqPhrases } from "./phrases";
 import { queueCalls, queueDetails, queueRef } from "./queue";
 import { type Ctx, ctorKind, detailed, factsReader, framed, type Rule, type Site } from "./shared";
 import { attemptsMade, workerCalls, workerParts } from "./worker";
@@ -125,3 +125,9 @@ export const bullmq = (): TsPlugin<BullmqPhrases> => {
 		statements: [framed(create), framed(resultAs)],
 	});
 };
+
+declare module "@usenarrator/core" {
+	interface PluginPhrases {
+		bullmq: __PluginPhrases;
+	}
+}

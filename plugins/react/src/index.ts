@@ -5,7 +5,7 @@ import { en } from "./en";
 import { factsReader, reactName } from "./facts";
 import { hookDecl, hookStatement } from "./hooks";
 import { eachOfDoc, uiDoc } from "./jsx";
-import type { DomMethod, ReactPhrases } from "./phrases";
+import type { ReactPhrases as __PluginPhrases, DomMethod, ReactPhrases } from "./phrases";
 import { type Ctx, type ElementRule, isFn, isJsxMap, nameRef } from "./shared";
 
 export { en } from "./en";
@@ -173,3 +173,9 @@ export function createReact(options: ReactOptions = {}): ReactKit {
 
 /** React (react.dev): components, JSX as UI, hooks, context, Suspense, React 19 actions and react-dom roots. */
 export const react = (options: ReactOptions = {}): TsPlugin<ReactPhrases> => createReact(options).plugin;
+
+declare module "@usenarrator/core" {
+	interface PluginPhrases {
+		react: __PluginPhrases;
+	}
+}

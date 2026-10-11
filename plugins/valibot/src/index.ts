@@ -1,7 +1,7 @@
 import { D, mk } from "@usenarrator/core";
 import { type CallRule, type CondRule, definePlugin, type Engine, type MemberRule, type N, type TsPlugin, unwrap } from "@usenarrator/lang-ts";
 import { en } from "./en";
-import type { ValibotPhrases } from "./phrases";
+import type { ValibotPhrases as __PluginPhrases, ValibotPhrases } from "./phrases";
 
 export { en } from "./en";
 export type { ValibotPhrases } from "./phrases";
@@ -344,4 +344,10 @@ function safeParseResults(e: Engine): Set<string> {
 	visit(program.body);
 	resultCache.set(program, names);
 	return names;
+}
+
+declare module "@usenarrator/core" {
+	interface PluginPhrases {
+		valibot: __PluginPhrases;
+	}
 }

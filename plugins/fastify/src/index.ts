@@ -2,7 +2,7 @@ import { D } from "@usenarrator/core";
 import { type CallRule, type CondRule, definePlugin, type Engine, type MemberRule, type StmtRule, type TsPlugin, unwrap } from "@usenarrator/lang-ts";
 import { en } from "./en";
 import { factsReader, isReply, isRequest, isServer, SERVER_METHODS } from "./facts";
-import type { FastifyPhrases } from "./phrases";
+import type { FastifyPhrases as __PluginPhrases, FastifyPhrases } from "./phrases";
 import { createDoc, fpDoc, type Rc, REPLY_METHODS, replyDoc, serverCall, type Version } from "./server";
 import { codeText } from "./shared";
 
@@ -95,3 +95,9 @@ export const fastify = ({ version }: FastifyOptions = {}): TsPlugin<FastifyPhras
 		statements: [requireStatement, returnStatement],
 	});
 };
+
+declare module "@usenarrator/core" {
+	interface PluginPhrases {
+		fastify: __PluginPhrases;
+	}
+}

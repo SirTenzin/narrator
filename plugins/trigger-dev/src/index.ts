@@ -1,7 +1,7 @@
 import { D, type Doc } from "@usenarrator/core";
 import { type CallRule, definePlugin, type Engine, type N, type StmtRule, type TsPlugin, unwrap } from "@usenarrator/lang-ts";
 import { en } from "./en";
-import type { TriggerPhrases } from "./phrases";
+import type { TriggerPhrases as __PluginPhrases, TriggerPhrases } from "./phrases";
 import { type Ctx, factsReader, framed, importedAs, type Rule, usesTrigger } from "./shared";
 import { queueParts, taskCalls, taskParts } from "./tasks";
 import { triggerTables } from "./triggers";
@@ -93,3 +93,9 @@ export const triggerDev = (): TsPlugin<TriggerPhrases> => {
 		statements: [framed(define), framed(result)],
 	});
 };
+
+declare module "@usenarrator/core" {
+	interface PluginPhrases {
+		"trigger-dev": __PluginPhrases;
+	}
+}

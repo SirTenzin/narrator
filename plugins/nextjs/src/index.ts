@@ -5,7 +5,7 @@ import { nextElements } from "./elements";
 import { en } from "./en";
 import { factsReader } from "./facts";
 import { statements } from "./files";
-import type { NextPhrases } from "./phrases";
+import type { NextPhrases as __PluginPhrases, NextPhrases } from "./phrases";
 import { calls, conditions, members } from "./server";
 import type { Ctx } from "./shared";
 
@@ -65,4 +65,10 @@ export function nextjs(options: NextOptions = {}): TsPlugin[] {
 		statements: stmtRules,
 	});
 	return [core, kit.plugin];
+}
+
+declare module "@usenarrator/core" {
+	interface PluginPhrases {
+		nextjs: __PluginPhrases;
+	}
 }

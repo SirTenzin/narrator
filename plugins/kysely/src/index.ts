@@ -2,7 +2,7 @@ import type { Doc } from "@usenarrator/core";
 import { type CallRule, definePlugin, type TsPlugin, unwrap } from "@usenarrator/lang-ts";
 import { en } from "./en";
 import { condDoc, ebMethod } from "./expr";
-import type { KyselyPhrases } from "./phrases";
+import type { KyselyPhrases as __PluginPhrases, KyselyPhrases } from "./phrases";
 import { HEADS, queryDoc } from "./query";
 import { active, type Ctx, isEb } from "./shared";
 import { transactionDoc } from "./transaction";
@@ -89,3 +89,9 @@ export const kysely = (): TsPlugin<P> => {
 		calls,
 	});
 };
+
+declare module "@usenarrator/core" {
+	interface PluginPhrases {
+		kysely: __PluginPhrases;
+	}
+}

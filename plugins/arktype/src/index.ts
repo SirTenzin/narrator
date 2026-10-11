@@ -2,7 +2,7 @@ import { D, mk } from "@usenarrator/core";
 import { type CallRule, type CondRule, definePlugin, type Engine, type N, type StmtRule, type TsPlugin, unwrap } from "@usenarrator/lang-ts";
 import { parseDef, type Shape } from "./dsl";
 import { en } from "./en";
-import type { ArkTypePhrases } from "./phrases";
+import type { ArkTypePhrases as __PluginPhrases, ArkTypePhrases } from "./phrases";
 
 export { en } from "./en";
 export type { ArkTypePhrases } from "./phrases";
@@ -383,3 +383,9 @@ export const arktype = (): TsPlugin<Say> => {
 		describeSchema: describe,
 	});
 };
+
+declare module "@usenarrator/core" {
+	interface PluginPhrases {
+		arktype: __PluginPhrases;
+	}
+}

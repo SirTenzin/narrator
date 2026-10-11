@@ -2,7 +2,7 @@ import { D, type Doc } from "@usenarrator/core";
 import { type CallRule, type CondRule, definePlugin, type Engine, type N, type StmtRule, type TsPlugin, unwrap } from "@usenarrator/lang-ts";
 import { clientCalls, clientDetails, workerCalls, workerParts } from "./client";
 import { en } from "./en";
-import type { TemporalPhrases } from "./phrases";
+import type { TemporalPhrases as __PluginPhrases, TemporalPhrases } from "./phrases";
 import { type Ctx, details, exportedName, factsReader, framed, isWorker, type Rule, usesTemporal } from "./shared";
 import { activityItems, argsText, messageTypes, workflowCalls, workflowConditions } from "./workflow";
 
@@ -133,3 +133,9 @@ export const temporal = (): TsPlugin<TemporalPhrases> => {
 		statements: [framed(define), framed(steps)],
 	});
 };
+
+declare module "@usenarrator/core" {
+	interface PluginPhrases {
+		temporal: __PluginPhrases;
+	}
+}

@@ -3,7 +3,7 @@ import { type CallRule, definePlugin, type MemberRule, type N, type StmtRule, ty
 import { clientDoc } from "./client";
 import { en } from "./en";
 import { autoPagingEachDoc, autoPagingToArrayDoc, forAwaitStmt } from "./pages";
-import type { StripePhrases } from "./phrases";
+import type { StripePhrases as __PluginPhrases, StripePhrases } from "./phrases";
 import { resourceDoc } from "./resources";
 import type { Ctx } from "./shared";
 import { constructEventDoc, eventDataDoc, eventSwitchStmt, testHeaderDoc } from "./webhooks";
@@ -40,3 +40,9 @@ export const stripe = (): TsPlugin<P> => {
 		statements,
 	});
 };
+
+declare module "@usenarrator/core" {
+	interface PluginPhrases {
+		stripe: __PluginPhrases;
+	}
+}

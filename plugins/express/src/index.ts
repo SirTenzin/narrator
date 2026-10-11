@@ -4,7 +4,7 @@ import { appCall, builtinDoc, createDoc } from "./app";
 import { en } from "./en";
 import { APP_METHODS, factsReader, SOURCES } from "./facts";
 import { nextDoc, RESPONSE_METHODS, requestCall, requestIs, requestMembers, responseDoc } from "./http";
-import type { ExpressPhrases } from "./phrases";
+import type { ExpressPhrases as __PluginPhrases, ExpressPhrases } from "./phrases";
 import type { Ctx } from "./shared";
 
 export { en } from "./en";
@@ -94,3 +94,9 @@ export const express = (): TsPlugin<ExpressPhrases> => {
 		statements: [requireStatement, returnStatement],
 	});
 };
+
+declare module "@usenarrator/core" {
+	interface PluginPhrases {
+		express: __PluginPhrases;
+	}
+}

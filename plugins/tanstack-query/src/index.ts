@@ -3,7 +3,7 @@ import { type CallRule, definePlugin, type Engine, type StmtRule, type TsPlugin 
 import { CLIENT_METHODS, clientCall, newClientDoc, queriesText } from "./client";
 import { en } from "./en";
 import { type Facts, factsReader, importedAs, PACKAGES } from "./facts";
-import type { TanStackQueryPhrases } from "./phrases";
+import type { TanStackQueryPhrases as __PluginPhrases, TanStackQueryPhrases } from "./phrases";
 import { mutationDoc, type QueryKind, queriesDoc, queryDoc } from "./query";
 import { actionCall, destructureStatement } from "./results";
 import type { Ctx } from "./shared";
@@ -98,3 +98,9 @@ export const tanstackQuery = ({ version }: TanStackQueryOptions = {}): TsPlugin<
 };
 
 export type { Facts };
+
+declare module "@usenarrator/core" {
+	interface PluginPhrases {
+		"tanstack-query": __PluginPhrases;
+	}
+}
