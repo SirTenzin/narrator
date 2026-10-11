@@ -1,4 +1,4 @@
-import { D, type Doc, type Line } from "@usenarrator/core";
+import { D, type Doc, type Line, plain } from "@usenarrator/core";
 import { type Engine, type N, type StmtRule, unwrap } from "@usenarrator/lang-ts";
 import type { BullmqPhrases } from "./phrases";
 import { durationText } from "./time";
@@ -55,6 +55,13 @@ export const perMs = (c: Ctx, n: N) => durationText({ e: c.e, time: c.say.time }
 export const secs = (c: Ctx, n: N) => durationText({ e: c.e, time: c.say.time }, n, "s");
 
 export const details = (c: Ctx, items: string[]): string | null => (items.length ? c.say.details({ items }) : null);
+
+/** A title with its options: inline in parentheses when few and short, otherwise one bullet each (then any `kids`). */
+export function detailed(c: Ctx, items: Doc[], make: (details: string | null) => string, kids: Line[] = []): Doc {
+	const texts = items.map((i) => i.t);
+	if (items.every((i) => !i.kids.length) && items.length <= 3 && plain(texts.join(", ")).length < 100) return D(make(details(c, texts)), kids);
+	return D(make(null), [...items.flatMap((i) => c.e.bullet(i)), ...kids]);
+}
 
 /** An option the plugin doesn't interpret: "name: value", spreads as the engine renders them. */
 export const genericOption = (c: Ctx, p: N): string => {

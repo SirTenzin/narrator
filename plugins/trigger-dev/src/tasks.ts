@@ -62,7 +62,7 @@ function queueText(c: Ctx, n: N): string {
 	const o = objectArg(u);
 	if (o) {
 		const limit = propOf(o, "concurrencyLimit");
-		return say.config.inlineQueue({ name: e.text(propOf(o, "name")), limit: limit ? e.text(limit) : null });
+		return say.config.inlineQueue({ name: propOf(o, "name") ? e.text(propOf(o, "name")) : null, limit: limit ? e.text(limit) : null });
 	}
 	if (u?.type === "CallExpression" && importedAs(c, u.callee) === "queue") return queueText(c, u.arguments[0]);
 	if (str(u) !== null) return say.config.queue({ queue: e.text(u) });

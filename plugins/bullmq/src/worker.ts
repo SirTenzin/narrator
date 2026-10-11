@@ -5,7 +5,7 @@ import { queueDetails, queueRef } from "./queue";
 import {
 	type Ctx,
 	ctorKind,
-	details,
+	detailed,
 	fnLines,
 	genericOption,
 	isFn,
@@ -55,9 +55,7 @@ function workerDetails(c: Ctx, n: N | undefined): string[] {
 				return isTrue(v) ? [w.workerThreads] : [];
 			case "connection":
 			case "prefix":
-			case "removeOnComplete":
-			case "removeOnFail":
-				return queueDetails(c, { type: "ObjectExpression", properties: [p] });
+				return queueDetails(c, { type: "ObjectExpression", properties: [p] }).map((x) => x.t);
 			default:
 				return [genericOption(c, p)];
 		}
@@ -75,23 +73,23 @@ function isFilePath(n: N): boolean {
 }
 
 /** `new Worker(queue, processor, opts)`: what each job runs, and how many run at once. */
-export function workerParts(c: Ctx, node: N): { queue: string; processor: string | null; details: string | null; lines: Line[] } {
+export function workerParts(c: Ctx, node: N): { queue: string; processor: string | null; items: Doc[]; lines: Line[] } {
 	const [queue, processor, opts] = node.arguments;
 	const p = unwrap(processor);
 	const proc = !p ? null : isFn(p) ? null : isFilePath(p) ? c.say.worker.sandboxed({ file: c.e.text(p) }) : c.e.text(p);
-	return { queue: queueRef(c, queue), processor: proc, details: details(c, workerDetails(c, opts)), lines: p && isFn(p) ? fnLines(c.e, p) : [] };
+	return { queue: queueRef(c, queue), processor: proc, items: workerDetails(c, opts).map((t) => D(t)), lines: p && isFn(p) ? fnLines(c.e, p) : [] };
 }
 
 const newWorker: Rule = (c, { node, stmt }) => {
 	if (ctorKind(c, node) !== "workers") return null;
 	const w = workerParts(c, node);
-	if (stmt) return D(c.say.worker.create({ as: null, ...w }), w.lines);
-	return D(c.say.worker.noun(w), w.lines);
+	if (stmt) return detailed(c, w.items, (details) => c.say.worker.create({ as: null, ...w, details }), w.lines);
+	return detailed(c, w.items, (details) => c.say.worker.noun({ ...w, details }), w.lines);
 };
 
 const newQueue: Rule = (c, { node }) => {
 	if (ctorKind(c, node) !== "queues") return null;
-	return D(c.say.queue.noun({ name: c.e.text(node.arguments[0]), details: details(c, queueDetails(c, node.arguments[1])) }));
+	return detailed(c, queueDetails(c, node.arguments[1]), (details) => c.say.queue.noun({ name: c.e.text(node.arguments[0]), details }));
 };
 
 const newEvents: Rule = (c, { node }) => (ctorKind(c, node) === "events" ? D(c.say.events.listen({ queue: queueRef(c, node.arguments[0]), as: null })) : null);

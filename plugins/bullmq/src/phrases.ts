@@ -84,6 +84,8 @@ export type BullmqPhrases = {
 		connection: Phrase<"value">;
 		prefix: Phrase<"value">;
 		defaults: Phrase<"options">;
+		/** Heading for the default job options listed beneath. */
+		defaultsHead: string;
 		/** `queue.add("send", data, opts)`. */
 		add: (p: { job: string; queue: string; data: string | null }) => string;
 		addBulk: Phrase<"queue">;

@@ -101,7 +101,11 @@ const job = await queue.getJob(jobId);`);
 
 	test("queue defaults are creation details", () => {
 		expect(read(`${BULL}export const emailQueue = new Queue("emails", { connection, defaultJobOptions: { attempts: 3, removeOnComplete: 100 } });`)).toBe(
-			'Set up the job queue "emails" as email queue (connection: connection, every job by default: up to 3 attempts, keeping only the last 100 completed jobs).',
+			[
+				'Set up the job queue "emails" as email queue:',
+				"  • connection: connection",
+				"  • every job by default: up to 3 attempts, keeping only the last 100 completed jobs",
+			].join("\n"),
 		);
 	});
 });

@@ -1,4 +1,4 @@
-import { D, type Doc, type Line } from "@usenarrator/core";
+import { D, type Doc, type Line, plain } from "@usenarrator/core";
 import { type N, unwrap } from "@usenarrator/lang-ts";
 import type { KeyScope } from "./phrases";
 import { type Ctx, details, dur, fnLines, genericOption, importedAs, isFn, isTask, keyOf, objectArg, oneLine, propOf, type Rule, secs, str } from "./shared";
@@ -9,7 +9,7 @@ const time = (c: Ctx) => ({ e: c.e, time: c.say.time });
 
 /** Short option lists read inline; longer ones become bullets beneath. */
 function withOptions(c: Ctx, title: string, items: string[], kids: Line[] = [], inline = true): Doc {
-	if (inline && items.length && items.length <= 2 && items.join(", ").length < 90) return D(`${title} (${details(c, items)})`, kids);
+	if (inline && items.length && items.length <= 2 && plain(items.join(", ")).length < 90) return D(`${title} (${details(c, items)})`, kids);
 	return D(title, [...kids, ...items.flatMap((i) => c.e.bullet(D(i)))]);
 }
 
@@ -55,7 +55,7 @@ function triggerItems(c: Ctx, n: N | null): string[] {
 				const qo = objectArg(v);
 				if (!qo) return [say.config.queue({ queue: e.text(v) })];
 				const limit = propOf(qo, "concurrencyLimit");
-				return [say.config.inlineQueue({ name: e.text(propOf(qo, "name")), limit: limit ? e.text(limit) : null })];
+				return [say.config.inlineQueue({ name: propOf(qo, "name") ? e.text(propOf(qo, "name")) : null, limit: limit ? e.text(limit) : null })];
 			}
 			case "maxAttempts":
 				return [say.config.attempts({ n: e.text(v), count: e.fold(v) })];

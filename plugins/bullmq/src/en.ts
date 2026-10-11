@@ -91,6 +91,7 @@ export const en: BullmqPhrases = {
 		connection: ({ value }) => `connection: ${value}`,
 		prefix: ({ value }) => `key prefix ${value}`,
 		defaults: ({ options }) => `every job by default: ${options}`,
+		defaultsHead: "every job by default",
 		add: ({ job, queue, data }) => `add ${job} to ${queue}${data ? ` with ${data}` : ""}`,
 		addBulk: ({ queue }) => `add these jobs to ${queue}`,
 		job: ({ name }) => `${/^\W*[aeiou]/i.test(plain(name)) ? "an" : "a"} ${name} job`,

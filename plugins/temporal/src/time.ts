@@ -75,8 +75,8 @@ const OBJECT_UNITS: Record<string, TimeUnit> = {
 
 const keyOf = (p: N): string | null => (p.type === "Property" && !p.computed && p.key.type === "Identifier" ? p.key.name : null);
 
-/** A duration value: a number in `unit` (ms by default), a duration string, or a `{ seconds: 30 }` object. */
-export function durationText(c: Ctx, node: N, unit: "ms" | "s" = "ms", per = false): string {
+/** A duration value: a number in `unit` (ms by default), a duration string, or a `{ seconds: 30 }` object. `any` leaves computed values unlabelled. */
+export function durationText(c: Ctx, node: N, unit: "ms" | "s" | "any" = "ms", per = false): string {
 	const text = durationWords(c, node, unit);
 	if (!per) return text;
 	const u = unwrap(node);
@@ -85,7 +85,7 @@ export function durationText(c: Ctx, node: N, unit: "ms" | "s" = "ms", per = fal
 	return span?.length === 1 && span[0]!.n === 1 ? c.time.unit({ unit: span[0]!.unit }) : text;
 }
 
-function durationWords(c: Ctx, node: N, unit: "ms" | "s"): string {
+function durationWords(c: Ctx, node: N, unit: "ms" | "s" | "any"): string {
 	const { e, time } = c;
 	const u = unwrap(node);
 	if (u?.type === "Literal" && typeof u.value === "string") {
@@ -107,6 +107,7 @@ function durationWords(c: Ctx, node: N, unit: "ms" | "s"): string {
 		const ms = unit === "s" ? n * 1000 : n;
 		if (Number.isInteger(ms)) return spanText(c, msSpan(ms));
 	}
+	if (unit === "any") return e.text(node);
 	return (unit === "s" ? time.inSeconds : time.inMs)({ value: e.text(node) });
 }
 

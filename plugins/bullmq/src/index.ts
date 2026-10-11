@@ -4,7 +4,7 @@ import { en } from "./en";
 import { flowCalls } from "./flow";
 import type { BullmqPhrases } from "./phrases";
 import { queueCalls, queueDetails, queueRef } from "./queue";
-import { type Ctx, ctorKind, details, factsReader, framed, type Rule, type Site } from "./shared";
+import { type Ctx, ctorKind, detailed, factsReader, framed, type Rule, type Site } from "./shared";
 import { attemptsMade, workerCalls, workerParts } from "./worker";
 
 export { en } from "./en";
@@ -61,7 +61,11 @@ export const bullmq = (): TsPlugin<BullmqPhrases> => {
 			const c = ctx(e, say);
 			if (ctorKind(c, node.expression) !== "workers") return false;
 			const w = workerParts(c, unwrap(node.expression));
-			e.emitDoc(d, D(say.worker.create({ as: null, ...w }), w.lines), node);
+			e.emitDoc(
+				d,
+				detailed(c, w.items, (details) => say.worker.create({ as: null, ...w, details }), w.lines),
+				node,
+			);
 			return true;
 		}
 		if (node.type !== "VariableDeclaration" || node.declarations.length !== 1) return false;
@@ -74,10 +78,18 @@ export const bullmq = (): TsPlugin<BullmqPhrases> => {
 		const as = e.ref(v.id.name);
 		if (kind === "queues") {
 			const items = queueDetails(c, init.arguments[1]);
-			e.emitDoc(d, D(say.queue.create({ name: e.text(init.arguments[0]), as, details: details(c, items) })), node);
+			e.emitDoc(
+				d,
+				detailed(c, items, (details) => say.queue.create({ name: e.text(init.arguments[0]), as, details })),
+				node,
+			);
 		} else if (kind === "workers") {
 			const w = workerParts(c, init);
-			e.emitDoc(d, D(say.worker.create({ as, ...w }), w.lines), node);
+			e.emitDoc(
+				d,
+				detailed(c, w.items, (details) => say.worker.create({ as, ...w, details }), w.lines),
+				node,
+			);
 		} else if (kind === "events") {
 			e.emitDoc(d, D(say.events.listen({ queue: queueRef(c, init.arguments[0]), as })), node);
 		} else if (kind === "flows") e.emitDoc(d, D(say.flow.create({ as })), node);

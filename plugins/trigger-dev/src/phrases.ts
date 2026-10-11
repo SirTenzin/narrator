@@ -82,7 +82,8 @@ export type TriggerPhrases = {
 	};
 	config: {
 		queue: Phrase<"queue">;
-		inlineQueue: (p: { name: string; limit: string | null }) => string;
+		/** v3 `{ name, concurrencyLimit }` or v4 `{ concurrencyLimit }` with no name. */
+		inlineQueue: (p: { name: string | null; limit: string | null }) => string;
 		machine: Phrase<"machine">;
 		maxDuration: Phrase<"duration">;
 		ttl: Phrase<"duration">;

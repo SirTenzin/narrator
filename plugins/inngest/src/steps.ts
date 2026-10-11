@@ -48,7 +48,12 @@ function eventsDoc(c: Ctx, n: N): Doc {
 
 type StepRule = (c: Ctx, args: N[], as: string | null) => Doc | null;
 
-const id = (c: Ctx, n: N) => c.e.text(n);
+/** A step ID: a string, or `{ id, name }` where `name` is only a display label. */
+const id = (c: Ctx, n: N) => {
+	const o = objectArg(n);
+	const inner = o && propOf(o, "id");
+	return c.e.text(inner ?? n);
+};
 
 const run: StepRule = (c, [name, fn]) => {
 	if (!name || !fn) return null;

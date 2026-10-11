@@ -42,8 +42,9 @@ export const objectArg = (n: N): N | null => {
 
 export const propOf = (obj: N | null, key: string): N | null => obj?.properties.find((p: N) => keyOf(p) === key)?.value ?? null;
 
-export const dur = (c: Ctx, n: N) => durationText({ e: c.e, time: c.say.time }, n, "ms");
-export const perDur = (c: Ctx, n: N) => durationText({ e: c.e, time: c.say.time }, n, "ms", true);
+/** Inngest durations are usually `ms`-style strings; computed ones are shown as written. */
+export const dur = (c: Ctx, n: N) => durationText({ e: c.e, time: c.say.time }, n, "any");
+export const perDur = (c: Ctx, n: N) => durationText({ e: c.e, time: c.say.time }, n, "any", true);
 
 export const details = (c: Ctx, items: string[]): string | null => (items.length ? c.say.details({ items }) : null);
 

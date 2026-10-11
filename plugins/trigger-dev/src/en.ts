@@ -110,7 +110,7 @@ export const en: TriggerPhrases = {
 	},
 	config: {
 		queue: ({ queue }) => `on the queue ${queue}`,
-		inlineQueue: ({ name, limit }) => `on the queue ${name}${limit ? `, at most ${limit} at a time` : ""}`,
+		inlineQueue: ({ name, limit }) => (name ? `on the queue ${name}${limit ? `, at most ${limit} at a time` : ""}` : `at most ${limit} runs at a time`),
 		machine: ({ machine }) => `on a ${machine} machine`,
 		maxDuration: ({ duration }) => `stopped after ${duration}`,
 		ttl: ({ duration }) => `cancelled if not started within ${duration}`,
@@ -125,12 +125,12 @@ export const en: TriggerPhrases = {
 		noun: ({ name, limit }) => `the queue ${name}${limit ? ` (at most ${limit} at a time)` : ""}`,
 	},
 	trigger: {
-		start: ({ task, payload }) => `queue a run of ${task}${withPayload(payload)}, without waiting for it`,
+		start: ({ task, payload }) => `queue a background run of ${task}${withPayload(payload)}`,
 		startAndWait: ({ task, payload, unwrap }) =>
-			`start ${task}${withPayload(payload)} and wait for it to finish${unwrap ? ", taking its output (failing if the run failed)" : ""}`,
-		batch: ({ task, each }) => `queue runs${task ? ` of ${task}` : ""}${each ? ` for each item in ${each}` : ""}, without waiting for them`,
+			`start ${task} and wait for ${unwrap ? "its output (failing if the run failed)" : "it to finish"}${payload ? `, passing ${payload}` : ""}`,
+		batch: ({ task, each }) => `queue background runs${task ? ` of ${task}` : ""}${each ? ` for each item in ${each}` : ""}`,
 		batchAndWait: ({ task, each }) => `start${task ? ` ${task}` : " runs"}${each ? ` for each item in ${each}` : ""} and wait for every run to finish`,
-		startAndPoll: ({ task, payload }) => `start ${task}${withPayload(payload)} and poll until it finishes`,
+		startAndPoll: ({ task, payload }) => `start ${task} and poll until it finishes${payload ? `, passing ${payload}` : ""}`,
 		taskId: ({ id }) => `the task ${id}`,
 		payload: ({ payload, bare }) => (bare ? payload : `the payload ${payload}`),
 		item: ({ task, payload, details }) => `${task ? `${task}${payload ? ` with ${payload}` : ""}` : (payload ?? "")}${paren(details)}`,

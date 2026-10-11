@@ -1,7 +1,24 @@
-import { D, type Doc, type Line, mk } from "@usenarrator/core";
+import { D, type Doc, type Line, mk, plain } from "@usenarrator/core";
 import { type N, unwrap } from "@usenarrator/lang-ts";
 import type { JobState } from "./phrases";
-import { type Ctx, details, genericOption, isFalse, isFlow, isQueue, isTrue, keyOf, ms, objectArg, perMs, propOf, type Rule, secs, str } from "./shared";
+import {
+	type Ctx,
+	detailed,
+	details,
+	genericOption,
+	isFalse,
+	isFlow,
+	isQueue,
+	isTrue,
+	keyOf,
+	ms,
+	objectArg,
+	perMs,
+	propOf,
+	type Rule,
+	secs,
+	str,
+} from "./shared";
 import { cronText } from "./time";
 
 const time = (c: Ctx) => ({ e: c.e, time: c.say.time });
@@ -121,7 +138,7 @@ export function jobOptionItems(c: Ctx, n: N | null): string[] {
 
 /** Short option lists read inline; longer ones become bullets beneath. */
 export function withOptions(c: Ctx, title: string, items: string[], kids: Line[] = []): Doc {
-	const inline = items.length <= 2 && items.join(", ").length < 90;
+	const inline = items.length <= 2 && plain(items.join(", ")).length < 90;
 	if (inline && items.length) return D(`${title}, ${details(c, items)}`, kids);
 	return D(title, [...kids, ...items.flatMap((i) => c.e.bullet(D(i)))]);
 }
@@ -263,15 +280,20 @@ export function queueCalls(): Record<string, Rule> {
 }
 
 /** Queue construction details: connection, prefix, and the default options every job gets. */
-export function queueDetails(c: Ctx, n: N | undefined): string[] {
+export function queueDetails(c: Ctx, n: N | undefined): Doc[] {
 	const o = objectArg(n);
-	if (!o) return n ? [c.e.text(n)] : [];
-	return o.properties.flatMap((p: N): string[] => {
+	if (!o) return n ? [D(c.e.text(n))] : [];
+	return o.properties.map((p: N): Doc => {
 		const k = keyOf(p);
-		if (k === "connection") return [c.say.queue.connection({ value: p.shorthand ? c.e.ref(k) : c.e.text(p.value) })];
-		if (k === "prefix") return [c.say.queue.prefix({ value: c.e.text(p.value) })];
-		if (k === "defaultJobOptions") return [c.say.queue.defaults({ options: jobOptionItems(c, p.value).join(", ") })];
-		return [genericOption(c, p)];
+		if (k === "connection") return D(c.say.queue.connection({ value: p.shorthand ? c.e.ref(k) : c.e.text(p.value) }));
+		if (k === "prefix") return D(c.say.queue.prefix({ value: c.e.text(p.value) }));
+		if (k !== "defaultJobOptions") return D(genericOption(c, p));
+		const items = jobOptionItems(c, p.value);
+		if (items.length <= 2) return D(c.say.queue.defaults({ options: items.join(", ") }));
+		return D(
+			c.say.queue.defaultsHead,
+			items.flatMap((i) => c.e.bullet(D(i))),
+		);
 	});
 }
 

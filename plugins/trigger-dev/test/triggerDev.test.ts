@@ -102,7 +102,7 @@ describe("triggering", () => {
 			),
 		).toBe(
 			[
-				"Queue a run of email task with the payload to: user's email, without waiting for it, and call the result handle:",
+				"Queue a background run of email task with the payload to: user's email, and call the result handle:",
 				'  • at most once per idempotency key "welcome:{user\'s ID}" within 7 days',
 				"  • starting after 1 hour",
 				'  • tagged "user" and "welcome"',
@@ -112,11 +112,11 @@ describe("triggering", () => {
 
 	test("triggerAndWait and unwrap", () => {
 		expect(read(`${SDK}const result = await childTask.triggerAndWait(payload);`)).toBe(
-			"Start child task with payload and wait for it to finish, and call the result result.",
+			"Start child task and wait for it to finish, passing payload, and call the result result.",
 		);
 		expect(read(`${SDK}const output = await childTask.triggerAndWait({ id }, { concurrencyKey: orgId }).unwrap();`)).toBe(
 			[
-				"Start child task with the payload ID and wait for it to finish, taking its output (failing if the run failed), and call the result output:",
+				"Start child task and wait for its output (failing if the run failed), passing the payload ID, and call the result output:",
 				"  • with its queue's concurrency counted separately per org ID",
 			].join("\n"),
 		);
@@ -124,16 +124,16 @@ describe("triggering", () => {
 
 	test("tasks.trigger by ID, priority, and v3 on-demand queues", () => {
 		expect(read(`${SDK}await tasks.trigger<typeof helloWorld>("hello-world", { message: "hi" }, { priority: 300 });`)).toBe(
-			'Queue a run of the task "hello-world" with the payload message: "hi", without waiting for it (queued as if it arrived 5 minutes earlier).',
+			'Queue a background run of the task "hello-world" with the payload message: "hi" (queued as if it arrived 5 minutes earlier).',
 		);
 		expect(read(`${V3}await myTask.trigger(data, { queue: { name: "my-queue", concurrencyLimit: 10 } });`)).toBe(
-			'Queue a run of my task with the payload data, without waiting for it (on the queue "my-queue", at most 10 at a time).',
+			'Queue a background run of my task with the payload data (on the queue "my-queue", at most 10 at a time).',
 		);
 	});
 
 	test("batches list their items", () => {
 		expect(read(`${SDK}await childTask.batchTrigger([{ payload: { n: 1 } }, { payload: { n: 2 }, options: { delay: "5m" } }]);`)).toBe(
-			["Queue runs of child task, without waiting for them:", "  • the payload n: 1", "  • the payload n: 2 (starting after 5 minutes)"].join("\n"),
+			["Queue background runs of child task:", "  • the payload n: 1", "  • the payload n: 2 (starting after 5 minutes)"].join("\n"),
 		);
 		expect(
 			read(`${SDK}const results = await batch.triggerByTaskAndWait([{ task: childTask, payload: { foo: "x" } }, { task: otherTask, payload: { id: 1 } }]);`),
@@ -144,9 +144,7 @@ describe("triggering", () => {
 				"  • other task with the payload ID: 1",
 			].join("\n"),
 		);
-		expect(read(`${SDK}await sendWebhooksTask.batchTrigger(submissions);`)).toBe(
-			"Queue runs of send webhooks task for each item in submissions, without waiting for them.",
-		);
+		expect(read(`${SDK}await sendWebhooksTask.batchTrigger(submissions);`)).toBe("Queue background runs of send webhooks task for each item in submissions.");
 	});
 });
 
