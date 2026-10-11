@@ -135,6 +135,17 @@
         "@usenarrator/testkit": "workspace:*",
       },
     },
+    "plugins/arktype": {
+      "name": "@usenarrator/plugin-arktype",
+      "version": "0.0.0",
+      "dependencies": {
+        "@usenarrator/core": "workspace:*",
+        "@usenarrator/lang-ts": "workspace:*",
+      },
+      "devDependencies": {
+        "@usenarrator/testkit": "workspace:*",
+      },
+    },
     "plugins/better-auth": {
       "name": "@usenarrator/plugin-better-auth",
       "version": "0.0.0",
@@ -264,6 +275,17 @@
         "@usenarrator/testkit": "workspace:*",
       },
     },
+    "plugins/valibot": {
+      "name": "@usenarrator/plugin-valibot",
+      "version": "0.0.0",
+      "dependencies": {
+        "@usenarrator/core": "workspace:*",
+        "@usenarrator/lang-ts": "workspace:*",
+      },
+      "devDependencies": {
+        "@usenarrator/testkit": "workspace:*",
+      },
+    },
     "plugins/zod": {
       "name": "@usenarrator/plugin-zod",
       "version": "0.0.0",
@@ -363,6 +385,8 @@
 
     "@usenarrator/plugin-ai-sdk": ["@usenarrator/plugin-ai-sdk@workspace:plugins/ai-sdk"],
 
+    "@usenarrator/plugin-arktype": ["@usenarrator/plugin-arktype@workspace:plugins/arktype"],
+
     "@usenarrator/plugin-better-auth": ["@usenarrator/plugin-better-auth@workspace:plugins/better-auth"],
 
     "@usenarrator/plugin-decimal": ["@usenarrator/plugin-decimal@workspace:plugins/decimal"],
@@ -384,6 +408,8 @@
     "@usenarrator/plugin-stripe": ["@usenarrator/plugin-stripe@workspace:plugins/stripe"],
 
     "@usenarrator/plugin-testing": ["@usenarrator/plugin-testing@workspace:plugins/testing"],
+
+    "@usenarrator/plugin-valibot": ["@usenarrator/plugin-valibot@workspace:plugins/valibot"],
 
     "@usenarrator/plugin-zod": ["@usenarrator/plugin-zod@workspace:plugins/zod"],
 
