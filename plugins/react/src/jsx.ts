@@ -2,14 +2,14 @@ import { D, type Doc, type Line, mk } from "@usenarrator/core";
 import { type N, unwrap } from "@usenarrator/lang-ts";
 import { reactName } from "./facts";
 import type { DomEvent, InputType, Tag } from "./phrases";
-import { actionOf, bullets, type Ctx, fits, hasJsx, isFn, isJsxMap, isNullish, returnsOf, same, str } from "./shared";
+import { actionOf, bullets, type Ctx, fits, hasJsx, isFn, isJsxMap, isNullish, paramsOf, returnsOf, same, str } from "./shared";
 
 /** One piece of UI; `text` marks a quoted run of text so its parent can read `a heading "Users"`. */
 type Item = Doc & { text?: boolean };
 
 /** Styling and plumbing props that say nothing about what the user sees or does. */
 const SKIP =
-	/^(className|class|style|key|ref|id|tabIndex|role|asChild|htmlFor|data-.*|aria-.*|xmlns.*|viewBox|fill|stroke.*|d|width|height|sizes|loading|decoding|suppressHydrationWarning|dangerouslySetInnerHTML)$/;
+	/^(className|class|style|key|ref|id|tabIndex|role|asChild|htmlFor|data-.*|aria-.*|xmlns.*|viewBox|fill|stroke.*|d|width|height|sizes|loading|decoding|suppressHydrationWarning|dangerouslySetInnerHTML|as|(enter|leave)(From|To)?)$/;
 const FLAGS = /^(disabled|checked|hidden|required|readOnly|open|selected|autoFocus|multiple|defaultChecked|loading|isLoading|isDisabled|isOpen)$/;
 /** Wrappers that add nothing a reader needs when they carry no behaviour of their own. */
 const TRANSPARENT = new Set(["div", "span", "Fragment", "React.Fragment", "StrictMode", "React.StrictMode", "Profiler", "React.Profiler"]);
@@ -46,6 +46,7 @@ export function itemsOf(c: Ctx, node: N): Item[] {
 	if (n.type === "LogicalExpression" && n.operator === "&&" && hasJsx(n.right)) return [onlyIf(c, c.e.cond(n.left), n.right)];
 	if (n.type === "ConditionalExpression" && hasJsx(n)) return conditional(c, n);
 	if (isJsxMap(n)) return [eachDoc(c, n)];
+	if (isFn(n) && hasJsx(n)) return [renderFn(c, n)];
 	return [c.e.noun(n)];
 }
 
@@ -80,6 +81,20 @@ export function eachDoc(c: Ctx, call: N): Doc {
 	}
 	for (const r of returnsOf(fn)) c.facts.shows.add(r);
 	return D(say.ui.each({ item, collection: coll.t, ui: null }), [...coll.kids, ...e.body(fn.body, 0)]);
+}
+
+/** A render function passed as children: `{(field) => <Switch … />}`. */
+function renderFn(c: Ctx, fn: N): Doc {
+	const { e, say } = c;
+	const params = paramsOf(e, fn.params);
+	const body = e.lambdaExpr(fn);
+	if (body) {
+		const ui = uiDoc(c, body);
+		if (fits(ui)) return D(say.ui.renderProp({ params, ui: ui.t }));
+		return D(say.ui.renderProp({ params, ui: null }), ui.t === say.ui.group ? ui.kids : e.bullet(ui));
+	}
+	for (const r of returnsOf(fn)) c.facts.shows.add(r);
+	return D(say.ui.renderProp({ params, ui: null }), e.body(fn.body, 0));
 }
 
 /** The same as a value elsewhere: "an item showing … for each u in users". */
@@ -168,7 +183,7 @@ function elementOf(c: Ctx, n: N): Item[] | null {
 	const head = headOf(c, n, tag);
 	const details = detailsOf(c, n, head.consumed);
 	if (head.transparent && !details.items.length && !details.kids.length) return null;
-	const kids = childItems(c, n.children);
+	const kids = head.leaf ? [] : childItems(c, n.children);
 	if (head.wrap) {
 		const one = kids.length === 1 && fits(kids[0]!, 60) ? kids[0]! : null;
 		return [D(head.wrap(one ? one.t : say.ui.group), one ? details.kids : [...details.kids, ...bullets(e, kids)])];
@@ -183,7 +198,7 @@ function elementOf(c: Ctx, n: N): Item[] | null {
 }
 
 /** `wrap` elements read around their content: "Chart, showing Spinner while it loads". */
-type Head = { element: string; consumed: string[]; transparent?: boolean; wrap?: (ui: string) => string };
+type Head = { element: string; consumed: string[]; transparent?: boolean; leaf?: boolean; wrap?: (ui: string) => string };
 
 /** What an element is called: a host rule, React's own components, an HTML tag, or the component's name. */
 function headOf(c: Ctx, n: N, tag: string): Head {
@@ -195,7 +210,7 @@ function headOf(c: Ctx, n: N, tag: string): Head {
 	const react = reactName({ e, facts }, { type: "Identifier", name: tag.split(".")[0] }) ?? (tag.startsWith("React.") ? "React" : null);
 	if (base === "Suspense" && react) {
 		const fb = attr("fallback");
-		const fallback = fb ? uiDoc(c, fb).t : say.ui.showNothing;
+		const fallback = fb && !isNullish(fb) ? uiDoc(c, fb).t : e.say.expressions.nothing;
 		return { element: say.ui.group, consumed: ["fallback"], wrap: (ui) => say.ui.suspense({ fallback, ui }) };
 	}
 	if (TRANSPARENT.has(tag) || (TRANSPARENT.has(base) && react)) return { element: say.ui.container, consumed: [], transparent: true };
@@ -204,11 +219,26 @@ function headOf(c: Ctx, n: N, tag: string): Head {
 		const value = e.text(attr("value"));
 		return { element: say.ui.group, consumed: ["value"], wrap: (ui) => say.ui.provide({ value, context: mk("f", ctxName, ctxName), ui }) };
 	}
-	if (/^[a-z]/.test(tag)) return htmlHead(c, n, tag);
+	if (/^[a-z][\w-]*$/.test(tag) || tag.startsWith("motion.")) return htmlHead(c, n, tag);
 	return { element: mk("f", tag, tag), consumed: [] };
 }
 
-function htmlHead(c: Ctx, n: N, tag: string): Head {
+/** framer-motion's animation props; they describe motion, not content. */
+const MOTION = /^(initial|animate|exit|transition|variants|while[A-Z]\w*|layout|layoutId|custom|drag\w*|viewport)$/;
+
+function htmlHead(c: Ctx, n: N, tagName: string): Head {
+	const { e, say } = c;
+	const motion = tagName.startsWith("motion.");
+	const tag = motion ? tagName.slice(7) : tagName;
+	const head = htmlTag(c, n, tag);
+	if (!motion) return head;
+	const extra = attrsOf(n)
+		.map((a: N) => a.name?.name)
+		.filter((k: string) => k && MOTION.test(k));
+	return { ...head, consumed: [...head.consumed, ...extra] };
+}
+
+function htmlTag(c: Ctx, n: N, tag: string): Head {
 	const { e, say } = c;
 	const attr = (name: string) => attrOf(n, name);
 	if (tag === "a" && attr("href")) return { element: say.ui.linkTo({ href: hrefText(c, attr("href")) }), consumed: ["href", "target", "rel"] };
@@ -218,8 +248,10 @@ function htmlHead(c: Ctx, n: N, tag: string): Head {
 		return { element: (t && say.ui.input[t]) || say.ui.tags.input, consumed: ["type"] };
 	}
 	if (tag === "button" && str(attr("type")) === "submit") return { element: say.ui.input.submit, consumed: ["type"] };
-	if (tag === "form" && attr("action") && !str(attr("action"))) return { element: say.ui.formAction({ action: e.text(attr("action")) }), consumed: ["action"] };
+	if (tag === "form" && attr("action") && !str(attr("action")) && !isFn(attr("action")))
+		return { element: say.ui.formAction({ action: e.text(attr("action")) }), consumed: ["action"] };
 	if (tag === "div" || tag === "span") return { element: say.ui.container, consumed: [], transparent: true };
+	if (tag === "svg") return { element: say.ui.tags.svg, consumed: attrsOf(n).map((a: N) => a.name?.name), leaf: true };
 	if (tag === "html" || tag === "body") return { element: say.ui.container, consumed: attrsOf(n).map((a: N) => a.name?.name), transparent: true };
 	return { element: say.ui.tags[tag as Tag] ?? mk("c", `<${tag}>`), consumed: [] };
 }
@@ -248,7 +280,7 @@ function detailsOf(c: Ctx, n: N, consumed: string[]): { items: string[]; kids: L
 			continue;
 		}
 		const v = a.value.type === "JSXExpressionContainer" ? unwrap(a.value.expression) : a.value;
-		if (/^on[A-Z]/.test(key)) {
+		if (/^on[A-Z]/.test(key) || ((key === "action" || key === "formAction") && isFn(v))) {
 			const h = handlerOf(c, key, v);
 			if (h.kids.length) kids.push(...e.bullet(h));
 			else items.push(h.t);
@@ -265,23 +297,24 @@ function valueOf(c: Ctx, key: string, v: N): Doc {
 	const { e, say } = c;
 	const name = e.prop(key);
 	if (v.type === "Literal" && typeof v.value === "boolean") return D(v.value ? name : say.ui.labeled({ name, value: e.text(v) }));
+	if (v.type === "Identifier" && same(e, e.ref(v.name), key)) return D(name);
 	if (FLAGS.test(key) && !hasJsx(v)) {
 		const cond = e.cond(v);
 		return D(say.ui.flagWhen({ flag: name, condition: cond.t }), cond.kids);
 	}
-	if (hasJsx(v) && !isFn(v)) {
-		const ui = uiDoc(c, v);
-		return D(say.ui.labeled({ name, value: ui.t }), ui.kids);
+	const fn = isFn(v) ? unwrap(v) : null;
+	const body = fn ? e.lambdaExpr(fn) : v;
+	if (body && hasJsx(body)) {
+		const ui = uiDoc(c, body);
+		return ui.t === say.ui.group ? D(name, ui.kids) : D(say.ui.labeled({ name, value: ui.t }), ui.kids);
 	}
-	if (isFn(v) && hasJsx(v)) {
-		const fn = unwrap(v);
-		const body = fn.body.type === "BlockStatement" ? null : fn.body;
-		if (body) {
-			const ui = uiDoc(c, body);
-			return D(say.ui.labeled({ name, value: ui.t }), ui.kids);
-		}
+	if (fn && hasJsx(fn)) {
 		for (const r of returnsOf(fn)) c.facts.shows.add(r);
 		return D(name, e.body(fn.body, 0));
+	}
+	if (fn && body) {
+		const d = e.looksBoolean(body) ? e.cond(body) : e.noun(body);
+		return D(say.ui.labeled({ name, value: d.t }), d.kids);
 	}
 	const d = e.noun(v);
 	if (same(e, d.t, key)) return d;
@@ -291,7 +324,8 @@ function valueOf(c: Ctx, key: string, v: N): Doc {
 /** `onClick={() => setOpen(true)}` -> "when clicked, set open to true". */
 function handlerOf(c: Ctx, key: string, v: N): Doc {
 	const { e, say } = c;
-	const when = say.ui.events[key as DomEvent] ?? say.ui.customEvent({ name: e.lex.humanize(key.slice(2)) });
+	const event = key === "action" || key === "formAction" ? "onSubmit" : key;
+	const when = say.ui.events[event as DomEvent] ?? say.ui.customEvent({ name: e.lex.humanize(key.slice(2)) });
 	if (isFn(v)) {
 		const a = actionOf(e, v);
 		return a.kids.length ? D(say.ui.handler({ when, action: null }), a.kids) : D(say.ui.handler({ when, action: a.t }));

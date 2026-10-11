@@ -69,7 +69,8 @@ export const en: NextPhrases = {
 		viewport: ({ items }) => `set the viewport: ${items}`,
 		metadataList: "set the page metadata",
 		viewportList: "set the viewport",
-		labeled: ({ name, value }) => `${name} ${value}`,
+		labeledText: ({ name, value }) => `${name} ${value}`,
+		labeled: ({ name, value }) => `${name}: ${value}`,
 		fields: {
 			title: "title",
 			description: "description",
@@ -161,6 +162,7 @@ export const en: NextPhrases = {
 			"307": "Temporary Redirect",
 			"308": "Permanent Redirect",
 			"400": "Bad Request",
+			"402": "Payment Required",
 			"401": "Unauthorized",
 			"403": "Forbidden",
 			"404": "Not Found",

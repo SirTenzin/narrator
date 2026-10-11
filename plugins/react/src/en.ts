@@ -94,6 +94,8 @@ export const en: ReactPhrases = {
 			details: "a collapsible section",
 			dialog: "a dialog",
 			em: "emphasized text",
+			figure: "a figure",
+			figcaption: "a caption",
 			fieldset: "a group of fields",
 			footer: "a footer",
 			form: "a form",
@@ -160,6 +162,7 @@ export const en: ReactPhrases = {
 		onlyIf: ({ condition, ui }) => (ui ? `if ${condition}, ${ui}` : `if ${condition}`),
 		either: ({ condition, yes, no }) => `${yes} if ${condition}, otherwise ${no}`,
 		each: ({ item, collection, ui }) => (ui ? `for each ${item} in ${collection}, ${ui}` : `for each ${item} in ${collection}`),
+		renderProp: ({ params, ui }) => (params ? `given ${params}, ${ui ?? "show"}` : (ui ?? "show")),
 		eachOf: ({ item, collection, ui }) => `${ui} for each ${item} in ${collection}`,
 		events: {
 			onClick: "when clicked",

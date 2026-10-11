@@ -25,6 +25,18 @@ export function hookDecl(c: Ctx, node: N, d: number): boolean {
 	const decl = node.declarations[0];
 	const init = unwrap(decl.init);
 	if (!init) return false;
+	if (isFn(init) && init.body.type !== "BlockStatement" && decl.id.type === "Identifier" && c.facts.active) {
+		const body = unwrap(init.body);
+		if (body?.type !== "CallExpression" || !updateDoc(c, body)) return false;
+		const block = {
+			type: "BlockStatement",
+			body: [{ type: "ExpressionStatement", expression: init.body, start: init.body.start, end: init.body.end }],
+			start: init.body.start,
+			end: init.body.end,
+		};
+		c.e.fnDecl(decl.id.name, { ...init, body: block }, node, d);
+		return true;
+	}
 	if (init.type !== "CallExpression") return jsxDecl(c, decl, init, node, d);
 	const hook = hookOf(c, init);
 	const doc = hook ? builtinDecl(c, hook, decl, init, node, d) : customDecl(c, decl, init);
@@ -146,7 +158,7 @@ function customDecl(c: Ctx, decl: N, call: N): Doc | null {
 	if (!names.length) return null;
 	const args = e.argList(call.arguments);
 	const text = say.hooks.custom({ hook: nameRef(hook), args: args.kids.length || !args.t ? null : e.argItems(call.arguments).joined });
-	return D(say.hooks.customGet({ names: e.g.list(names), hook: text }), args.kids.length ? [...e.bullet(D(args.t.replace(/:$/, ""), args.kids))] : []);
+	return D(say.hooks.customGet({ names: e.g.list(names), hook: text }), args.kids);
 }
 
 /** Effects, imperative handles, setters, dispatches and transitions used as statements. */

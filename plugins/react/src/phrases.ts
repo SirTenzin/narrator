@@ -17,6 +17,8 @@ export type Tag =
 	| "details"
 	| "dialog"
 	| "em"
+	| "figure"
+	| "figcaption"
 	| "fieldset"
 	| "footer"
 	| "form"
@@ -197,6 +199,8 @@ export type ReactPhrases = {
 		onlyIf: (p: { condition: string; ui: string | null }) => string;
 		either: (p: { condition: string; yes: string; no: string }) => string;
 		each: (p: { item: string; collection: string; ui: string | null }) => string;
+		/** A function that renders UI from what it is given (render props, children as a function). */
+		renderProp: (p: { params: string | null; ui: string | null }) => string;
 		eachOf: (p: { item: string; collection: string; ui: string }) => string;
 		events: Record<DomEvent, string>;
 		customEvent: Phrase<"name">;

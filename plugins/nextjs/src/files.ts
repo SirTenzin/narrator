@@ -1,6 +1,6 @@
 import { capFirst, D, mk } from "@usenarrator/core";
 import { type N, unwrap } from "@usenarrator/lang-ts";
-import { isHandlerName } from "./facts";
+import { isHandlerName, nextName } from "./facts";
 import type { DynamicMode, FileKind, MatchType } from "./phrases";
 import { isResponseClass, urlText } from "./server";
 import { type Ctx, codeText, isFn, keyOf, num, objectArg, propOf, secondsText, str } from "./shared";
@@ -157,7 +157,13 @@ export const middleware: Stmt = (c, node, d) => {
 	let fn: N = null;
 	let name: string | null = null;
 	if (node.type === "ExportDefaultDeclaration") [fn, name] = [unwrap(node.declaration), node.declaration.id?.name ?? null];
-	else {
+	if (fn?.type === "CallExpression" && node.type === "ExportDefaultDeclaration") {
+		const kind = middlewareKind(c, null);
+		if (!kind) return false;
+		c.e.emitHead(d, capFirst(c.say.middleware.head({ kind })), kind, node);
+		c.e.emitDoc(d + 1, c.e.call(fn, true), fn);
+		return true;
+	} else {
 		const h = handlerOf(node);
 		if (h) [fn, name] = [h.fn, h.name];
 	}
@@ -273,7 +279,8 @@ function configText(c: Ctx, name: string, init: N) {
 			const items = init.properties.map((p: N) => {
 				const k = keyOf(p);
 				const label = (k && cfg.fields[k]) || (k ? e.prop(k) : e.text(p.key));
-				return D(cfg.labeled({ name: label, value: e.text(p.value) }));
+				const value = e.text(p.value);
+				return D(str(p.value) !== null ? cfg.labeledText({ name: label, value }) : cfg.labeled({ name: label, value }));
 			});
 			const phrase = name === "metadata" ? cfg.metadata : cfg.viewport;
 			const joined = e.g.list(items.map((i: { t: string }) => i.t));
@@ -313,12 +320,19 @@ export const generator: Stmt = (c, node, d) => {
 	return true;
 };
 
+/** Calls that end the request themselves, so `return redirect(…)` reads as the redirect. */
+const TERMINAL = ["redirect", "permanentRedirect", "notFound", "forbidden", "unauthorized"];
+
 /** `return NextResponse.json(…)` -> "Reply with …"; `return NextResponse.next()` -> "Let the request continue." */
 export const replyStatement: Stmt = (c, node, d) => {
 	if (node.type !== "ReturnStatement" || !node.argument || !c.facts.active) return false;
 	const arg = unwrap(node.argument);
 	const { e, say } = c;
 	const callee = unwrap(arg.callee);
+	if (arg.type === "CallExpression" && TERMINAL.includes(nextName({ e, facts: c.facts }, callee) ?? "")) {
+		e.emitDoc(d, e.call(arg, true), node);
+		return true;
+	}
 	const isNR = (x: N) => isResponseClass(c, x);
 	if (arg.type === "NewExpression" && isNR(callee)) {
 		const r = e.noun(arg);

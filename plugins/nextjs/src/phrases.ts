@@ -66,6 +66,8 @@ export type NextPhrases = {
 		viewport: Phrase<"items">;
 		metadataList: string;
 		viewportList: string;
+		/** A metadata field with a text value: `title "Acme"`. */
+		labeledText: (p: { name: string; value: string }) => string;
 		labeled: (p: { name: string; value: string }) => string;
 		/** Metadata fields with a reading of their own. */
 		fields: Record<string, string>;
