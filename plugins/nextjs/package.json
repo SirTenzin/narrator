@@ -1,0 +1,19 @@
+{
+	"name": "@usenarrator/plugin-nextjs",
+	"version": "0.0.0",
+	"private": true,
+	"description": "TS plugin: Next.js (App Router files by path, route handlers, middleware/proxy, server actions and caching, request APIs, navigation). Bundles plugin-react.",
+	"type": "module",
+	"sideEffects": false,
+	"exports": {
+		".": "./src/index.ts"
+	},
+	"dependencies": {
+		"@usenarrator/core": "workspace:*",
+		"@usenarrator/lang-ts": "workspace:*",
+		"@usenarrator/plugin-react": "workspace:*"
+	},
+	"devDependencies": {
+		"@usenarrator/testkit": "workspace:*"
+	}
+}
