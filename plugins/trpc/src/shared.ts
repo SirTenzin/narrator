@@ -99,7 +99,7 @@ export const isClientRoot = (f: Facts, n: N) => {
 export const isUtilsRoot = (f: Facts, n: N) => {
 	const u = unwrap(n);
 	if (!f.active) return false;
-	if (u?.type === "Identifier") return f.utils.has(u.name);
+	if (u?.type === "Identifier") return f.utils.has(u.name) || u.name === "utils";
 	return u?.type === "CallExpression" && isUtilsCall(f, u);
 };
 
