@@ -105,6 +105,7 @@ export const en: ReactPhrases = {
 			h4: "a heading",
 			h5: "a heading",
 			h6: "a heading",
+			head: "the page head",
 			header: "a header",
 			hr: "a divider",
 			i: "italic text",
