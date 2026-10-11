@@ -245,25 +245,30 @@
     },
     "plugins/nextjs": {
       "name": "@usenarrator/plugin-nextjs",
-      "version": "0.0.0",
-      "dependencies": {
-        "@usenarrator/core": "workspace:*",
-        "@usenarrator/lang-ts": "workspace:*",
-        "@usenarrator/plugin-react": "workspace:*",
-      },
+      "version": "0.1.0",
       "devDependencies": {
-        "@usenarrator/testkit": "workspace:*",
+        "@usenarrator/core": "workspace:^",
+        "@usenarrator/lang-ts": "workspace:^",
+        "@usenarrator/plugin-react": "workspace:^",
+        "@usenarrator/testkit": "workspace:^",
+      },
+      "peerDependencies": {
+        "@usenarrator/core": "workspace:^",
+        "@usenarrator/lang-ts": "workspace:^",
+        "@usenarrator/plugin-react": "workspace:^",
       },
     },
     "plugins/react": {
       "name": "@usenarrator/plugin-react",
-      "version": "0.0.0",
-      "dependencies": {
-        "@usenarrator/core": "workspace:*",
-        "@usenarrator/lang-ts": "workspace:*",
-      },
+      "version": "0.1.0",
       "devDependencies": {
-        "@usenarrator/testkit": "workspace:*",
+        "@usenarrator/core": "workspace:^",
+        "@usenarrator/lang-ts": "workspace:^",
+        "@usenarrator/testkit": "workspace:^",
+      },
+      "peerDependencies": {
+        "@usenarrator/core": "workspace:^",
+        "@usenarrator/lang-ts": "workspace:^",
       },
     },
     "plugins/sql": {
