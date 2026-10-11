@@ -59,9 +59,11 @@ export function optionDoc(c: Ctx, key: string, v: N, kind: "query" | "mutation")
 		}
 		case "staleTime":
 			if (str(v) === "static") return D(o.static);
+			if (e.fold(v) === 0) return D(o.alwaysStale);
 			return ms(o.freshFor, o.neverStale);
 		case "gcTime":
 		case "cacheTime":
+			if (e.fold(v) === 0) return D(o.droppedWhenUnused);
 			return ms(o.keptFor, o.keptForever);
 		case "refetchInterval":
 			if (bool(v) === false) return null;

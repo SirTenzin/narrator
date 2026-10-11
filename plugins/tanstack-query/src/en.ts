@@ -26,6 +26,8 @@ export const en: TanStackQueryPhrases = {
 		freshFor: ({ duration }) => `fresh for ${duration}`,
 		neverStale: "never stale",
 		static: "never stale, even when invalidated",
+		alwaysStale: "stale as soon as it arrives",
+		droppedWhenUnused: "dropped from the cache as soon as it is unused",
 		keptFor: ({ duration }) => `kept in the cache for ${duration} once unused`,
 		keptForever: "kept in the cache forever",
 		pollEvery: ({ duration }) => `refetched every ${duration}`,

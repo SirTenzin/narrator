@@ -105,6 +105,10 @@ export type TanStackQueryPhrases = {
 		freshFor: Phrase<"duration">;
 		/** `staleTime: Infinity`. */
 		neverStale: string;
+		/** `staleTime: 0`, the default: stale as soon as it arrives. */
+		alwaysStale: string;
+		/** `gcTime: 0`. */
+		droppedWhenUnused: string;
 		/** `staleTime: "static"` (v5.80+): never refetched, even on invalidation. */
 		static: string;
 		/** `gcTime` / v4 `cacheTime`. */
