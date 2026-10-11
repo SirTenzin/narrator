@@ -137,7 +137,7 @@ function callbackDecl(c: Ctx, hook: string, decl: N, call: N, node: N, d: number
 /** `const { data } = useCusQuery()` -> "Get data from useCusQuery." */
 function customDecl(c: Ctx, decl: N, call: N): Doc | null {
 	const hook = customHook(scope(c), call);
-	if (!hook) return null;
+	if (!hook || c.e.applyRulesQuiet(call)) return null;
 	const { e, say } = c;
 	const names = e.patternNames(decl.id);
 	if (!names.length) return null;
@@ -178,7 +178,7 @@ export function hookStatement(c: Ctx, node: N, d: number): boolean {
 		return true;
 	}
 	const custom = customHook(scope(c), call);
-	if (custom) {
+	if (custom && !e.applyRulesQuiet(call)) {
 		const args = e.argList(call.arguments);
 		const text = say.hooks.custom({ hook: nameRef(custom), args: args.kids.length || !args.t ? null : e.argItems(call.arguments).joined });
 		e.emitDoc(d, D(say.hooks.customRun({ hook: text }), args.kids.length ? args.kids : []), node);
