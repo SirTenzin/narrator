@@ -29,12 +29,12 @@ export async function findActiveUsers(orgId: string) {
 
 ```text English
 To find active users (async), given org ID:
-  Give back look up rows from users:
+  Give back the rows of users:
     • where all of these are true:
       • users' org ID is org ID
       • users' deleted at is empty
     • sorted by users' created at (newest first)
-    • at most 50 row(s)
+    • at most 50 rows
 ```
 
 {/* narrate plugins="drizzle" */}
@@ -46,7 +46,7 @@ const matches = await db
 ```
 
 ```text English
-Let matches be look up rows from posts:
+Let matches be the rows of posts:
   • where any of these is true:
     • posts' title contains term (ignoring case)
     • posts' views is between 100 and 1000
@@ -84,9 +84,9 @@ Let recent be the rows of posts:
   • where posts' published is true
   • including author
   • including comments:
-    • at most 3 row(s)
+    • at most 3 rows
   • sorted by posts' created at (newest first)
-  • at most 10 row(s)
+  • at most 10 rows
 ```
 
 ## Transactions

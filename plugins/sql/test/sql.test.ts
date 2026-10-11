@@ -469,4 +469,14 @@ describe("driver result shapes", () => {
 			lines("Let users be the rows of users:", "  • where org_id is org ID", "  • SQL: select * from users where org_id = $1"),
 		);
 	});
+
+	test("destructuring rows from a query reads as the rows", () => {
+		expect(say('const { rows } = await pool.query("select balance from accounts where id = $1", [id]);')).toBe(
+			lines("Let rows be the balance from accounts:", "  • where id is ID", "  • SQL: select balance from accounts where id = $1"),
+		);
+	});
+
+	test("a select without FROM names its aliases", () => {
+		expect(say("const v = await sql`select now() as at`;")).toContain("Let v be the current time (as at)");
+	});
 });

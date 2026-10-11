@@ -1,5 +1,5 @@
 import { D, type Doc } from "@usenarrator/core";
-import { type CallRule, definePlugin, type Engine, type MemberRule, type N, type StmtRule, type TsPlugin, unwrap } from "@usenarrator/lang-ts";
+import { type CallRule, definePlugin, type Engine, type N, type StmtRule, type TsPlugin, unwrap } from "@usenarrator/lang-ts";
 import { narrateSql, registerParser, type SqlMode } from "./describe";
 import { en } from "./en";
 import { memoized, type ParserSource, resolveParser, type SqlParser } from "./parser";
@@ -46,6 +46,15 @@ function tagKind(tag: N): "sql" | "prisma" | "slonik" | null {
 	if (prop === "sql") return "sql";
 	if ((prop === "unsafe" || prop === "fragment") && obj.type === "Identifier" && obj.name === "sql") return "slonik";
 	return null;
+}
+
+/** `(await pool.query(sql)).rows` / `(await db.execute(sql\`...\`)).rows`: the rows the query reads are the query's value. */
+function queryRows(e: Engine, obj: N): Doc | null {
+	const o = unwrap(obj);
+	const call = unwrap(o?.type === "AwaitExpression" ? o.argument : o);
+	const callee = call?.type === "CallExpression" ? unwrap(call.callee) : null;
+	if (callee?.type !== "MemberExpression" || !["query", "execute"].includes(callee.property?.name) || !isDb(e, callee.object)) return null;
+	return e.applyRulesQuiet(call) ? e.noun(call) : null;
 }
 
 const isSqlTag = (n: N) => unwrap(n)?.type === "TaggedTemplateExpression" && tagKind(unwrap(n).tag) !== null;
@@ -177,6 +186,18 @@ export const sql = ({ parser }: SqlOptions = {}): TsPlugin<P> => {
 		return text ? narrate({ e, say, text, mode: "prepared" }) : null;
 	};
 
+	/** `const { rows } = await pool.query(...)` reads as "Let rows be <the query>", like `.rows` does. */
+	const rowsDestructure = ({ node, e, d }: { node: N; e: Engine; d: number }): boolean => {
+		const only = node.declarations.length === 1 ? node.declarations[0] : null;
+		const props = only?.id.type === "ObjectPattern" ? only.id.properties : [];
+		const p = props.length === 1 && props[0].type === "Property" && !props[0].computed ? props[0] : null;
+		if (!p || (p.key.name ?? p.key.value) !== "rows" || p.value.type !== "Identifier") return false;
+		const doc = queryRows(e, only.init);
+		if (!doc) return false;
+		e.emitDoc(d, { t: e.say.declarations.let({ name: e.ref(p.value.name), value: doc.t }), kids: doc.kids }, node);
+		return true;
+	};
+
 	/** Remembers SQL constants and prepared statements; narrates `const Q = "select ..."` itself. Bare `await sql\`...\`` reads as an action. */
 	const statements: StmtRule<P> = ({ node, e, d, say }) => {
 		if (node.type === "ExpressionStatement") {
@@ -188,6 +209,7 @@ export const sql = ({ parser }: SqlOptions = {}): TsPlugin<P> => {
 			return true;
 		}
 		if (node.type !== "VariableDeclaration") return false;
+		if (rowsDestructure({ node, e, d })) return true;
 		for (const v of node.declarations) {
 			if (v.id.type !== "Identifier" || !v.init) continue;
 			const init = unwrap(v.init);
@@ -206,15 +228,6 @@ export const sql = ({ parser }: SqlOptions = {}): TsPlugin<P> => {
 		return true;
 	};
 
-	/** `(await pool.query(sql)).rows` / `(await db.execute(sql\`...\`)).rows`: the rows the query reads are the query's value. */
-	const rowsOf: MemberRule<P> = ({ obj, e }) => {
-		const o = unwrap(obj);
-		const call = unwrap(o?.type === "AwaitExpression" ? o.argument : o);
-		const callee = call?.type === "CallExpression" ? unwrap(call.callee) : null;
-		if (callee?.type !== "MemberExpression" || !["query", "execute"].includes(callee.property?.name) || !isDb(e, callee.object)) return null;
-		return e.applyRulesQuiet(call) ? e.noun(call) : null;
-	};
-
 	const plugin = definePlugin({
 		name: "sql",
 		phrases: { en },
@@ -230,7 +243,7 @@ export const sql = ({ parser }: SqlOptions = {}): TsPlugin<P> => {
 			...Object.fromEntries(RUN_METHODS.map((m) => [`*.${m}`, runRule])),
 			"*.bind": bindRule,
 		},
-		members: { "*.rows": rowsOf },
+		members: { "*.rows": ({ obj, e }) => queryRows(e, obj) },
 		statements: [statements],
 	});
 	registerParser(plugin, currentParser);

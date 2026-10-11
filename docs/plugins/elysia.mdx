@@ -14,7 +14,7 @@ typescript({ parser: oxcParser, plugins: [elysia()] });
 // or pin a major version: elysia({ version: 1 }) or elysia({ version: 2 })
 ```
 
-The plugin declares `library: { name: "elysia", versions: ">=1.0.0 <2.0.0 || >=2.0.0-0 <3.0.0" }`. It only narrates files that import from `elysia`, and only treats `t.*` as TypeBox when `t` comes from Elysia or `@sinclair/typebox`.
+The plugin declares `library: { name: "elysia", versions: ">=1.0.0 <2.0.0 || >=2.0.0-0 <3.0.0" }`. It only narrates files that import from `elysia` or belong to a package that depends on it (when the host passes `dependencies` to `typescript()`), picks the 1.x or 2.x reading from that dependency's version, and only treats `t.*` as TypeBox when `t` comes from Elysia or `@sinclair/typebox`.
 
 ## Examples
 

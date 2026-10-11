@@ -17,6 +17,11 @@ typescript({ parser: oxcParser, plugins: [betterAuth()] });
 
 {/* narrate plugins="better-auth" path="auth.ts" */}
 ```ts Server configuration
+import { betterAuth } from "better-auth";
+import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { organization, twoFactor } from "better-auth/plugins";
+import { passkey } from "@better-auth/passkey";
+
 export const auth = betterAuth({
   appName: "Acme",
   database: drizzleAdapter(db, { provider: "pg" }),
@@ -52,6 +57,9 @@ Set up authentication as auth, with:
 
 {/* narrate plugins="better-auth" path="auth-client.ts" */}
 ```ts Client setup
+import { createAuthClient } from "better-auth/react";
+import { organizationClient } from "better-auth/client/plugins";
+
 export const authClient = createAuthClient({
   baseURL: "https://app.acme.com",
   plugins: [organizationClient()],
