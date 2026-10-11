@@ -21,7 +21,6 @@
 	"devDependencies": {
 		"@arethetypeswrong/cli": "^0.18.5",
 		"@biomejs/biome": "2",
-		"@oxc-parser/binding-wasm32-wasip1": "0.153.0",
 		"@types/bun": "latest",
 		"@types/chrome": "^0.3.4",
 		"oxc-parser": "^0.153.0",

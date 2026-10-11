@@ -167,7 +167,7 @@ Narration never stops for one bad file. `narrate` returns a `problems` list next
 | A plugin | `@usenarrator/plugin-<name>`. Every plugin has `@usenarrator/core` and `@usenarrator/lang-ts` as peer dependencies, so all plugins share one copy of each. npm and pnpm install peers for you; with Yarn, add them yourself. |
 | Drizzle or Next.js | `@usenarrator/plugin-drizzle` brings `@usenarrator/plugin-sql`, and `@usenarrator/plugin-nextjs` brings `@usenarrator/plugin-react`, as ordinary dependencies. You don't install them separately. |
 | SQL strings | `@usenarrator/plugin-sql`, plus `pgsql-ast-parser` if you use the `@usenarrator/plugin-sql/pgsql` parser. |
-| A browser or edge runtime | `@usenarrator/core`, `@usenarrator/lang-ts`, `@usenarrator/locale-en` and the WASM parser. See [Embedding in your app](/guides/embedding). |
+| A browser or edge runtime | `@usenarrator/core`, `@usenarrator/lang-ts` and `@usenarrator/locale-en`. The WASM parser ships inside `@usenarrator/lang-ts`. See [Embedding in your app](/guides/embedding). |
 
 ## What to read next
 

@@ -10,7 +10,7 @@ The core package has no runtime dependencies, and the engine is plain TypeScript
 | Node, Bun, Deno, CI, a CLI | Native oxc binding | `oxcParser` from `@usenarrator/lang-ts/oxc` |
 | Browsers, Web Workers, extension service workers, Cloudflare Workers and other edge runtimes | oxc compiled to WASM | `createWasmParser` from `@usenarrator/lang-ts/wasm` |
 
-The WASM parser comes from `@oxc-parser/binding-wasm32-wasip1`, which oxc publishes alongside every release of the native `oxc-parser`. Install the same version of both and they produce the same tree, so the English is identical. We check this on every change by parsing and narrating 15,820 real files with both parsers and comparing the trees and the output byte for byte. This script does the same for one snippet:
+The WASM parser is oxc's own WebAssembly build, `@oxc-parser/binding-wasm32-wasip1`, which oxc publishes alongside every release of the native `oxc-parser`. `@usenarrator/lang-ts` ships it inside the package, together with the runtime it needs, so there is nothing extra to install. With the matching version of `oxc-parser` on the server, both parsers produce the same tree, so the English is identical. We check this on every change by parsing and narrating 15,820 real files with both parsers and comparing the trees and the output byte for byte. This script does the same for one snippet:
 
 {/* run file="examples/wasm-parity.ts" */}
 ```ts wasm-parity.ts
@@ -93,10 +93,10 @@ A narrator is cheap to create and safe to reuse. It creates a fresh file narrato
 
 ## In a browser, a worker or at the edge
 
-Install the WASM build of the parser next to the Narrator packages:
+Install the Narrator packages. The WASM parser is part of `@usenarrator/lang-ts`, so you don't need anything else:
 
 ```sh
-npm install @usenarrator/core @usenarrator/lang-ts @usenarrator/locale-en @oxc-parser/binding-wasm32-wasip1
+npm install @usenarrator/core @usenarrator/lang-ts @usenarrator/locale-en
 ```
 
 Then load it once with `createWasmParser`. It returns a promise for an ordinary parser, so after that first `await` every call to `narrate` is synchronous, exactly like on a server.
@@ -107,24 +107,13 @@ import { createWasmParser } from "@usenarrator/lang-ts/wasm";
 const parser = await createWasmParser();
 ```
 
-Called without options, `createWasmParser` finds the `.wasm` file by itself in Node, Bun, and bundlers that turn `new URL("…", import.meta.url)` into an asset, such as Vite. Everywhere else, pass the file with the `wasm` option, as a URL, a `Response`, its bytes or an already compiled `WebAssembly.Module`. Each call starts a new WASM instance, so create the parser once and share it.
+Called without options, `createWasmParser` finds the `.wasm` file by itself in Node, Bun, and bundlers that turn `new URL("…", import.meta.url)` into an asset, such as Vite, Rollup, esbuild with its file loader, and webpack. Everywhere else, pass the file with the `wasm` option, as a URL, a `Response`, its bytes or an already compiled `WebAssembly.Module`. Each call starts a new WASM instance, so create the parser once and share it.
 
-<Warning>
-  With npm, also add these overrides to your `package.json` and run `npm install` again. Version 0.153 of `@oxc-parser/binding-wasm32-wasip1` pins prerelease versions of `@emnapi/core` and `@emnapi/runtime`, and npm otherwise installs a second, incompatible copy of them for oxc's runtime. pnpm, Yarn and Bun install matching versions without help. If the copies don't match, `createWasmParser` tells you to add these lines.
-
-  ```json
-  "overrides": {
-    "@emnapi/core": "2.0.0-alpha.3",
-    "@emnapi/runtime": "2.0.0-alpha.3"
-  }
-  ```
-</Warning>
-
-The recipes below were each built and run from the packed npm packages in a fresh project outside this repository. The timings were taken on a Linux x64 cloud machine, so treat them as a rough guide rather than a promise.
+The recipes below were each built and run from the packed packages in fresh projects outside this repository, installed with npm, pnpm and Bun without any extra configuration. The timings were taken on a Linux x64 cloud machine, so treat them as a rough guide rather than a promise.
 
 ### Vite
 
-Vite needs no configuration. It sees the `.wasm` file that the parser package references and copies it into your build.
+Vite needs no configuration. It sees the `.wasm` file that `@usenarrator/lang-ts/wasm` references and copies it into your build, in both `vite dev` and production builds.
 
 ```ts src/narrate.ts
 import { createNarrator, renderText } from "@usenarrator/core";
@@ -141,22 +130,21 @@ const narrator = createNarrator({
 export const narrate = (source: string, path = "input.ts") => renderText(narrator.narrate(source, path).lines);
 ```
 
-Import this module with `await import("./narrate")` from your entry point, so the page can render before the parser arrives. With Vite 8 and Chrome, the first narration took 66 to 90 ms after the page script started in a production build served from localhost with the cache disabled, which includes downloading, compiling and starting the WASM. In `vite dev` it took 101 to 112 ms. After that, narrating a few lines on every keystroke took about 2 ms.
+Import this module with `await import("./narrate")` from your entry point, so the page can render before the parser arrives. With Vite 8 and headless Chrome, the first narration appeared 58 to 73 ms after navigation in a production build served from localhost with the cache disabled, which includes loading the page and downloading, compiling and starting the WASM. In `vite dev` it took about 70 ms once Vite had transformed the modules. After that, narrating a few lines on every keystroke took about 2 ms.
 
 The production build contains these files:
 
 | File | Size | Gzipped |
 | --- | --- | --- |
 | The parser's `.wasm` | 1,456 KB | 485 KB |
-| oxc's WASM runtime and loader | 243 KB | 59 KB |
-| Engine, English locale and the Zod plugin | 147 KB | 45 KB |
+| Engine, English locale, the Zod plugin, and oxc's WASM runtime and loader | 397 KB | 105 KB |
 
 ### Cloudflare Workers
 
-Workers can't compile WebAssembly while they run, so import the `.wasm` file as a module. Wrangler compiles it when you deploy and gives your code a `WebAssembly.Module`. Import the `wasm.wasm` path so that Wrangler's rule for `.wasm` imports applies.
+Workers can't compile WebAssembly while they run, so import the `.wasm` file as a module. Wrangler compiles it when you deploy and gives your code a `WebAssembly.Module`. `@usenarrator/lang-ts/wasm.wasm` points at the file the package ships, and its name ends in `.wasm` so that Wrangler's rule for `.wasm` imports applies.
 
 ```ts src/worker.ts
-import wasm from "@oxc-parser/binding-wasm32-wasip1/wasm.wasm";
+import wasm from "@usenarrator/lang-ts/wasm.wasm";
 import { createNarrator, renderText } from "@usenarrator/core";
 import { typescript } from "@usenarrator/lang-ts";
 import { createWasmParser } from "@usenarrator/lang-ts/wasm";
@@ -192,11 +180,11 @@ Create a Hono app as app.
 Answer GET /health with an object with ok: true as JSON.
 ```
 
-The first request to a fresh isolate took 14 ms, including starting the WASM, and later requests took about 3 ms. Wrangler reports an upload of 2,370 KiB, or 633 KiB gzipped, and 1,873 KiB, or 593 KiB gzipped, with `--minify`. That fits the 3 MB limit of the Workers free plan.
+The first request to a fresh isolate took 14 to 15 ms, including starting the WASM, and later requests took 3 to 20 ms. Wrangler reports an upload of 2,269 KiB, or 626 KiB gzipped, and 1,870 KiB, or 593 KiB gzipped, with `--minify`. That fits the 3 MB limit of the Workers free plan.
 
 ### Node and Bun
 
-On a server you would normally use the native parser, but the WASM parser also runs in Node and Bun, which helps on platforms where native modules aren't allowed. No options are needed: it reads the `.wasm` file from `node_modules`.
+On a server you would normally use the native parser, but the WASM parser also runs in Node and Bun, which helps on platforms where native modules aren't allowed. No options are needed: it reads the `.wasm` file that ships inside `@usenarrator/lang-ts`.
 
 ```ts
 import { createNarrator, renderText } from "@usenarrator/core";
@@ -212,7 +200,7 @@ On Node 24 and Bun 1.3, importing the packages took 7 to 10 ms, starting the WAS
 
 ### Browser extensions
 
-Copy the `.wasm` file into the extension when you build it, and pass its extension URL. This is what the [browser extension](/guides/browser-extension) does in the worker where it narrates:
+Copy the `.wasm` file into the extension when you build it, and pass its extension URL. The file is `dist/oxc-parser.wasm` inside `@usenarrator/lang-ts`, and you can find it with `require.resolve("@usenarrator/lang-ts/wasm.wasm")` or `import.meta.resolve` in your build script. This is what the [browser extension](/guides/browser-extension) does in the worker where it narrates:
 
 ```ts
 const parser = await createWasmParser({ wasm: chrome.runtime.getURL("oxc-parser.wasm") });
@@ -230,7 +218,7 @@ Narrator checks the common mistakes and says what to do instead of failing deep 
 | `wasm` is something else, such as a number or a module namespace object | "`wasm` must be a URL, a Response, the file's bytes or a WebAssembly.Module", or "Pass its default export". |
 | `typescript({ parser: createWasmParser() })` without `await` | "got a Promise; await createWasmParser() before creating the narrator". |
 | `typescript({ parser: createWasmParser })`, the function itself | "returned a Promise; pass the result of `await createWasmParser()`". |
-| npm installed mismatched `@emnapi` packages | Tells you to add the overrides shown above. |
+| Node or Bun can't find `oxc-parser.wasm`, for example after bundling Narrator into one file | Names the path it tried and asks you to copy the file next to the bundle or pass `wasm`. |
 
 <Tip>
   Narration is synchronous and usually takes a few milliseconds per file, but a large pull request can take longer. In a web app, run it in a Web Worker so the page stays responsive. `createWasmParser` works the same way inside a worker.

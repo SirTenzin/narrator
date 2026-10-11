@@ -20,6 +20,7 @@
 			"@usenarrator/lang-ts": ["./packages/lang-ts/src/index.ts"],
 			"@usenarrator/lang-ts/oxc": ["./packages/lang-ts/src/oxc.ts"],
 			"@usenarrator/lang-ts/wasm": ["./packages/lang-ts/src/wasm.ts"],
+			"@usenarrator/lang-ts/wasm.wasm": ["./packages/lang-ts/src/oxc-parser.wasm"],
 			"@usenarrator/locale-en": ["./packages/locale-en/src/index.ts"],
 			"@usenarrator/testkit": ["./packages/testkit/src/index.ts"],
 			"@usenarrator/node": ["./packages/node/src/index.ts"],

@@ -4,7 +4,6 @@
 	"private": true,
 	"type": "module",
 	"dependencies": {
-		"@oxc-parser/binding-wasm32-wasip1": "0.153.0",
 		"@usenarrator/core": "workspace:*",
 		"@usenarrator/example-autumn": "workspace:*",
 		"@usenarrator/lang-ts": "workspace:*",

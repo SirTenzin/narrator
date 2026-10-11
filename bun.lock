@@ -7,7 +7,6 @@
       "devDependencies": {
         "@arethetypeswrong/cli": "^0.18.5",
         "@biomejs/biome": "2",
-        "@oxc-parser/binding-wasm32-wasip1": "0.153.0",
         "@types/bun": "latest",
         "@types/chrome": "^0.3.4",
         "oxc-parser": "^0.153.0",
@@ -60,7 +59,6 @@
       "name": "@usenarrator/extension",
       "version": "0.0.0",
       "dependencies": {
-        "@oxc-parser/binding-wasm32-wasip1": "0.153.0",
         "@usenarrator/core": "workspace:*",
         "@usenarrator/example-autumn": "workspace:*",
         "@usenarrator/lang-ts": "workspace:*",
@@ -154,11 +152,9 @@
         "oxc-parser": "^0.153.0",
       },
       "peerDependencies": {
-        "@oxc-parser/binding-wasm32-wasip1": ">=0.153.0 <1",
         "oxc-parser": ">=0.153.0 <1",
       },
       "optionalPeers": [
-        "@oxc-parser/binding-wasm32-wasip1",
         "oxc-parser",
       ],
     },

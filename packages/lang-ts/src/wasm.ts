@@ -1,3 +1,4 @@
+import { createInstance } from "@oxc-parser/binding-wasm32-wasip1/workerd";
 import type { ParseOutput, Parser } from "./parser";
 
 /** Where to load oxc's `.wasm` from: a URL, a fetch `Response`, the file's bytes, or an already compiled module. */
@@ -10,7 +11,6 @@ export type CreateWasmParserOptions = {
 
 type Binding = { parseSync(filename: string, src: string): { program: string; comments: ParseOutput["comments"]; errors: unknown[] } };
 
-const BINDING = "@oxc-parser/binding-wasm32-wasip1";
 const GUIDE = 'See the "Embedding in your app" guide in the Narrator docs.';
 const WASM_MAGIC = [0x00, 0x61, 0x73, 0x6d];
 
@@ -30,7 +30,7 @@ async function compile(bytes: ArrayBuffer | ArrayBufferView, from: string): Prom
 		const head = new TextDecoder().decode(view.subarray(0, 64)).trim();
 		const looksHtml = head.startsWith("<");
 		fail(
-			`${from} is not a WebAssembly file${looksHtml ? " (it starts with HTML, so the server probably answered with your app's index page)" : ""}. Pass the URL your bundler gives for ${BINDING}/wasm, or leave \`wasm\` out.`,
+			`${from} is not a WebAssembly file${looksHtml ? " (it starts with HTML, so the server probably answered with your app's index page)" : ""}. Pass the URL your bundler gives for @usenarrator/lang-ts/wasm.wasm, or leave \`wasm\` out.`,
 		);
 	}
 	return WebAssembly.compile(view as Uint8Array<ArrayBuffer>);
@@ -61,47 +61,41 @@ async function toModule(source: WasmSource): Promise<WebAssembly.Module> {
 	return fail(`\`wasm\` must be a URL, a Response, the file's bytes or a WebAssembly.Module, but got ${value === null ? "null" : typeof value}.`);
 }
 
-// npm resolves @napi-rs/wasm-runtime's emnapi peer to 1.x while the binding pins 2.0.0-alpha.3; the two halves then can't talk.
-const EMNAPI_MISMATCH = /this\.bridge\./;
-const explainMismatch = (e: unknown): never =>
-	fail(
-		'oxc\'s WASM runtime loaded two different versions of @emnapi/core and @emnapi/runtime. With npm, add `"overrides": { "@emnapi/core": "2.0.0-alpha.3", "@emnapi/runtime": "2.0.0-alpha.3" }` to package.json and reinstall.',
-		e,
-	);
-
 const instantiate = async (module: WebAssembly.Module): Promise<Binding> => {
-	const { createInstance } = await import("@oxc-parser/binding-wasm32-wasip1/workerd");
 	try {
 		return (await createInstance(module)).exports as unknown as Binding;
 	} catch (e) {
-		return EMNAPI_MISMATCH.test(String((e as Error)?.message)) ? explainMismatch(e) : fail("oxc's WASM parser failed to start.", e);
+		return fail("oxc's WASM parser failed to start.", e);
 	}
 };
 
-// Node and Bun: read the .wasm that sits in node_modules, without a static `node:` import that would trip browser bundlers.
-function readInstalledWasm(): Uint8Array | null {
+// The build puts oxc's .wasm next to this module, and bundlers emit it as an asset from this `new URL` pattern.
+// Node and Bun read it from disk, without a static `node:` import that would trip browser bundlers; everything else fetches it.
+async function loadShipped(): Promise<WebAssembly.Module> {
+	const url = new URL("./oxc-parser.wasm", import.meta.url);
 	const fs = (globalThis as any).process?.getBuiltinModule?.("node:fs");
-	const meta: any = import.meta;
-	if (!fs || typeof meta.resolve !== "function") return null;
-	return fs.readFileSync(new URL(meta.resolve("@oxc-parser/binding-wasm32-wasip1/wasm")));
+	if (!fs || url.protocol !== "file:") return toModule(url);
+	let bytes: Uint8Array;
+	try {
+		bytes = fs.readFileSync(url);
+	} catch (e) {
+		return fail(
+			`Couldn't read the parser's .wasm at ${url.pathname}. If you bundled Narrator, copy oxc-parser.wasm next to the bundle or pass \`wasm\` explicitly.`,
+			e,
+		);
+	}
+	return compile(bytes, url.pathname);
 }
 
 let defaultBinding: Promise<Binding> | null = null;
 
-// Browsers: the binding's own browser entry fetches its .wasm through `new URL(…, import.meta.url)`, which bundlers emit as an asset.
 const loadDefault = (): Promise<Binding> =>
-	(defaultBinding ??= (async () => {
-		try {
-			const bytes = readInstalledWasm();
-			if (bytes) return await instantiate(await WebAssembly.compile(bytes as Uint8Array<ArrayBuffer>));
-			return (await import("@oxc-parser/binding-wasm32-wasip1")) as unknown as Binding;
-		} catch (e) {
+	(defaultBinding ??= loadShipped()
+		.then(instantiate)
+		.catch((e) => {
 			defaultBinding = null;
-			if (e instanceof Error && e.message.startsWith("Narrator:")) throw e;
-			if (EMNAPI_MISMATCH.test(String((e as Error)?.message))) explainMismatch(e);
-			return fail(`Couldn't load ${BINDING} and its .wasm. Install it, or pass \`wasm\` explicitly.`, e);
-		}
-	})());
+			throw e;
+		}));
 
 async function load(options?: CreateWasmParserOptions): Promise<Binding> {
 	const o: any = options;

@@ -6,7 +6,7 @@ export type Manifest = {
 	name: string;
 	private?: boolean;
 	bin?: Record<string, string>;
-	exports?: Record<string, string | { import?: string }>;
+	exports?: Record<string, string | Record<string, string>>;
 };
 
 export type PublishablePackage = { dir: string; manifest: Manifest };

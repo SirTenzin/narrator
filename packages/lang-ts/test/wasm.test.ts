@@ -5,7 +5,7 @@ import { oxcParser } from "@usenarrator/lang-ts/oxc";
 import { createWasmParser } from "@usenarrator/lang-ts/wasm";
 import { en } from "@usenarrator/locale-en";
 
-const wasmPath = Bun.resolveSync("@oxc-parser/binding-wasm32-wasip1/wasm", import.meta.dir);
+const wasmPath = Bun.resolveSync("@usenarrator/lang-ts/wasm.wasm", import.meta.dir);
 const SRC = "const big = 2n ** 64n;\nexport const isId = (s: string) => /^cus_[a-z0-9]+$/i.test(s);\n";
 const narrate = (parser: typeof oxcParser) => renderText(createNarrator({ languages: [typescript({ parser })], locale: en }).narrate(SRC, "a.ts").lines);
 const ast = (parser: typeof oxcParser) => {

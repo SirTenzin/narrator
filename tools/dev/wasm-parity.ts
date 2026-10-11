@@ -31,7 +31,7 @@ const json = ({ program, comments, errors }: ReturnType<typeof oxcParser>) =>
 const make = (parser: typeof oxcParser) => createNarrator({ languages: [typescript({ parser, plugins: [autumn()] })], locale: en });
 
 const wasmDefault = await createWasmParser();
-const wasmModule = await createWasmParser({ wasm: await Bun.file(Bun.resolveSync("@oxc-parser/binding-wasm32-wasip1/wasm", import.meta.dir)).arrayBuffer() });
+const wasmModule = await createWasmParser({ wasm: await Bun.file(Bun.resolveSync("@usenarrator/lang-ts/wasm.wasm", import.meta.dir)).arrayBuffer() });
 const native = make(oxcParser);
 const webs = [make(wasmDefault), make(wasmModule)];
 

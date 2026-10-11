@@ -32,10 +32,15 @@
 			"import": "./dist/wasm.js",
 			"default": "./dist/wasm.js"
 		},
+		"./wasm.wasm": {
+			"types": "./dist/oxc-parser.wasm.d.ts",
+			"default": "./dist/oxc-parser.wasm"
+		},
 		"./package.json": "./package.json"
 	},
 	"files": [
-		"dist"
+		"dist",
+		"THIRD-PARTY-NOTICES.md"
 	],
 	"publishConfig": {
 		"access": "public"
@@ -44,13 +49,9 @@
 		"@usenarrator/core": "workspace:^"
 	},
 	"peerDependencies": {
-		"@oxc-parser/binding-wasm32-wasip1": ">=0.153.0 <1",
 		"oxc-parser": ">=0.153.0 <1"
 	},
 	"peerDependenciesMeta": {
-		"@oxc-parser/binding-wasm32-wasip1": {
-			"optional": true
-		},
 		"oxc-parser": {
 			"optional": true
 		}

@@ -48,10 +48,10 @@ function createWasmParser(options?: {
 }): Promise<Parser>;
 ```
 
-Loads oxc's WASM build from the optional peer dependency `@oxc-parser/binding-wasm32-wasip1` and resolves to a synchronous `Parser`. Create it once and reuse it: every call starts a new WASM instance.
+Loads oxc's WASM build, which ships inside `@usenarrator/lang-ts`, and resolves to a synchronous `Parser`. Create it once and reuse it: every call starts a new WASM instance.
 
 <ParamField path="wasm" type="URL | string | Response | bytes | WebAssembly.Module">
-  Where the `.wasm` file comes from. Leave it out in Node, Bun and bundlers that turn `new URL(…, import.meta.url)` into an asset, such as Vite. Pass a compiled module on Cloudflare Workers, and a URL inside a browser extension. If the value is not a WebAssembly file, for example an HTML page served instead of the `.wasm`, the error says so.
+  Where the `.wasm` file comes from. Leave it out in Node, Bun and bundlers that turn `new URL(…, import.meta.url)` into an asset, such as Vite. Pass a compiled module on Cloudflare Workers, imported from `@usenarrator/lang-ts/wasm.wasm`, and a URL inside a browser extension. If the value is not a WebAssembly file, for example an HTML page served instead of the `.wasm`, the error says so.
 </ParamField>
 
 ## Syntax errors and failing rules
