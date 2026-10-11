@@ -2,6 +2,7 @@ name: Release
 
 # On every push to master: if there are pending changesets, open or update a "Version packages" PR.
 # When that PR is merged, publish only the packages whose new version isn't on npm yet.
+# Publishing uses npm trusted publishing (OIDC): no npm token is stored anywhere, and npm adds provenance.
 on:
   push:
     branches: [master]
@@ -11,6 +12,7 @@ concurrency: release-${{ github.ref }}
 permissions:
   contents: write
   pull-requests: write
+  id-token: write
 
 jobs:
   release:
@@ -20,6 +22,12 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.3.14
+      # Trusted publishing needs Node 22.14+ and npm 11.5.1+.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - run: npm install --global npm@^11.15.0
       - run: bun install --frozen-lockfile
       - run: bun run typecheck
       - run: bun test
@@ -28,8 +36,7 @@ jobs:
           title: Version packages
           commit: Version packages
           version: bun run version
-          publish: bun run publish:all
+          publish: bun tools/build/publish.ts --npm
           createGithubReleases: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_CONFIG_TOKEN: ${{ secrets.NPM_TOKEN }}
