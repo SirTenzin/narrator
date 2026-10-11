@@ -32,5 +32,8 @@
 		"@usenarrator/lang-ts": "workspace:^",
 		"@usenarrator/locale-en": "workspace:^",
 		"oxc-parser": "^0.153.0"
+	},
+	"devDependencies": {
+		"@usenarrator/plugin-hono": "workspace:^"
 	}
 }

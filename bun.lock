@@ -194,6 +194,9 @@
         "@usenarrator/locale-en": "workspace:^",
         "oxc-parser": "^0.153.0",
       },
+      "devDependencies": {
+        "@usenarrator/plugin-hono": "workspace:^",
+      },
     },
     "plugins/ai-sdk": {
       "name": "@usenarrator/plugin-ai-sdk",
