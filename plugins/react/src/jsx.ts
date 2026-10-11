@@ -29,7 +29,7 @@ function attrOf(n: N, name: string): N | null {
 export function uiDoc(c: Ctx, n: N): Doc {
 	const items = itemsOf(c, n);
 	if (items.length === 1) return items[0]!;
-	if (!items.length) return D(c.say.ui.showNothing);
+	if (!items.length) return D(c.e.say.expressions.nothing);
 	return D(c.say.ui.group, bullets(c.e, items));
 }
 

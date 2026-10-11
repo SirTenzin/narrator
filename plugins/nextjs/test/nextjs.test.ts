@@ -143,6 +143,34 @@ export async function generateMetadata({ params }) {
 		);
 	});
 
+	test("returning notFound() or redirect() reads as the action, and nested metadata keeps its parts", () => {
+		expect(
+			read(
+				`import { notFound, redirect } from "next/navigation";
+export const metadata = { title: { default: "Acme", template: "%s | Acme" }, robots: { index: true } };
+export default async function Page() {
+  const user = await getUser();
+  if (!user) return redirect("/login");
+  if (!user.team) return notFound();
+  return <Dashboard user={user} />;
+}`,
+				"app/(app)/dashboard/page.tsx",
+			),
+		).toBe(
+			[
+				"Set the page metadata:",
+				`  • title: an object with default: "Acme" and template: "%s | Acme"`,
+				"  • search engine rules: an object with index: true",
+				"",
+				"The page at /dashboard:",
+				"  Get user → user.",
+				"  If user is missing, redirect to /login.",
+				"  If user's team is missing, show the not-found page.",
+				"  Show Dashboard (user).",
+			].join("\n"),
+		);
+	});
+
 	test("a page without a known path still reads as a component", () => {
 		expect(read(`import Link from "next/link";\nexport default function Home() {\n  return <Link href="/about">About</Link>;\n}`, "src/views/home.tsx")).toBe(
 			`Home, a component that shows a link to /about "About".`,

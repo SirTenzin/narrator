@@ -244,6 +244,68 @@ function Save() {
 	});
 });
 
+describe("UI details", () => {
+	test("render functions, framer-motion props, icons and setter-only callbacks", () => {
+		expect(
+			read(`import { useState } from "react";
+import { motion } from "framer-motion";
+export function Settings({ form }) {
+  const [open, setOpen] = useState(false);
+  const close = () => setOpen(false);
+  return (
+    <motion.section initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+      <svg viewBox="0 0 16 16"><path d="M4 6L8 10" /></svg>
+      <form.Field name="email">{(field) => <Input value={field.value} />}</form.Field>
+      <Dialog open={open} onOpenChange={setOpen} onClose={close} />
+    </motion.section>
+  );
+}`),
+		).toBe(
+			[
+				"Settings, a component that takes form:",
+				"  Keep track of open (starts as false).",
+				"  To close:",
+				"    Set open to false.",
+				"  Show a section containing:",
+				"    • an icon",
+				`    • form.Field (name: "email") showing given field, Input (value: field's value)`,
+				"    • Dialog (open; on open change, set open; on close, close)",
+			].join("\n"),
+		);
+	});
+
+	test("a form action with steps and Suspense without a fallback", () => {
+		expect(
+			read(`import { Suspense } from "react";
+export function Checkout() {
+  return (
+    <Suspense>
+      <form action={async () => { await pay(); redirectHome(); }}>
+        <button type="submit">Pay</button>
+      </form>
+    </Suspense>
+  );
+}`),
+		).toBe(
+			[
+				"Checkout, a component:",
+				"  Show the following, showing nothing while it loads:",
+				"    • a form containing:",
+				"      • when submitted:",
+				"        Pay.",
+				"        Redirect home.",
+				`      • a submit button "Pay"`,
+			].join("\n"),
+		);
+	});
+
+	test("an empty fragment shows nothing", () => {
+		expect(read(`function Empty({ hidden }) {\n  if (hidden) return <></>;\n  return <p>Hi</p>;\n}`)).toBe(
+			["Empty, a component that takes hidden:", "  If hidden is set, show nothing.", `  Show a paragraph "Hi".`].join("\n"),
+		);
+	});
+});
+
 describe("hooks", () => {
 	test("an effect with dependencies and a cleanup, from the react.dev chat room", () => {
 		expect(

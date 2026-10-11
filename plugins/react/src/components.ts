@@ -150,6 +150,7 @@ export function returnStmt(c: Ctx, node: N, d: number): boolean {
 		}
 	}
 	const ui = uiDoc(c, arg);
-	e.emitDoc(d, D(verb({ ui: ui.t }), ui.kids), node);
+	if (shows && ui.t === e.say.expressions.nothing) e.emit(d, `${capFirst(say.ui.showNothing)}.`, node);
+	else e.emitDoc(d, D(verb({ ui: ui.t }), ui.kids), node);
 	return true;
 }

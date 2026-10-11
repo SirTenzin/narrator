@@ -1,4 +1,4 @@
-import { capFirst, D, mk } from "@usenarrator/core";
+import { capFirst, D, type Doc, mk } from "@usenarrator/core";
 import { type N, unwrap } from "@usenarrator/lang-ts";
 import { isHandlerName, nextName } from "./facts";
 import type { DynamicMode, FileKind, MatchType } from "./phrases";
@@ -279,15 +279,15 @@ function configText(c: Ctx, name: string, init: N) {
 			const items = init.properties.map((p: N) => {
 				const k = keyOf(p);
 				const label = (k && cfg.fields[k]) || (k ? e.prop(k) : e.text(p.key));
-				const value = e.text(p.value);
-				return D(str(p.value) !== null ? cfg.labeledText({ name: label, value }) : cfg.labeled({ name: label, value }));
+				const value = p.type === "SpreadElement" ? e.noun(p.argument) : e.noun(p.value);
+				return D(str(p.value) !== null ? cfg.labeledText({ name: label, value: value.t }) : cfg.labeled({ name: label, value: value.t }), value.kids);
 			});
 			const phrase = name === "metadata" ? cfg.metadata : cfg.viewport;
-			const joined = e.g.list(items.map((i: { t: string }) => i.t));
-			if (items.length <= 2 && joined.length < 100) return phrase({ items: joined });
+			const joined = e.g.list(items.map((i: Doc) => i.t));
+			if (items.length <= 2 && joined.length < 100 && items.every((i: Doc) => !i.kids.length)) return phrase({ items: joined });
 			return D(
 				name === "metadata" ? cfg.metadataList : cfg.viewportList,
-				items.flatMap((i: ReturnType<typeof D>) => e.bullet(i)),
+				items.flatMap((i: Doc) => e.bullet(i)),
 			);
 		}
 		default:
