@@ -131,3 +131,9 @@ export const elysia = ({ version }: ElysiaOptions = {}): TsPlugin<ElysiaPhrases>
 		describeSchema: (e, n: N, say) => typeText(ctx(e, say), n),
 	});
 };
+
+declare module "@usenarrator/core" {
+	interface PluginPhrases {
+		elysia: ElysiaPhrases;
+	}
+}

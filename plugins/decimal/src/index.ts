@@ -4,7 +4,7 @@ import { en } from "./en";
 import type { DecimalPhrases } from "./phrases";
 
 export type { DecimalPhrases } from "./phrases";
-export { en as decimalEn };
+export { en, en as decimalEn };
 
 type Op = "plus" | "minus" | "times" | "dividedBy";
 type Comparison = keyof DecimalPhrases["compare"];
@@ -64,3 +64,9 @@ export const decimal = (): TsPlugin<DecimalPhrases> =>
 			"*.isPositive": sign("isPositive"),
 		},
 	});
+
+declare module "@usenarrator/core" {
+	interface PluginPhrases {
+		decimal: DecimalPhrases;
+	}
+}

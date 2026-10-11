@@ -47,14 +47,14 @@ The repository ships a small CLI. Point it at a file:
 
 {/* cli file="billing.ts" */}
 ```ts billing.ts
-export async function renewSubscription(sub: Subscription, now: Date) {
-  if (sub.status === "canceled") return;
-  const plan = plans.find((p) => p.id === sub.planId);
+export async function renewSubscription(subscription: Subscription, now: Date) {
+  if (subscription.status === "canceled") return;
+  const plan = plans.find((p) => p.id === subscription.planId);
   if (!plan) throw new NotFoundError("Unknown plan");
-  for (const seat of sub.seats) {
+  for (const seat of subscription.seats) {
     if (seat.expiresAt < now) await releaseSeat(seat);
   }
-  await sendReceipt({ to: sub.ownerEmail, amount: plan.price });
+  await sendReceipt({ to: subscription.ownerEmail, amount: plan.price });
 }
 ```
 
@@ -68,7 +68,7 @@ To renew subscription (async), given subscription (Subscription) and now (Date):
   Send receipt (to: subscription's owner email and amount: plan's price).
 ```
 
-A few things to notice: `sub` became "subscription" (identifiers are split and expanded through a glossary), the `find` callback became "the first p in plans where…", and the guard clause became a single "If …, stop here." Nothing was summarized away, because Narrator narrates every statement instead of paraphrasing the whole function.
+A few things to notice: `ownerEmail` became "owner email" (identifiers are split into words, and abbreviations expand through a glossary), the `find` callback became "the first p in plans where…", and the guard clause became a single "If …, stop here." Nothing was summarized away, because Narrator narrates every statement instead of paraphrasing the whole function.
 
 ## Reading diffs on GitHub
 

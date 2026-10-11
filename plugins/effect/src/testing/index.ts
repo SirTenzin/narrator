@@ -101,3 +101,9 @@ export const effectTesting = (): TsPlugin<EffectTestingPhrases> => {
 		calls,
 	});
 };
+
+declare module "@usenarrator/core" {
+	interface PluginPhrases {
+		"effect-testing": EffectTestingPhrases;
+	}
+}

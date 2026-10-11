@@ -187,3 +187,9 @@ export const effect = ({ version }: EffectOptions = {}): TsPlugin<EffectPhrases>
 		describeSchema: (e, n, say) => schemaType(ctx(e, say), n, true),
 	});
 };
+
+declare module "@usenarrator/core" {
+	interface PluginPhrases {
+		effect: EffectPhrases;
+	}
+}

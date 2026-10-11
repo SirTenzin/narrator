@@ -22,9 +22,15 @@
 			"@usenarrator/lang-ts/wasm": ["./packages/lang-ts/src/wasm.ts"],
 			"@usenarrator/locale-en": ["./packages/locale-en/src/index.ts"],
 			"@usenarrator/testkit": ["./packages/testkit/src/index.ts"],
+			"@usenarrator/node": ["./packages/node/src/index.ts"],
+			"@usenarrator/plugin-ai-sdk/en": ["./plugins/ai-sdk/src/en.ts"],
+			"@usenarrator/plugin-effect/platform": ["./plugins/effect/src/platform/index.ts"],
+			"@usenarrator/plugin-effect/sql": ["./plugins/effect/src/sql/index.ts"],
+			"@usenarrator/plugin-effect/testing": ["./plugins/effect/src/testing/index.ts"],
+			"@usenarrator/plugin-sql/pgsql": ["./plugins/sql/src/pgsql.ts"],
 			"@usenarrator/plugin-*": ["./plugins/*/src/index.ts"],
 			"@usenarrator/example-autumn": ["./examples/autumn/src/index.ts"],
-			"@usenarrator/cli": ["./apps/cli/narrate.ts"]
+			"@usenarrator/cli": ["./apps/cli/src/index.ts"]
 		},
 
 		// Best practices

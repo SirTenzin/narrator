@@ -5,7 +5,7 @@ import { type FileImports, isObj, objProp, readImports, schemaPhrase } from "../
 type P<K extends string> = (p: { [k in K]: string }) => string;
 
 /** Every English fragment of the Effect SQL companion plugin (`@usenarrator/plugin-effect/sql`). */
-export type SqlPhrases = {
+export type EffectSqlPhrases = {
 	constants: Record<string, string>;
 	query: P<"sql">;
 	rawQuery: P<"sql">;
@@ -14,8 +14,10 @@ export type SqlPhrases = {
 	results: { findOne: P<"type">; findAll: P<"type">; findNonEmpty: P<"type">; single: P<"type">; void: string };
 	resolver: P<"name" | "query">;
 };
+/** @deprecated Use `EffectSqlPhrases`. */
+export type SqlPhrases = EffectSqlPhrases;
 
-export const en: SqlPhrases = {
+export const en: EffectSqlPhrases = {
 	constants: { "SqlClient.SqlClient": "the SQL client service" },
 	query: ({ sql }) => `the SQL query ${sql}`,
 	rawQuery: ({ sql }) => `the raw SQL query ${sql}`,
@@ -31,7 +33,7 @@ export const en: SqlPhrases = {
 	resolver: ({ name, query }) => `a batched lookup named ${name} that runs ${query}`,
 };
 
-type Ctx = { e: Engine; say: SqlPhrases; imp: FileImports; clients: Set<string> };
+type Ctx = { e: Engine; say: EffectSqlPhrases; imp: FileImports; clients: Set<string> };
 const SQL_MODULE = /^(@effect\/sql(-[\w-]+)?|effect\/(unstable\/)?sql)(\/|$)/;
 const CLIENT = /\b(\w+)\s*=\s*\(?\s*yield\*\s+(\w+Client)\.\2\b/g;
 
@@ -49,7 +51,7 @@ const typeOf = (e: Engine, n: N | null) => (n ? schemaPhrase(e, n) : null);
 
 /** `SqlSchema.findAll({ Request, Result, execute: (req) => sql`…` })`. */
 const sqlSchema =
-	(kind: keyof SqlPhrases["results"]) =>
+	(kind: keyof EffectSqlPhrases["results"]) =>
 	(c: Ctx, [opts]: N[]): Doc | null => {
 		if (!opts || !isObj(opts)) return null;
 		const req = typeOf(c.e, objProp(opts, "Request"));
@@ -64,10 +66,10 @@ const sqlSchema =
 	};
 
 /** Effect SQL (`@effect/sql` in v3, `effect/sql` in v4): `sql` tagged queries, transactions, `SqlSchema` and `SqlResolver`. */
-export const effectSql = (): TsPlugin<SqlPhrases> => {
+export const effectSql = (): TsPlugin<EffectSqlPhrases> => {
 	let src = "\0";
 	let ctxCache: Omit<Ctx, "e" | "say"> = { imp: readImports(""), clients: new Set() };
-	const ctx = (e: Engine, say: SqlPhrases): Ctx | null => {
+	const ctx = (e: Engine, say: EffectSqlPhrases): Ctx | null => {
 		if (e.src !== src) {
 			src = e.src;
 			ctxCache = { imp: readImports(src), clients: new Set([...src.matchAll(CLIENT)].map((m) => m[1]!)) };
@@ -76,13 +78,13 @@ export const effectSql = (): TsPlugin<SqlPhrases> => {
 		return usesSql ? { e, say, ...ctxCache } : null;
 	};
 	const rule =
-		(f: (c: Ctx, args: N[], x: { obj: N | null; stmt: boolean; node: N }) => Doc | string | null): CallRule<SqlPhrases> =>
+		(f: (c: Ctx, args: N[], x: { obj: N | null; stmt: boolean; node: N }) => Doc | string | null): CallRule<EffectSqlPhrases> =>
 		({ node, args, obj, e, stmt, say }) => {
 			const c = ctx(e, say);
 			return c ? f(c, args, { obj, stmt, node }) : null;
 		};
 	const onClient = (c: Ctx, obj: N | null) => unwrap(obj)?.type === "Identifier" && c.clients.has(unwrap(obj).name);
-	const calls: Record<string, CallRule<SqlPhrases>> = {
+	const calls: Record<string, CallRule<EffectSqlPhrases>> = {
 		"sql``": rule((c, [quasi]) => (quasi ? D(c.say.query({ sql: sqlText(c.e, quasi) })) : null)),
 		"*.withTransaction": rule((c, [eff], { obj, stmt }) =>
 			onClient(c, obj) && eff ? D(c.say.transaction[stmt ? "act" : "noun"]({ effect: c.e.noun(eff).t })) : null,
@@ -102,5 +104,11 @@ export const effectSql = (): TsPlugin<SqlPhrases> => {
 			const ex = c.e.lambdaExpr(unwrap(exec)) ?? exec;
 			return D(c.say.resolver({ name: c.e.noun(name).t, query: c.e.noun(ex).t }));
 		});
-	return definePlugin<SqlPhrases>({ name: "effect-sql", library: { name: "effect", versions: ">=3.10 <5" }, phrases: { en }, calls });
+	return definePlugin<EffectSqlPhrases>({ name: "effect-sql", library: { name: "effect", versions: ">=3.10 <5" }, phrases: { en }, calls });
 };
+
+declare module "@usenarrator/core" {
+	interface PluginPhrases {
+		"effect-sql": EffectSqlPhrases;
+	}
+}

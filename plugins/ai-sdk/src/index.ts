@@ -47,3 +47,9 @@ export const aiSdk = ({ version }: AiSdkOptions = {}): TsPlugin<P> => {
 		statements: [statement(declaration), statement(streamLoop)],
 	};
 };
+
+declare module "@usenarrator/core" {
+	interface PluginPhrases {
+		"ai-sdk": AiSdkPhrases;
+	}
+}

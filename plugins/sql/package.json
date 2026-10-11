@@ -1,19 +1,40 @@
 {
 	"name": "@usenarrator/plugin-sql",
-	"version": "0.0.0",
-	"private": true,
+	"version": "0.1.0",
 	"description": "TS plugin: SQL embedded in TS/JS (postgres.js, Bun.sql, pg, better-sqlite3, bun:sqlite, Prisma raw, kysely/slonik/Neon templates).",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/SirTenzin/narrator.git",
+		"directory": "plugins/sql"
+	},
+	"homepage": "https://github.com/SirTenzin/narrator#readme",
 	"type": "module",
 	"sideEffects": false,
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
 	"exports": {
-		".": "./src/index.ts",
-		"./pgsql": "./src/pgsql.ts"
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js",
+			"default": "./dist/index.js"
+		},
+		"./pgsql": {
+			"types": "./dist/pgsql.d.ts",
+			"import": "./dist/pgsql.js",
+			"default": "./dist/pgsql.js"
+		},
+		"./package.json": "./package.json"
 	},
-	"dependencies": {
-		"@usenarrator/core": "workspace:*",
-		"@usenarrator/lang-ts": "workspace:*"
+	"files": [
+		"dist"
+	],
+	"publishConfig": {
+		"access": "public"
 	},
 	"peerDependencies": {
+		"@usenarrator/core": "workspace:^",
+		"@usenarrator/lang-ts": "workspace:^",
 		"pgsql-ast-parser": "^12"
 	},
 	"peerDependenciesMeta": {
@@ -22,8 +43,10 @@
 		}
 	},
 	"devDependencies": {
-		"@usenarrator/plugin-drizzle": "workspace:*",
-		"@usenarrator/testkit": "workspace:*",
+		"@usenarrator/core": "workspace:^",
+		"@usenarrator/lang-ts": "workspace:^",
+		"@usenarrator/plugin-drizzle": "workspace:^",
+		"@usenarrator/testkit": "workspace:^",
 		"pgsql-ast-parser": "^12.0.2"
 	}
 }

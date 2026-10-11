@@ -4,7 +4,7 @@ import { en } from "./en";
 import type { TestingPhrases } from "./phrases";
 
 export type { TestingPhrases } from "./phrases";
-export { en as testingEn };
+export { en, en as testingEn };
 
 const isFn = (n: N) => n && (unwrap(n).type === "ArrowFunctionExpression" || unwrap(n).type === "FunctionExpression");
 
@@ -96,3 +96,9 @@ const testRules: Record<string, CallRule<TestingPhrases>> = {
 
 /** bun:test, vitest and jest: `describe`/`test`/`it` blocks and `expect(...)` matchers. */
 export const testing = (): TsPlugin<TestingPhrases> => definePlugin({ name: "testing", phrases: { en }, calls: testRules });
+
+declare module "@usenarrator/core" {
+	interface PluginPhrases {
+		testing: TestingPhrases;
+	}
+}

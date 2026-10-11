@@ -58,3 +58,9 @@ export const hono = (): TsPlugin<HonoPhrases> => {
 		statements,
 	});
 };
+
+declare module "@usenarrator/core" {
+	interface PluginPhrases {
+		hono: HonoPhrases;
+	}
+}

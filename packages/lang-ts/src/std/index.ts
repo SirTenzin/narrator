@@ -9,7 +9,7 @@ import { withPipelines } from "./pipeline";
 import { valueRules } from "./valueRules";
 
 export type { StdPhrases } from "./phrases";
-export { en as stdEn };
+export { en, en as stdEn };
 
 const styleOnly = ({ args, e }: { args: N[]; e: Engine }) => (args.length === 1 ? e.noun(args[0]) : null);
 
@@ -29,3 +29,9 @@ export const std = definePlugin<StdPhrases>({
 	},
 	conditions: conditionRules,
 });
+
+declare module "@usenarrator/core" {
+	interface PluginPhrases {
+		std: StdPhrases;
+	}
+}

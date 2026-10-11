@@ -14,14 +14,19 @@
 		"golden": "bun tools/dev/golden.ts",
 		"stress": "bun tools/dev/stress.ts",
 		"format": "biome check --write .",
-		"narrate": "bun apps/cli/narrate.ts"
+		"narrate": "bun apps/cli/narrate.ts",
+		"build": "bun tools/build/build.ts",
+		"check:publish": "bun tools/build/checkPublish.ts"
 	},
 	"devDependencies": {
+		"@arethetypeswrong/cli": "^0.18.5",
 		"@biomejs/biome": "2",
 		"@oxc-parser/wasm": "0.60.0",
 		"@types/bun": "latest",
 		"@types/chrome": "^0.3.4",
 		"oxc-parser": "^0.153.0",
+		"publint": "^0.3.25",
+		"tsdown": "^0.23.1",
 		"typescript": "^5"
 	}
 }

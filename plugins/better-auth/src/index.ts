@@ -206,3 +206,9 @@ export const betterAuth = (): TsPlugin<P> =>
 		},
 		conditions: { isAPIError: isApiError },
 	});
+
+declare module "@usenarrator/core" {
+	interface PluginPhrases {
+		"better-auth": BetterAuthPhrases;
+	}
+}

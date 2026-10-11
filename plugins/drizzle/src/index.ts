@@ -95,3 +95,9 @@ export const drizzle = (): TsPlugin<DrizzlePhrases> =>
 			Object.entries(operatorConds).map(([k, op]) => [k, (({ args, e, neg, say }) => op({ e, say }, args, neg)) as CondRule<DrizzlePhrases>]),
 		),
 	});
+
+declare module "@usenarrator/core" {
+	interface PluginPhrases {
+		drizzle: DrizzlePhrases;
+	}
+}

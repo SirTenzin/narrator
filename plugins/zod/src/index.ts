@@ -4,7 +4,7 @@ import { en } from "./en";
 import type { ZodPhrases } from "./phrases";
 
 export type { ZodPhrases } from "./phrases";
-export { en as zodEn };
+export { en, en as zodEn };
 
 const UNKNOWN = "…";
 
@@ -135,3 +135,9 @@ export const zod = (): TsPlugin<ZodPhrases> =>
 		calls: zodRules,
 		describeSchema: zodText,
 	});
+
+declare module "@usenarrator/core" {
+	interface PluginPhrases {
+		zod: ZodPhrases;
+	}
+}

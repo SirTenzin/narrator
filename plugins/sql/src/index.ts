@@ -202,3 +202,9 @@ export const sql = ({ parser }: SqlOptions = {}): TsPlugin<P> => {
 		statements: [statements],
 	});
 };
+
+declare module "@usenarrator/core" {
+	interface PluginPhrases {
+		sql: SqlPhrases;
+	}
+}

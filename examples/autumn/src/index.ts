@@ -3,9 +3,10 @@ import { definePlugin, type TsPlugin, unwrap } from "@usenarrator/lang-ts";
 import { decimal } from "@usenarrator/plugin-decimal";
 import { drizzle } from "@usenarrator/plugin-drizzle";
 import { en } from "./en";
+import type { AutumnPhrases } from "./phrases";
 
 export type { AutumnPhrases } from "./phrases";
-export { en as autumnEn };
+export { en, en as autumnEn };
 
 /** Autumn's codebase conventions: vocabulary, plumbing names, error classes and in-house helpers. */
 export const autumn = (): TsPlugin[] => [
@@ -66,3 +67,9 @@ export const autumn = (): TsPlugin[] => [
 		},
 	}),
 ];
+
+declare module "@usenarrator/core" {
+	interface PluginPhrases {
+		autumn: AutumnPhrases;
+	}
+}

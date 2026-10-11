@@ -5,7 +5,7 @@ import { en } from "./en";
 import type { PlatformPhrases } from "./phrases";
 
 export { en } from "./en";
-export type { PlatformPhrases } from "./phrases";
+export type { PlatformPhrases, PlatformPhrases as EffectPlatformPhrases } from "./phrases";
 
 type Ctx = { e: Engine; say: PlatformPhrases; imp: FileImports; clients: Set<string> };
 type Rule = (c: Ctx, x: { node: N; args: N[]; obj: N | null; stmt: boolean }) => Doc | string | null;
@@ -396,3 +396,9 @@ export const effectPlatform = (): TsPlugin<PlatformPhrases> => {
 		statements: [classRule(ctx)],
 	});
 };
+
+declare module "@usenarrator/core" {
+	interface PluginPhrases {
+		"effect-platform": PlatformPhrases;
+	}
+}
