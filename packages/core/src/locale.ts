@@ -59,6 +59,10 @@ export interface ExpressionPhrases {
 	yieldAll: Phrase<{ value: string }>;
 	dynamicImport: Phrase<{ path: string }>;
 	sql: Phrase<{ query: string }>;
+	/** Bun's `` $`cmd` ``: a shell command; `command` is the rendered template. */
+	shell: Phrase<{ command: string; stmt: boolean }>;
+	/** Any other tagged template: `tag` processes the rendered `text`. */
+	tagged: Phrase<{ tag: string; text: string }>;
 	classExpr: Phrase<{ name: string | null }>;
 	/** "key: value" for a labelled item in a list. */
 	labeled: Phrase<{ key: string; value: string }>;
@@ -271,6 +275,7 @@ export interface DeclarationPhrases {
 	enum: Phrase<{ name: string; members: string }>;
 	uninitialized: Phrase<{ name: string }>;
 	letMean: Phrase<{ name: string; condition: string }>;
+	/** A call whose result's name only repeats the function's own words (`const user = await findUser(id)`). */
 	callInto: Phrase<{ call: string; name: string }>;
 	callAs: Phrase<{ call: string; name: string }>;
 	letStart: Phrase<{ name: string; value: string }>;

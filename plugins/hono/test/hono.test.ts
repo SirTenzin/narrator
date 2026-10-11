@@ -251,7 +251,7 @@ const requireUser = createMiddleware<{ Variables: { user: User } }>(async (c, ne
 });
 app.get("/me", requireUser, (c) => c.json(c.get("user")));`);
 		expect(text).toContain("Let require user be custom middleware:");
-		expect(text).toContain("  Get user (the Authorization request header) → user.");
+		expect(text).toContain("  Get user (the Authorization request header).");
 		expect(text).toContain(`  If user is missing, reply with an object with error: "Unauthorized" as JSON (status 401 Unauthorized).`);
 		expect(text).toContain("  Store user as the user context variable.");
 		expect(text).toContain("  Let the next handler run.");

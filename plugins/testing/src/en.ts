@@ -96,7 +96,7 @@ export const en: TestingPhrases = {
 		arrayContaining: ({ value }) => `a list containing ${value}`,
 		stringContaining: ({ value }) => `text containing ${value}`,
 		stringMatching: ({ value }) => `text matching ${value}`,
-		any: ({ name, type }) => ANY_TYPE[name] ?? `any ${type}`,
+		any: ({ name, type }) => (Object.hasOwn(ANY_TYPE, name) ? ANY_TYPE[name]! : `any ${type}`),
 		anything: "anything",
 		not: ({ matcher }) => `not ${matcher}`,
 	},

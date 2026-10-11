@@ -1,7 +1,7 @@
 import { D, type Doc, mk, plain } from "@usenarrator/core";
 import { type Engine, type N, unwrap } from "../engine";
 import type { CallRule } from "../plugin";
-import { block, isFn, itemName, lambdaBlock, lambdaCond, lambdaNoun, pluckedListProp, pluckedProp, propPlural } from "./lambdas";
+import { block, isBlockHeader, isFn, itemName, lambdaBlock, lambdaCond, lambdaNoun, pluckedListProp, pluckedProp, propPlural } from "./lambdas";
 import type { StdPhrases } from "./phrases";
 
 type Calls = Record<string, CallRule<StdPhrases>>;
@@ -121,7 +121,15 @@ export const arrayRules: Calls = {
 	"*.toSorted": ({ obj, args, e, say }) => sortRule({ e, say, obj, args }),
 	"*.join": ({ obj, args, e, say }) => {
 		const list = e.noun(obj);
-		return D(args[0] ? say.join.with({ list: list.t, sep: e.text(args[0]) }) : say.join.commas({ list: list.t }), list.kids);
+		const sep = unwrap(args[0]);
+		const shown = isBlockHeader(e, list) ? say.following : list.t;
+		const text =
+			!sep || (sep.type === "Literal" && sep.value === ",")
+				? say.join.commas({ list: shown })
+				: sep.type === "Literal" && sep.value === "\n"
+					? say.join.lines({ list: shown })
+					: say.join.with({ list: shown, sep: e.text(sep) });
+		return isBlockHeader(e, list) ? block(text, list.kids) : D(text, list.kids);
 	},
 	"*.slice": ({ obj, args, e, say }) => {
 		const list = e.noun(obj);

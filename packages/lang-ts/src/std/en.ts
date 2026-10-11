@@ -29,6 +29,7 @@ export const en: StdPhrases = {
 	each: ({ item }) => `each ${item}`,
 	whether: ({ cond }) => `whether ${cond}`,
 	nothing: "nothing",
+	following: "the following",
 	someCssClasses: "some CSS classes",
 	constants: {
 		"Number.MAX_SAFE_INTEGER": "the largest possible number",
@@ -117,6 +118,7 @@ export const en: StdPhrases = {
 	join: {
 		with: ({ list, sep }) => `${list} joined with ${sep}`,
 		commas: ({ list }) => `${list} joined with commas`,
+		lines: ({ list }) => `${list}, one per line`,
 	},
 	slice: {
 		copy: ({ list }) => `a copy of ${list}`,
@@ -217,6 +219,7 @@ export const en: StdPhrases = {
 		then: ({ value, item, result }) => `${value}, then (with the result as ${item}) ${result}`,
 		catch: ({ value, fallback }) => `${value} (and if that fails, ${fallback} instead)`,
 		catchBlock: ({ value }) => `${value}, and if that fails`,
+		ignoreFailure: ({ value, stmt }) => (stmt ? `${value}, ignoring any failure` : `${value} (ignoring any failure)`),
 		finally: ({ value, action }) => `${value}, then either way ${action}`,
 		finallyBlock: ({ value }) => `${value}, then either way`,
 		race: ({ stmt }) => (stmt ? "wait for whichever of these finishes first" : "whichever of these finishes first"),

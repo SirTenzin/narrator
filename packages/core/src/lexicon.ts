@@ -158,7 +158,7 @@ write overlap cover exceed fit belong conflict differ qualify fork unref ref pin
 
 /** Per-narrator identifier knowledge; plugins extend it through their `vocabulary`. */
 export class Lexicon {
-	glossary: Record<string, string> = { ...DEFAULT_GLOSSARY };
+	glossary: Record<string, string> = Object.assign(Object.create(null), DEFAULT_GLOSSARY);
 	acronyms = new Set(DEFAULT_ACRONYMS);
 	verbs = new Set(DEFAULT_VERBS);
 	predicatePrefixes = new Set(DEFAULT_PREDICATE_PREFIXES);

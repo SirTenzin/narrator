@@ -96,7 +96,9 @@ export type StdPhrases = {
 		byRule: P<"list">;
 		compare: P<"a" | "b" | "expr">;
 	};
-	join: { with: P<"list" | "sep">; commas: P<"list"> };
+	join: { with: P<"list" | "sep">; commas: P<"list">; lines: P<"list"> };
+	/** Stands in for a value shown as a block of lines underneath. */
+	following: string;
 	slice: {
 		copy: P<"list">;
 		first: P<"count" | "list">;
@@ -177,6 +179,8 @@ export type StdPhrases = {
 		then: P<"value" | "item" | "result">;
 		catch: P<"value" | "fallback">;
 		catchBlock: P<"value">;
+		/** `p.catch(() => {})`: failures are swallowed. `stmt`: `value` is an action. */
+		ignoreFailure: (p: { value: string; stmt: boolean }) => string;
 		/** `p.finally(() => x)`: `action` runs whether `value` succeeds or fails. */
 		finally: P<"value" | "action">;
 		finallyBlock: P<"value">;

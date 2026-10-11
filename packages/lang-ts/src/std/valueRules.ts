@@ -31,11 +31,13 @@ export const valueRules: Calls = {
 		if (!body) return null;
 		return D(say.promise.then({ value: o.t, item: itemName({ e, fn, say }), result: body.t }), [...o.kids, ...body.kids]);
 	},
-	"*.catch": ({ obj, args, e, say }) => {
-		const o = e.noun(obj);
+	"*.catch": ({ obj, args, e, say, stmt }) => {
 		const fn = args[0] && unwrap(args[0]);
 		if (!fn || !isFn(fn)) return null;
-		const body = lambdaNoun({ e, fn, say, eachAlias: false });
+		const u = unwrap(obj);
+		const o = stmt && u.type === "CallExpression" ? e.call(u, true) : e.noun(obj);
+		if (fn.body.type === "BlockStatement" && !fn.body.body.length) return D(say.promise.ignoreFailure({ value: o.t, stmt }), o.kids);
+		const body = stmt ? null : lambdaNoun({ e, fn, say, eachAlias: false });
 		if (body) return D(say.promise.catch({ value: o.t, fallback: body.t }), [...o.kids, ...body.kids]);
 		return block(say.promise.catchBlock({ value: o.t }), [...o.kids, ...lambdaBlock(e, fn).kids]);
 	},

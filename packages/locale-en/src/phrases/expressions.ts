@@ -46,6 +46,8 @@ export const expressions: ExpressionPhrases = {
 	yieldAll: ({ value }) => `everything yielded by ${value}`,
 	dynamicImport: ({ path }) => `the module at ${path}`,
 	sql: ({ query }) => `the SQL ${query}`,
+	shell: ({ command, stmt }) => (stmt ? `run the shell command ${command}` : `the output of the shell command ${command}`),
+	tagged: ({ tag, text }) => `${text}, processed by ${tag}`,
 	classExpr: ({ name }) => `a class${name ? ` ${name}` : ""}`,
 	labeled: ({ key, value }) => `${key}: ${value}`,
 	item: "item",

@@ -85,6 +85,11 @@ const unwrapsAwait = (n: N): boolean => {
 	return cur?.type === "AwaitExpression";
 };
 
+const ESCAPES: Record<string, string> = { "\n": "\\n", "\t": "\\t", "\r": "\\r", "\0": "\\0" };
+
+/** Control characters in text shown as their escapes (`\n`, `\t`, `\0`), so output stays on one visible line. */
+const visible = (text: string) => text.replace(/[\u0000-\u001f\u007f]/g, (c) => ESCAPES[c] ?? `\\u${c.charCodeAt(0).toString(16).padStart(4, "0")}`);
+
 const HTTP_METHODS = new Set(["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"]);
 
 const isBoolLit = (n: N) => unwrap(n)?.type === "Literal" && typeof unwrap(n).value === "boolean";
@@ -142,13 +147,13 @@ export class Engine {
 	dialects: TsPlugin[] = [];
 	ambient = new Set<string>();
 	errorNames = new Set<string>();
-	errorLabels: Record<string, string> = {};
-	constants: Record<string, string> = {};
+	errorLabels: Record<string, string> = Object.create(null);
+	constants: Record<string, string> = Object.create(null);
 	errorPattern: RegExp | null = null;
-	calls: Record<string, Bound<CallRule>[]> = {};
-	conds: Record<string, Bound<CondRule>[]> = {};
+	calls: Record<string, Bound<CallRule>[]> = Object.create(null);
+	conds: Record<string, Bound<CondRule>[]> = Object.create(null);
 	stmtRules: Bound<StmtRule>[] = [];
-	members: Record<string, Bound<MemberRule>[]> = {};
+	members: Record<string, Bound<MemberRule>[]> = Object.create(null);
 	/** The current file's AST and its imports (local name -> where it came from), set by `narrate`. */
 	program: N = null;
 	imports = new Map<string, ImportInfo>();
@@ -262,6 +267,18 @@ export class Engine {
 	/** An identifier as words; HTTP methods and vowelless initialisms (`GET`, `KV`) keep their casing, other constants read as words. */
 	words(name: string): string {
 		return HTTP_METHODS.has(name) || /^[B-DF-HJ-NP-TV-Z][B-DF-HJ-NP-TV-Z0-9]{1,3}$/.test(name) ? name : this.lex.humanize(name);
+	}
+
+	/** `` $`…` `` with `$` imported from "bun". */
+	isBunShell(n: N): boolean {
+		const tag = unwrap(n.tag);
+		return tag?.type === "Identifier" && tag.name === "$" && this.imports.get("$")?.from === "bun";
+	}
+
+	/** Whether a variable's name only repeats the end of the function that produced it (`user = findUser()`). */
+	namesItsResult(fnName: string, varName: string): boolean {
+		const vw = this.lex.words(varName);
+		return vw.length > 0 && this.lex.words(fnName).slice(-vw.length).join(" ") === vw.join(" ");
 	}
 
 	/** A verb-led name, or a function defined in this file, reads as an action. */
@@ -392,7 +409,7 @@ export class Engine {
 					path: p.importMeta.path,
 				};
 				if (meta[1] === "env" && meta[2]) return D(p.envVar({ name: mk("l", meta[2]) }));
-				if (M[meta[1]!]) return D(M[meta[1]!]!);
+				if (Object.hasOwn(M, meta[1]!)) return D(M[meta[1]!]!);
 			}
 			const env = /^process\.env\.(\w+)$/.exec(k) ?? /^Bun\.env\.(\w+)$/.exec(k);
 			if (env) return D(p.envVar({ name: mk("l", env[1]!) }));
@@ -466,7 +483,10 @@ export class Engine {
 					.replace(/\s+/g, " ")
 					.trim();
 				if (/sql/i.test(tagCode)) return D(p.sql({ query: mk("c", text) }));
-				return D(this.raw(n));
+				const quoted = this.template(n.quasi);
+				if (this.isBunShell(n)) return this.wrap(quoted, (t) => p.shell({ command: t, stmt: false }));
+				const by = this.noun(n.tag);
+				return D(p.tagged({ tag: by.t, text: quoted.t }), [...by.kids, ...quoted.kids]);
 			}
 			case "ClassExpression":
 				return D(p.classExpr({ name: n.id?.name ?? null }));
@@ -487,7 +507,7 @@ export class Engine {
 	literal(n: N): string {
 		if (n.regex) return mk("c", n.raw);
 		if (n.value === null) return this.say.expressions.nothing;
-		if (typeof n.value === "string") return mk("l", `"${n.value}"`);
+		if (typeof n.value === "string") return mk("l", `"${visible(n.value)}"`);
 		if (typeof n.value === "number") {
 			const v = n.value;
 			if (Number.isInteger(v) && Math.abs(v) >= 10000) return mk("l", this.g.formatNumber(v));
@@ -498,11 +518,12 @@ export class Engine {
 
 	template(n: N): Doc {
 		if (n.expressions.length === 1 && n.quasis.every((q: N) => !q.value.cooked)) return this.noun(n.expressions[0]);
-		if (!n.expressions.length) return D(mk("l", `"${n.quasis[0].value.cooked}"`));
-		let t = mk("l", `"${n.quasis[0].value.cooked}`);
+		const quasi = (i: number) => visible(n.quasis[i].value.cooked ?? n.quasis[i].value.raw);
+		if (!n.expressions.length) return D(mk("l", `"${quasi(0)}"`));
+		let t = mk("l", `"${quasi(0)}`);
 		n.expressions.forEach((ex: N, i: number) => {
 			t += `{${this.noun(ex).t}}`;
-			t += mk("l", `${n.quasis[i + 1].value.cooked}${i === n.expressions.length - 1 ? '"' : ""}`);
+			t += mk("l", `${quasi(i + 1)}${i === n.expressions.length - 1 ? '"' : ""}`);
 		});
 		return D(t);
 	}
@@ -522,7 +543,27 @@ export class Engine {
 		return { root: cur, steps };
 	}
 
+	/** `c.env.DB.name`: a member rule that claims an inner link (`c.env.DB`) becomes the owner of the rest of the chain. */
+	innerMemberRule(n: N): Doc | null {
+		const outer: string[] = [];
+		let cur = unwrap(n);
+		while (cur?.type === "MemberExpression" && !cur.computed && cur.property?.type === "Identifier" && cur.property.name !== "length") {
+			outer.unshift(cur.property.name);
+			cur = unwrap(cur.object);
+			if (cur?.type !== "MemberExpression") return null;
+			const r = this.memberRule(cur);
+			if (r)
+				return this.joinPossessive(
+					r,
+					outer.map((name) => mk("v", this.words(name), name)),
+				);
+		}
+		return null;
+	}
+
 	member(n: N): Doc {
+		const inner = this.innerMemberRule(n);
+		if (inner) return inner;
 		const m = this.say.expressions.member;
 		const { root, steps } = this.chain(n);
 		const last = steps.at(-1)!;
@@ -1037,7 +1078,7 @@ export class Engine {
 		return out;
 	}
 
-	/** Plugin member rules: keys `Obj.prop`, `*.owner.prop`, `*.prop`, most specific first. */
+	/** Plugin member rules: keys `Obj.prop`, `*.owner.prop`, `*.prop`, then families `Obj.*` and `*.owner.*`; most specific first. */
 	memberRule(n: N): Doc | null {
 		if (n.computed || n.property?.type !== "Identifier") return null;
 		const obj = unwrap(n.object);
@@ -1046,6 +1087,8 @@ export class Engine {
 			obj.type === "Identifier" ? `${obj.name}.${prop}` : null,
 			obj.type === "MemberExpression" && !obj.computed ? `*.${obj.property.name}.${prop}` : null,
 			`*.${prop}`,
+			obj.type === "Identifier" ? `${obj.name}.*` : null,
+			obj.type === "MemberExpression" && !obj.computed ? `*.${obj.property.name}.*` : null,
 		];
 		for (const key of keys)
 			for (const rule of key ? (this.members[key] ?? []) : []) {
@@ -1657,6 +1700,12 @@ export class Engine {
 			}
 			return this.emitDoc(d, this.call(u, true), n);
 		}
+		if (u.type === "TaggedTemplateExpression" && this.isBunShell(u))
+			return this.emitDoc(
+				d,
+				this.wrap(this.template(u.quasi), (t) => this.say.expressions.shell({ command: t, stmt: true })),
+				n,
+			);
 		if (u.type === "NewExpression") {
 			const ruled = this.applyRules(this.calls, u, { stmt: true });
 			if (ruled) return this.emitDoc(d, ruled, n);
@@ -1717,10 +1766,7 @@ export class Engine {
 				if (verbal) {
 					const call = this.call(init, true);
 					const { text, colon } = colonSplit(call.t);
-					const vw = this.lex.words(id.name);
-					const fw = this.lex.words(fname);
-					const subsumed = vw.length && fw.slice(-vw.length).join(" ") === vw.join(" ");
-					const phrase = subsumed ? dc.callInto : dc.callAs;
+					const phrase = this.namesItsResult(fname, id.name) ? dc.callInto : dc.callAs;
 					return this.emitDoc(d, D(`${phrase({ call: text, name })}${colon}`, call.kids), n);
 				}
 			}
@@ -1752,7 +1798,10 @@ export class Engine {
 					const x = unwrap(el).type === "CallExpression" ? this.call(unwrap(el), true) : this.noun(el);
 					const { text, colon } = colonSplit(x.t);
 					const name = names[i];
-					this.emitDoc(d + 1, D(`• ${name ? dc.callInto({ call: text, name }) : text}${colon}`, x.kids), el, "", "bullet");
+					const local = id.elements[i]?.type === "Identifier" ? id.elements[i].name : null;
+					const fn = unwrap(el).type === "CallExpression" ? calleeName(unwrap(el)) : null;
+					const phrase = fn && local && this.namesItsResult(fn, local) ? dc.callInto : dc.callAs;
+					this.emitDoc(d + 1, D(`• ${name ? phrase({ call: text, name }) : text}${colon}`, x.kids), el, "", "bullet");
 				});
 				return;
 			}

@@ -1,4 +1,4 @@
-import { D, type Doc, mk } from "@usenarrator/core";
+import { D, type Doc, mk, plain } from "@usenarrator/core";
 import { type Engine, type N, unwrap } from "../engine";
 import type { StdPhrases } from "./phrases";
 
@@ -57,6 +57,12 @@ export const propPlural = (e: Engine, prop: string) => mk("v", e.g.plural(e.lex.
 
 export const lambdaBlock = (e: Engine, fn: N): Doc =>
 	D("", e.body(fn.body.type === "BlockStatement" ? fn.body : { type: "ExpressionStatement", expression: fn.body, start: fn.body.start, end: fn.body.end }, 0));
+
+/** Whether a rendered value is only a block header ("a list of", "an object with") whose content follows as lines. */
+export const isBlockHeader = (e: Engine, d: Doc) => {
+	const x = e.say.expressions;
+	return d.kids.length > 0 && [x.array.listOfBlock, x.array.concatBlock, x.object.withBlock].includes(plain(d.t).replace(/:$/, ""));
+};
 
 /** A block intro: the trailing colon marks that `kids` follow. */
 export const block = (text: string, kids: Doc["kids"]) => D(`${text}:`, kids);
