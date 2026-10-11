@@ -1,0 +1,28 @@
+<!doctype html>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="brand.css" />
+<style>
+	body { position: relative; padding: 0 88px; display: grid; grid-template-columns: 1fr 640px; gap: 72px; align-items: center; }
+	.copy { position: relative; display: flex; flex-direction: column; gap: 26px; }
+	.wordmark img { height: 34px; }
+	h1 { font-size: 60px; }
+	.sub { font-size: 22px; max-width: 520px; }
+	.pair { font-size: 17px; line-height: 1.45; position: relative; }
+</style>
+<body>
+	<div class="grid"></div>
+	<div class="copy">
+		<div class="wordmark"><img src="wordmark.svg" alt="" /></div>
+		<h1>Read pull requests in plain English</h1>
+		<p class="sub">Right inside GitHub's diff. No AI, no servers.</p>
+	</div>
+	<div class="pair">
+		<div class="head">app/routes/users.ts</div>
+		<div class="row code"><b>-</b><span>app.get("/users/:id", async (c) =&gt; {</span></div>
+		<div class="row english"><b>+</b><div>Answer GET /users/:id:</div></div>
+		<div class="row code"><b>-</b><span>if (!user) return c.notFound();</span></div>
+		<div class="row english"><b>+</b><div>If user is missing, reply with the not-found response.</div></div>
+		<div class="row code"><b>-</b><span>return c.json(user);</span></div>
+		<div class="row english"><b>+</b><div>Reply with user as JSON.</div></div>
+	</div>
+</body>

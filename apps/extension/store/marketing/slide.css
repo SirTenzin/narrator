@@ -1,0 +1,40 @@
+body {
+	position: relative;
+	padding: 56px 72px 0;
+	display: flex;
+	flex-direction: column;
+}
+.top {
+	position: relative;
+}
+.wordmark img {
+	height: 24px;
+}
+h1 {
+	font-size: 52px;
+	margin-top: 30px;
+}
+.sub {
+	font-size: 21px;
+	max-width: 900px;
+	margin-top: 14px;
+}
+.window {
+	margin-top: 40px;
+	flex: 1;
+	border-bottom-left-radius: 0;
+	border-bottom-right-radius: 0;
+	border-bottom: none;
+}
+/* The capture is 2560x1600 (1280x800 CSS); --zoom and --x/--y pick the part worth showing. */
+.window .view {
+	position: relative;
+	height: calc(100% - 34px);
+	overflow: hidden;
+}
+.window .view img {
+	position: absolute;
+	width: calc(100% * var(--zoom, 1));
+	left: var(--x, 0);
+	top: var(--y, 0);
+}

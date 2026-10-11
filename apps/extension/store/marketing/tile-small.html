@@ -1,0 +1,19 @@
+<!doctype html>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="brand.css" />
+<style>
+	body { position: relative; padding: 36px 34px; display: flex; flex-direction: column; justify-content: space-between; }
+	.wordmark img { height: 26px; }
+	h1 { font-size: 34px; position: relative; }
+	.pair { font-size: 12.5px; position: relative; }
+	.pair .row { padding: 7px 14px; gap: 10px; }
+</style>
+<body>
+	<div class="grid"></div>
+	<div class="wordmark" style="position: relative"><img src="wordmark.svg" alt="" /></div>
+	<h1>Pull requests,<br />in plain English.</h1>
+	<div class="pair">
+		<div class="row code"><b>-</b><span>if (!user) return c.notFound();</span></div>
+		<div class="row english"><b>+</b><div>If user is missing, reply with the not-found response.</div></div>
+	</div>
+</body>

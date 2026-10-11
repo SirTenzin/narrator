@@ -39,12 +39,12 @@ export async function browserSession() {
 	return connect(webSocketDebuggerUrl);
 }
 
-/** The first open tab, with its viewport pinned to `width` x `height` CSS pixels at 1x. */
-export async function pageSession({ width, height }: { width: number; height: number }) {
+/** The first open tab, with its viewport pinned to `width` x `height` CSS pixels at `scale` device pixels each. */
+export async function pageSession({ width, height, scale = 1 }: { width: number; height: number; scale?: number }) {
 	const targets = (await (await fetch(`${CDP}/json`)).json()) as { type: string; webSocketDebuggerUrl: string }[];
 	const target = targets.find((t) => t.type === "page");
 	if (!target) throw new Error("no open tab to drive");
 	const page = await connect(target.webSocketDebuggerUrl);
-	await page.send("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: 1, mobile: false });
+	await page.send("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: scale, mobile: false });
 	return page;
 }

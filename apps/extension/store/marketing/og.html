@@ -1,0 +1,29 @@
+<!doctype html>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="brand.css" />
+<style>
+	body { position: relative; padding: 64px 72px; display: grid; grid-template-columns: 1fr 520px; gap: 56px; align-items: center; }
+	.copy { display: flex; flex-direction: column; gap: 28px; position: relative; }
+	.wordmark img { height: 34px; }
+	h1 { font-size: 64px; }
+	.sub { font-size: 24px; max-width: 520px; }
+	.url { font-family: var(--mono); font-size: 16px; color: var(--faint); }
+	.pair { font-size: 17px; line-height: 1.45; position: relative; }
+</style>
+<body>
+	<div class="grid"></div>
+	<div class="copy">
+		<div class="wordmark"><img src="wordmark.svg" alt="" /></div>
+		<h1>Read code in plain English</h1>
+		<p class="sub">Narrator turns TypeScript and JavaScript into clear sentences. No AI, fully deterministic.</p>
+	</div>
+	<div class="pair">
+		<div class="head">app/routes/users.ts</div>
+		<div class="row code"><b>-</b><span>app.get("/users/:id", async (c) =&gt; {</span></div>
+		<div class="row english"><b>+</b><div>Answer GET /users/:id:</div></div>
+		<div class="row code"><b>-</b><span>if (!user) return c.notFound();</span></div>
+		<div class="row english"><b>+</b><div>If user is missing, reply with the not-found response.</div></div>
+		<div class="row code"><b>-</b><span>return c.json(user);</span></div>
+		<div class="row english"><b>+</b><div>Reply with user as JSON.</div></div>
+	</div>
+</body>

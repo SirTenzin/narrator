@@ -4,8 +4,10 @@
 // Each pull request costs a few anonymous GitHub API requests, well inside the 60 an hour limit.
 import { browserSession, pageSession } from "./cdp";
 
-const OUT = `${import.meta.dir}/assets/screenshots`;
-const extensionDir = process.argv[2] ?? `${import.meta.dir}/../chrome/dist`;
+// `--raw` captures at 2x into assets/raw for the designed carousel slides (bun store/marketing.ts).
+const raw = process.argv.includes("--raw");
+const OUT = raw ? `${import.meta.dir}/assets/raw` : `${import.meta.dir}/assets/screenshots`;
+const extensionDir = process.argv.slice(2).find((a) => !a.startsWith("--")) ?? `${import.meta.dir}/../chrome/dist`;
 
 const REACT_DRIZZLE = "https://github.com/openstatusHQ/openstatus/pull/2860/files?diff=unified";
 const HONO = "https://github.com/openstatusHQ/openstatus/pull/2888/files";
@@ -16,7 +18,8 @@ browser.close();
 const extensionId = loaded.result?.id as string | undefined;
 if (!extensionId) throw new Error(`couldn't load the extension: ${loaded.error?.message}`);
 
-const page = await pageSession({ width: 1280, height: 800 });
+await Bun.$`mkdir -p ${OUT}`;
+const page = await pageSession({ width: 1280, height: 800, scale: raw ? 2 : 1 });
 
 /** Navigates and waits until the extension has rendered its English, or gives up after 30 seconds. */
 async function open(url: string) {
@@ -44,7 +47,7 @@ const scrollToFile = (path: string, offset: number) =>
 async function shoot(name: string) {
 	await Bun.sleep(800);
 	await page.screenshot(`${OUT}/${name}.png`);
-	console.log(`wrote store/assets/screenshots/${name}.png`);
+	console.log(`wrote ${OUT}/${name}.png`);
 }
 
 await open(REACT_DRIZZLE);

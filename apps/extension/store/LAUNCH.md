@@ -34,7 +34,7 @@ Submit every store tonight so the review clocks start, and announce with the Git
    - Description: "Long description" from LISTING.md.
    - Category: Developer Tools. Language: English.
    - Store icon: `apps/extension/icons/icon128.png`.
-   - Screenshots: the five files in `assets/screenshots/`, in name order.
+   - Screenshots: the five designed slides in `assets/carousel/`, in name order. (The plain captures in `assets/screenshots/` are a fallback.)
    - Small promo tile: `assets/promo-small-440x280.png`. Marquee: `assets/promo-marquee-1400x560.png`.
    - Homepage URL: https://github.com/SirTenzin/narrator. Support URL: https://github.com/SirTenzin/narrator/issues.
 5. **Privacy** tab: paste the single purpose, the four permission justifications (storage, offscreen, host permissions, which covers both GitHub API hosts and the github.com content script) and answer remote code "No". Tick Authentication information and Website content, tick the three certifications, and paste the privacy policy URL.
@@ -58,7 +58,7 @@ Expect an email when review finishes. If it is still pending after three weeks, 
    - License: MIT.
    - Privacy policy: tick "This add-on has a privacy policy" and paste the text of `PRIVACY.md` (AMO wants the text, not a link).
    - Notes to Reviewer: "Notes for reviewers", including the AMO-only paragraph.
-6. Click **Submit Version**. Then open **Edit Product Page**, add the five screenshots, and save.
+6. Click **Submit Version**. Then open **Edit Product Page**, add the five slides from `assets/carousel/`, and save.
 
 ### Same-day fallback: self-hosted signed .xpi
 
@@ -86,7 +86,7 @@ Developer-mode installs don't update themselves, and Chrome may remind users tha
 3. **Availability**: Visibility Public (or Hidden for link-only), Markets all. **Save**.
 4. **Properties**: Category Developer tools. Privacy policy: Yes, with the privacy policy URL. Website: https://github.com/SirTenzin/narrator. Support contact: https://github.com/SirTenzin/narrator/issues. Mature content: No. **Save**.
 5. **Privacy**: the same single purpose, permission justifications, remote code "No" and data usage answers as Chrome. **Save**.
-6. **Store listings** → English → **Edit details**: Description (the long description, over the 250 character minimum), Extension logo `assets/logo-300.png`, Small promotional tile `assets/promo-small-440x280.png`, Large promotional tile `assets/promo-marquee-1400x560.png`, Screenshots (the five 1280x800 files), Search terms from LISTING.md. **Save**.
+6. **Store listings** → English → **Edit details**: Description (the long description, over the 250 character minimum), Extension logo `assets/logo-300.png`, Small promotional tile `assets/promo-small-440x280.png`, Large promotional tile `assets/promo-marquee-1400x560.png`, Screenshots (the five 1280x800 slides in `assets/carousel/`), Search terms from LISTING.md. **Save**.
 7. Click **Publish**, paste "Notes for reviewers" into **Notes for certification**, and click **Publish** again.
 
 ## Safari (App Store)
@@ -99,7 +99,7 @@ This needs an Apple Developer Program membership (US$99 a year). If you don't ha
 4. **App Information**: category Developer Tools (secondary Productivity), privacy policy URL, content rights "No third-party content".
 5. **Pricing and Availability**: Free, all territories.
 6. **App Privacy**: Get Started → "No, we do not collect data from this app" → Publish.
-7. Version **1.0** page: Mac screenshots (the five 1280x800 files), promotional text, description, keywords, support URL, marketing URL, copyright, the TestFlight build, and App Review contact details with "Notes for reviewers". Age rating: None for every question.
+7. Version **1.0** page: Mac screenshots (the five 2560x1600 slides in `assets/carousel-2x/`), promotional text, description, keywords, support URL, marketing URL, copyright, the TestFlight build, and App Review contact details with "Notes for reviewers". Age rating: None for every question.
 8. Click **Add for Review**, then **Submit for Review**. Most reviews finish within 48 hours.
 
 On a Mac with Xcode you can skip the packager: `bun run safari` builds a local app with `safari.sh`, and Xcode's Product → Archive uploads it.

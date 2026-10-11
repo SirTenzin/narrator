@@ -59,11 +59,20 @@
 				"groups": [
 					{
 						"group": "Get started",
-						"pages": ["index", "getting-started"]
+						"pages": [
+							"index",
+							"getting-started"
+						]
 					},
 					{
 						"group": "Concepts",
-						"pages": ["concepts/how-it-works", "concepts/markup", "concepts/units-and-diffs", "concepts/dependency-detection", "concepts/determinism"]
+						"pages": [
+							"concepts/how-it-works",
+							"concepts/markup",
+							"concepts/units-and-diffs",
+							"concepts/dependency-detection",
+							"concepts/determinism"
+						]
 					}
 				]
 			},
@@ -73,11 +82,20 @@
 				"groups": [
 					{
 						"group": "Use Narrator",
-						"pages": ["guides/browser-extension", "privacy", "guides/embedding"]
+						"pages": [
+							"guides/browser-extension",
+							"privacy",
+							"guides/embedding"
+						]
 					},
 					{
 						"group": "Extend Narrator",
-						"pages": ["guides/writing-a-plugin", "guides/translating", "guides/source-languages", "guides/plugin-versioning"]
+						"pages": [
+							"guides/writing-a-plugin",
+							"guides/translating",
+							"guides/source-languages",
+							"guides/plugin-versioning"
+						]
 					}
 				]
 			},
@@ -87,35 +105,70 @@
 				"groups": [
 					{
 						"group": "Plugins",
-						"pages": ["plugins/overview"]
+						"pages": [
+							"plugins/overview"
+						]
 					},
 					{
 						"group": "Validation",
-						"pages": ["plugins/zod", "plugins/valibot", "plugins/arktype"]
+						"pages": [
+							"plugins/zod",
+							"plugins/valibot",
+							"plugins/arktype"
+						]
 					},
 					{
 						"group": "Data",
-						"pages": ["plugins/drizzle", "plugins/prisma", "plugins/kysely", "plugins/sql", "plugins/decimal"]
+						"pages": [
+							"plugins/drizzle",
+							"plugins/prisma",
+							"plugins/kysely",
+							"plugins/sql",
+							"plugins/decimal"
+						]
 					},
 					{
 						"group": "Servers",
-						"pages": ["plugins/hono", "plugins/express", "plugins/fastify", "plugins/elysia", "plugins/trpc"]
+						"pages": [
+							"plugins/hono",
+							"plugins/express",
+							"plugins/fastify",
+							"plugins/elysia",
+							"plugins/trpc"
+						]
 					},
 					{
 						"group": "Frontend",
-						"pages": ["plugins/react", "plugins/nextjs", "plugins/tanstack-query"]
+						"pages": [
+							"plugins/react",
+							"plugins/nextjs",
+							"plugins/tanstack-query"
+						]
 					},
 					{
 						"group": "Payments, auth & AI",
-						"pages": ["plugins/stripe", "plugins/autumn-js", "plugins/better-auth", "plugins/ai-sdk"]
+						"pages": [
+							"plugins/stripe",
+							"plugins/autumn-js",
+							"plugins/better-auth",
+							"plugins/ai-sdk"
+						]
 					},
 					{
 						"group": "Jobs",
-						"pages": ["plugins/bullmq", "plugins/inngest", "plugins/trigger-dev", "plugins/temporal"]
+						"pages": [
+							"plugins/bullmq",
+							"plugins/inngest",
+							"plugins/trigger-dev",
+							"plugins/temporal"
+						]
 					},
 					{
 						"group": "Effect & testing",
-						"pages": ["plugins/effect", "plugins/testing"]
+						"pages": [
+							"plugins/effect",
+							"plugins/testing"
+						]
 					}
 				]
 			},
@@ -125,11 +178,20 @@
 				"groups": [
 					{
 						"group": "Packages",
-						"pages": ["reference/core", "reference/engine", "reference/ts-plugin", "reference/locale", "reference/node", "reference/testkit"]
+						"pages": [
+							"reference/core",
+							"reference/engine",
+							"reference/ts-plugin",
+							"reference/locale",
+							"reference/node",
+							"reference/testkit"
+						]
 					},
 					{
 						"group": "Tools",
-						"pages": ["reference/cli"]
+						"pages": [
+							"reference/cli"
+						]
 					}
 				]
 			}
@@ -141,6 +203,16 @@
 		}
 	},
 	"contextual": {
-		"options": ["copy", "view"]
+		"options": [
+			"copy",
+			"view"
+		]
+	},
+	"seo": {
+		"metatags": {
+			"og:image": "/images/og.png",
+			"twitter:image": "/images/og.png",
+			"twitter:card": "summary_large_image"
+		}
 	}
 }

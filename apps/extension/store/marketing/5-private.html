@@ -1,0 +1,30 @@
+<!doctype html>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="brand.css" />
+<style>
+	body { position: relative; padding: 64px 72px; display: grid; grid-template-columns: 1fr 1.25fr; gap: 56px; align-items: center; }
+	.wordmark img { height: 26px; }
+	h1 { font-size: 52px; margin-top: 40px; }
+	.sub { font-size: 21px; margin-top: 16px; }
+	ul { list-style: none; margin-top: 36px; display: flex; flex-direction: column; gap: 18px; }
+	li { display: flex; gap: 14px; font-size: 19px; line-height: 1.45; }
+	li::before { content: ""; flex: none; width: 8px; height: 8px; margin-top: 10px; border-radius: 50%; background: var(--ink); }
+	li b { font-weight: 600; }
+	.window { height: 520px; }
+	.window .view { position: relative; height: calc(100% - 34px); overflow: hidden; }
+	.window .view img { position: absolute; width: 119%; left: -9.5%; top: 0; }
+</style>
+<body>
+	<div class="grid"></div>
+	<div style="position: relative">
+		<div class="wordmark"><img src="wordmark.svg" alt="" /></div>
+		<h1>Private by design</h1>
+		<p class="sub">Everything happens in your browser.</p>
+		<ul>
+			<li><span><b>No AI and no servers.</b> The English comes from rules applied to the code, the same way every time.</span></li>
+			<li><span><b>Only talks to GitHub,</b> to fetch the files of the change you're looking at.</span></li>
+			<li><span><b>Private repositories</b> work with an optional token that never leaves your browser.</span></li>
+		</ul>
+	</div>
+	<div class="window"><div class="bar"><i></i><i></i><i></i><span>Narrator options</span></div><div class="view"><img src="../assets/raw/5-options.png" alt="" /></div></div>
+</body>

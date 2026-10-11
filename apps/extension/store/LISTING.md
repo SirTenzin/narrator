@@ -117,4 +117,4 @@ For AMO only: the manifest declares no data collection because the extension tra
 - Age rating: answer None to every question (4+).
 - Price: Free.
 - Copyright: 2026 Narrator contributors
-- Screenshots (Mac): the five 1280x800 PNGs in `assets/screenshots/` are an accepted Mac size.
+- Screenshots (Mac): the five 2560x1600 slides in `assets/carousel-2x/` (an accepted Mac size; 1280x800 versions are in `assets/carousel/`).

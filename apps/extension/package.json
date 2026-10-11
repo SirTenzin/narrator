@@ -47,6 +47,8 @@
 		"icons": "bun store/icons.ts",
 		"package:safari": "bun store/package.ts safari",
 		"store:screenshots": "bun store/screenshots.ts",
-		"store:tiles": "bun store/tiles.ts"
+		"store:tiles": "bun store/tiles.ts",
+		"store:images": "bun store/marketing.ts",
+		"store:raw": "bun store/screenshots.ts --raw"
 	}
 }
