@@ -30,7 +30,7 @@ flowchart TB
     A source language decides which files it can read and creates a file narrator for each one. `@usenarrator/lang-ts` is the only source language today. It handles `.ts`, `.tsx`, `.js`, `.jsx`, `.mjs` and `.cjs`, and skips `.d.ts` files. See [Adding a source language](/guides/source-languages).
   </Accordion>
   <Accordion title="Parser" icon="scan-text">
-    The TypeScript language does not parse code itself. You hand it a parser: `oxcParser` uses the native oxc binding on Node and Bun, and `oxcWasmParser` wraps the WASM build for browsers. Both produce the same ESTree-shaped tree, so narration is identical. See [Embedding in your app](/guides/embedding).
+    The TypeScript language does not parse code itself. You hand it a parser: `oxcParser` uses the native oxc binding on Node and Bun, and `createWasmParser()` loads the WASM build of the same oxc version for browsers, workers and edge runtimes. Both produce the same ESTree-shaped tree, so narration is identical. See [Embedding in your app](/guides/embedding).
   </Accordion>
   <Accordion title="Engine" icon="cpu">
     The engine walks the tree. For each call it looks for a plugin rule keyed by the callee, such as `*.filter` or `z.object`, and it does the same for property reads, tagged templates and JSX. If no rule claims a node, it falls back to generic phrasing built from the identifier names. See the [Engine API](/reference/engine).

@@ -1,6 +1,7 @@
 // Parity check against the pre-SDK baseline. `bun tools/dev/golden.ts` compares; `--write` re-snapshots.
-import { narrator } from "@usenarrator/cli";
+
 import { AUTUMN, commitFiles, corpusFiles, GOLDEN, TEST_COMMITS } from "./corpus";
+import { narrator } from "./narrator";
 
 const write = process.argv.includes("--write");
 const only = process.argv.find((a) => a.startsWith("--only="))?.slice(7);
@@ -10,7 +11,7 @@ for (const f of await corpusFiles()) {
 	if (only && !f.includes(only)) continue;
 	const src = await Bun.file(`${AUTUMN}/${f}`).text();
 	try {
-		const { lines } = narrator.narrate(src, f);
+		const { lines } = narrator.fileNarrator(f).narrate(src, f);
 		narrateRows.push(JSON.stringify({ f, lines: lines.map((l) => [l.d, l.kind, l.start, l.end, l.text]) }));
 	} catch (e) {
 		narrateRows.push(JSON.stringify({ f, error: String(e) }));
@@ -48,8 +49,10 @@ for (const row of narrateRows) {
 let diffSame = true;
 if (!only) {
 	const goldenDiffs = await Bun.file(`${GOLDEN}/diffs.json`).json();
+	// Reports gained a `problems` list; an empty one carries nothing the baseline lacks.
+	const withoutEmptyProblems = (files: unknown) => JSON.stringify(files, (k, v) => (k === "problems" && Array.isArray(v) && !v.length ? undefined : v));
 	for (const sha of TEST_COMMITS)
-		if (JSON.stringify(goldenDiffs[sha]) !== JSON.stringify(diffs[sha])) {
+		if (withoutEmptyProblems(goldenDiffs[sha]) !== withoutEmptyProblems(diffs[sha])) {
 			diffSame = false;
 			console.log(`diff report changed for ${sha}`);
 		}

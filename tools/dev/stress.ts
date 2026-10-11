@@ -1,6 +1,6 @@
-import { narrator } from "@usenarrator/cli";
 import { renderText } from "@usenarrator/core";
 import { corpusFiles } from "./corpus";
+import { narrator } from "./narrator";
 
 const root = process.argv[2] ?? "/workspace/autumn";
 const crashes: { f: string; err: string }[] = [];
@@ -11,7 +11,9 @@ const t0 = performance.now();
 for (const f of await corpusFiles(root)) {
 	const src = await Bun.file(`${root}/${f}`).text();
 	try {
-		const { lines, stats } = narrator.narrate(src, f);
+		// The file narrator throws where `narrator.narrate` would turn a crash into a problem, so stacks survive.
+		const { lines, stats, problems = [] } = narrator.fileNarrator(f).narrate(src, f);
+		for (const p of problems) if (p.source !== "parser") crashes.push({ f, err: `${p.plugin ?? p.source} ${p.rule ?? ""}: ${p.message}` });
 		totals.files++;
 		totals.nodes += stats.nodes;
 		totals.fallbacks += stats.fallbacks;

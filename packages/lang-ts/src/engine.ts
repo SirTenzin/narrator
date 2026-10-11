@@ -183,6 +183,8 @@ export class Engine {
 	jsxRules: Bound<JsxRule>[] = [];
 	/** The current file's AST and its imports (local name -> where it came from), set by `narrate`. */
 	program: N = null;
+	/** The parser's errors for the current file, before any recovery. */
+	parseErrors: unknown[] = [];
 	imports = new Map<string, ImportInfo>();
 	/** The current file's path as the host passed it (repo-relative in the CLI and extension). */
 	path = "";
@@ -242,12 +244,13 @@ export class Engine {
 					this.ruleError(
 						d.name,
 						rule,
+						(ctx as { node?: N }).node,
 						`returned ${describeValue(out)}; expected ${rule.startsWith("statements") ? "true or false" : "a Doc, a string or null"}`,
 					);
 				} catch (err) {
 					this.lines = lines;
 					lines.length = lineCount;
-					this.ruleError(d.name, rule, err instanceof Error ? err.message : String(err));
+					this.ruleError(d.name, rule, (ctx as { node?: N }).node, err instanceof Error ? err.message : String(err));
 				}
 				return fallback;
 			}) as Bound<R> & { lib?: string };
@@ -276,10 +279,13 @@ export class Engine {
 	}
 
 	/** Records a plugin rule failure in `stats.ruleErrors`, counting repeats. */
-	ruleError(plugin: string, rule: string, message: string) {
+	ruleError(plugin: string, rule: string, node: N, message: string) {
 		const seen = this.stats.ruleErrors.find((x) => x.plugin === plugin && x.rule === rule && x.message === message);
 		if (seen) seen.count++;
-		else this.stats.ruleErrors.push({ plugin, rule, message, count: 1 });
+		else {
+			const line = typeof node?.start === "number" ? this.src.slice(0, node.start).split("\n").length : undefined;
+			this.stats.ruleErrors.push({ plugin, rule, message, count: 1, ...(line ? { line } : {}) });
+		}
 	}
 
 	/** A plugin's phrasebook for this locale, merged key by key: locale override, then the plugin's own translation, then English. */
@@ -310,10 +316,10 @@ export class Engine {
 			if (!d.describeSchema) continue;
 			try {
 				const t = d.describeSchema(this, n, this.phrasesFor(d));
-				if (t && typeof t !== "string") this.ruleError(d.name, "describeSchema", `returned ${describeValue(t)}; expected a string or null`);
+				if (t && typeof t !== "string") this.ruleError(d.name, "describeSchema", n, `returned ${describeValue(t)}; expected a string or null`);
 				else if (t) return t;
 			} catch (err) {
-				this.ruleError(d.name, "describeSchema", err instanceof Error ? err.message : String(err));
+				this.ruleError(d.name, "describeSchema", n, err instanceof Error ? err.message : String(err));
 			}
 		}
 		return null;
@@ -2379,6 +2385,7 @@ export class Engine {
 		this.headTitles = new Map();
 		const lang = /\.(tsx|jsx)$/.test(filename) ? filename : filename.replace(/\.(m|c)?js$/, ".ts");
 		const { program, errors, comments, gaps } = this.parseReadable(lang, src);
+		this.parseErrors = errors;
 		this.program = program;
 		this.imports = importsOf(program);
 		this.comments = comments ?? [];

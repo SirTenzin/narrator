@@ -96,7 +96,14 @@ describe("rule isolation", () => {
 	test("a throwing rule falls through to the next rule, and the file still narrates", () => {
 		const r = narrator([fallback, broken]).narrate("explode(a);\nwork();", "x.ts");
 		expect(renderText(r.lines)).toBe("The fallback rule's words.\nRun work.");
-		expect(r.stats.ruleErrors).toEqual([{ plugin: "broken", rule: 'calls["explode"]', message: "rule bug", count: 1 }]);
+		expect(r.stats.ruleErrors).toEqual([{ plugin: "broken", rule: 'calls["explode"]', message: "rule bug", count: 1, line: 1 }]);
+		expect(r.problems).toEqual([
+			{ path: "x.ts", message: "rule bug", severity: "warning", source: "plugin", plugin: "broken", rule: 'calls["explode"]', line: 1 },
+		]);
+	});
+
+	test("testkit still fails loudly on a broken rule", () => {
+		expect(() => narrate("explode(a);", { plugins: [broken] })).toThrow(/rule bug/);
 	});
 
 	test("every rule kind falls back to default narration, and bad return values are reported", () => {
@@ -128,7 +135,7 @@ describe("rule isolation", () => {
 		const e = typescript({ parser: oxcParser, plugins: [broken] }).engine(en);
 		e.narrate("const S = z.object({});", "x.ts");
 		expect(e.schemaText(e.program.body[0].declarations[0].init)).toBeNull();
-		expect(e.stats.ruleErrors).toEqual([{ plugin: "broken", rule: "describeSchema", message: "schema bug", count: 1 }]);
+		expect(e.stats.ruleErrors).toEqual([{ plugin: "broken", rule: "describeSchema", message: "schema bug", count: 1, line: 1 }]);
 	});
 });
 

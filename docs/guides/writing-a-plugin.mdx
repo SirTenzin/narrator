@@ -346,12 +346,14 @@ Plugins that need more facts about a file, such as which variables hold a Stripe
 
 A rule that throws, or returns something other than a `Doc`, a string or `null`, doesn't stop narration. The engine treats it as if the rule had returned `null`: the next rule for that key gets a try, then the engine's own phrasing. Any lines the rule emitted before it failed are removed. The same goes for `statements` rules (which should return `true` or `false`), the `jsx` rule and `describeSchema`.
 
-Each failure is recorded in the narration's `stats.ruleErrors` with the plugin's name, the rule (for example `calls["*.plus"]` or `statements[0]`), the error message and how many times it happened. A host can log these, and a test can assert the list is empty:
+Each failure becomes a `problems` entry on the narration, with `source: "plugin"`, `severity: "warning"`, the plugin's name, the rule (for example `calls["*.plus"]` or `statements[0]`), the line it happened on and the error message. `stats.ruleErrors` holds the same failures with a count of how often each happened. A host can log them:
 
 ```ts
-const { stats } = narrator.narrate(source, "billing.ts");
-for (const err of stats.ruleErrors ?? []) console.warn(`${err.plugin} ${err.rule}: ${err.message} (${err.count}x)`);
+const { problems } = narrator.narrate(source, "billing.ts");
+for (const p of problems) if (p.source === "plugin") console.warn(`${p.plugin} ${p.rule} failed on line ${p.line}: ${p.message}`);
 ```
+
+In tests, `narrate` and `narrateWithStats` from `@usenarrator/testkit` throw when any rule fails, so a buggy rule fails the test instead of quietly falling back.
 
 Returning `null` is still the right answer for anything a rule doesn't recognise, because a failure costs a little time and leaves a warning behind.
 

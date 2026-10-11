@@ -20,6 +20,8 @@ type SnippetOptions = { plugins?: (TsPlugin | TsPlugin[])[]; locale?: Locale; pa
 
 Narrates a snippet and returns plain text. `path` defaults to `snippet.ts`. Set it to a `.tsx` name when the snippet contains JSX, or to a path such as `app/blog/[slug]/page.tsx` when a plugin reads meaning from it.
 
+If a plugin rule throws, `narrate` throws too, with the plugin and rule in the message, even though a real narrator would carry on with a plain reading. That way a bug in a rule fails its test instead of hiding behind a fallback. Syntax errors don't throw, so snippets may use a top-level `return`.
+
 The testkit doesn't load dependency manifests, so a plugin that checks `e.usesLibrary` only applies when the snippet imports its library. Start test snippets with the import, as real files do.
 
 {/* narrate plugins="decimal" */}

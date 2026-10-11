@@ -18,11 +18,12 @@ interface SourceLanguage {
 interface FileNarrator {
   narrate(src: string, path: string): FileNarration;
   units(src: string, path: string): Unit[];
+  problems?(): NarrationProblem[];
 }
 
-type FileNarration = { lines: Line[]; errors: number; stats: NarrationStats };
+type FileNarration = { lines: Line[]; errors: number; stats: NarrationStats; problems?: NarrationProblem[] };
 type NarrationStats = { nodes: number; fallbacks: number; fallbackTypes: Record<string, number>; ruleErrors?: RuleError[] };
-type RuleError = { plugin: string; rule: string; message: string; count: number };
+type RuleError = { plugin: string; rule: string; message: string; count: number; line?: number };
 type Unit = { key: string; title: string; start: number; end: number; lines: Line[] };
 ```
 
@@ -30,6 +31,7 @@ type Unit = { key: string; title: string; start: number; end: number; lines: Lin
 - **`ecosystems`** names the dependency registries this language imports from, such as `["npm"]` for TypeScript or `["crates"]` for Rust. The narrator uses it to pick which manifests apply. See [Dependency detection](/concepts/dependency-detection).
 - **`create`** is called once per file, so the file narrator it returns can keep per-file state, such as which imports the file has. When the narrator was given a dependency index, `ctx.dependencies(path)` returns the package dependencies (name to version range) for a file in this language's ecosystems.
 - **`narrate`** returns lines, the number of parse errors, and stats. Count a fallback each time you show raw code instead of English, so tools like `bun stress` can measure coverage.
+- **`problems`** is optional. Return syntax errors and failed rules from `narrate` as `problems`, and from the latest `units` call through `problems()`, so diffs can report them. You don't need to catch your own crashes: the narrator turns an exception into a `narrator` problem for that file and carries on with the others.
 - **`units`** splits the file into matchable pieces for diffs. Use the declaration name as the key and keep it stable across edits. See [Units and diffs](/concepts/units-and-diffs).
 
 ## Lines

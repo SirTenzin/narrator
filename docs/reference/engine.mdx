@@ -6,7 +6,7 @@ description: "The TypeScript source language and the engine API that rules call.
 ```ts
 import { typescript, Engine } from "@usenarrator/lang-ts";
 import { oxcParser } from "@usenarrator/lang-ts/oxc";
-import { oxcWasmParser } from "@usenarrator/lang-ts/wasm";
+import { createWasmParser } from "@usenarrator/lang-ts/wasm";
 ```
 
 ## typescript()
@@ -21,7 +21,7 @@ function typescript(options: {
 ```
 
 <ParamField path="parser" type="Parser" required>
-  `oxcParser` for Node and Bun, or `oxcWasmParser(parseSync)` for browsers. See [Embedding](/guides/embedding).
+  `oxcParser` for Node and Bun, or the parser that `await createWasmParser()` resolves to for browsers, workers and edge runtimes. `typescript()` throws a readable error if you pass something else, such as the Promise itself. See [Embedding](/guides/embedding).
 </ParamField>
 <ParamField path="plugins" type="(TsPlugin | TsPlugin[])[]">
   Library and codebase plugins, applied after the built-in `std` plugin. Nested arrays are flattened. Later plugins win.
@@ -40,9 +40,25 @@ type Parser = (filename: string, src: string) => ParseOutput;
 type ParseOutput = { program: any; comments: { type: string; value: string; start: number; end: number }[]; errors: unknown[] };
 ```
 
-### Syntax errors
+## createWasmParser()
 
-A file with a syntax error is still narrated. oxc recovers from some errors on its own, such as a `return` outside a function, and the file reads as usual. When an error stops the parser, the engine blanks out the fewest whole lines that let the rest parse (falling back to whole top-level statements), narrates everything else, and puts a note where the gap is, such as "Line 12 has a syntax error, so it's left out." The narration's `errors` still counts every error the parser reported, and the note's text comes from the locale's `statements.unreadable` phrase.
+```ts
+function createWasmParser(options?: {
+  wasm?: URL | string | Response | ArrayBuffer | ArrayBufferView | WebAssembly.Module | PromiseLike<Response | WebAssembly.Module>;
+}): Promise<Parser>;
+```
+
+Loads oxc's WASM build from the optional peer dependency `@oxc-parser/binding-wasm32-wasip1` and resolves to a synchronous `Parser`. Create it once and reuse it: every call starts a new WASM instance.
+
+<ParamField path="wasm" type="URL | string | Response | bytes | WebAssembly.Module">
+  Where the `.wasm` file comes from. Leave it out in Node, Bun and bundlers that turn `new URL(…, import.meta.url)` into an asset, such as Vite. Pass a compiled module on Cloudflare Workers, and a URL inside a browser extension. If the value is not a WebAssembly file, for example an HTML page served instead of the `.wasm`, the error says so.
+</ParamField>
+
+## Syntax errors and failing rules
+
+A file with a syntax error is still narrated. oxc recovers from some errors on its own, such as a `return` outside a function, and the file reads as usual. When an error stops the parser, the engine blanks out the fewest whole lines that let the rest parse (falling back to whole top-level statements), narrates everything else, and puts a note where the gap is, such as "Line 12 has a syntax error, so it's left out." The narration's `errors` still counts every error the parser reported, each one is listed in `problems` with `source: "parser"`, and the note's text comes from the locale's `statements.unreadable` phrase.
+
+A plugin rule that throws or returns something unusable is skipped as if it had returned `null`. Each one is listed in `problems` with `source: "plugin"`, `severity: "warning"`, the `plugin` name and the `rule`, and counted in `stats.ruleErrors`. See [When a rule fails](/guides/writing-a-plugin#when-a-rule-fails).
 
 ## The Engine inside rules
 

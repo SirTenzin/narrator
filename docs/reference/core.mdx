@@ -28,37 +28,53 @@ function createNarrator(options: { languages: SourceLanguage[]; locale: Locale; 
 type Narrator = {
   locale: Locale;
   canNarrate(path: string): boolean;
-  narrate(src: string, path: string): FileNarration;
+  narrate(src: string, path: string): Narration;
   fileNarrator(path: string): FileNarrator;
-  diff(files: ChangedFile[], opts?: { resolve?: Resolver }): FileJson[];
-  diffFiles(files: ChangedFile[]): FileDiff[];
+  diff(files: ChangedFile[], opts?: { resolve?: Resolver; includeGenerated?: boolean }): FileJson[];
+  diffFiles(files: ChangedFile[], opts?: { includeGenerated?: boolean }): FileDiff[];
 };
+
+type Narration = FileNarration & { problems: NarrationProblem[] };
 ```
 
 <ResponseField name="canNarrate(path)" type="boolean">
   Whether any configured language handles this path.
 </ResponseField>
-<ResponseField name="narrate(src, path)" type="FileNarration">
-  Narrates one file and returns `{ lines, errors, stats }`. Throws if no language handles the path, so check `canNarrate` first when paths come from users.
+<ResponseField name="narrate(src, path)" type="Narration">
+  Narrates one file and returns `{ lines, errors, stats, problems }`. `errors` counts syntax errors, and `problems` describes them along with failed plugin rules. If the language itself throws, `narrate` returns no lines and one `narrator` problem instead of throwing. It throws only when no language handles the path, so check `canNarrate` first when paths come from users.
 </ResponseField>
 <ResponseField name="fileNarrator(path)" type="FileNarrator">
   A fresh narrator for one file, with access to `units(src, path)` for diffing.
 </ResponseField>
 <ResponseField name="diff(files, opts)" type="FileJson[]">
   Narrates both sides of each changed file, diffs them by unit, detects moves and renames across files, and returns HTML-ready rows. Files no language handles are skipped, and files whose English didn't change are left out. `opts.resolve` turns function and value references into links. See [Units and diffs](/concepts/units-and-diffs).
+
+  Generated, vendored, minified and build files are not narrated. They are returned with `skipped` set to the reason and no units, so a report can still list them. Pass `includeGenerated: true` to narrate them anyway. A file that can't be narrated is returned with no units and a `narrator` problem, and the rest of the change set is unaffected. When the new side has a syntax error, declarations that only seem to be missing past the error are not reported as removed.
 </ResponseField>
 
 <ResponseField name="diffFiles(files)" type="FileDiff[]">
-  The same change set as `diff`, as structured units whose rows hold `Line` objects rather than HTML. Render it with `renderDiffText`.
+  The same change set as `diff`, as structured units whose rows hold `Line` objects rather than HTML, with the same `skipped` and `problems` fields. Render it with `renderDiffText`.
 </ResponseField>
 
 ```ts
 type ChangedFile = {
-  path: string;
+  path: string; // relative to the repository root
   oldPath: string | null;
   status: "added" | "deleted" | "renamed" | "modified";
   oldSrc: string;
   newSrc: string;
+  skipped?: SkipReason; // set it when you already know, e.g. from .gitattributes; the sources may then be empty
+};
+
+type FileDiff = {
+  path: string;
+  oldPath: string | null;
+  status: ChangedFile["status"];
+  adds: number;
+  dels: number;
+  units: UnitDiff[];
+  skipped?: SkipReason;
+  problems: NarrationProblem[];
 };
 
 type Resolver = (payload: string, kind: string) => string | null;
@@ -70,7 +86,52 @@ type Resolver = (payload: string, kind: string) => string | null;
 function renderDiffText(options: { files: FileDiff[]; format?: (s: string) => string }): string;
 ```
 
-Prints structured diffs as indented text: a header per file, a line per changed unit with its status, then each sentence marked `-`, `+` or left unmarked when unchanged. `format` defaults to `plain`. Pass `toAnsi` for colour.
+Prints structured diffs as indented text: a header per file, a line per changed unit with its status, then each sentence marked `-`, `+` or left unmarked when unchanged. Skipped files get a single header line such as `dist/app.js [modified, skipped: build output]`, and problems are printed under their file's header with a leading `!`. `format` defaults to `plain`. Pass `toAnsi` for colour.
+
+## Problems
+
+### NarrationProblem
+
+```ts
+type NarrationProblem = {
+  path: string;
+  message: string;
+  severity: "error" | "warning";
+  source: "parser" | "plugin" | "narrator";
+  line?: number;
+  plugin?: string;
+  rule?: string;
+};
+
+function describeProblem(problem: NarrationProblem): string;
+```
+
+| `source` | Meaning |
+| --- | --- |
+| `parser` | A syntax error. The output holds whatever the parser could still read. `line` is set when the parser reports a position. |
+| `plugin` | A plugin rule threw. The statement was read without that rule, and `plugin` and `rule` name the culprit. |
+| `narrator` | The file couldn't be narrated at all, so it has no lines. Other files in the same call are not affected. |
+
+`severity` is `error` when part of the file is missing from the output and `warning` when a fallback reading was used. `describeProblem` turns a problem into one English sentence, the way the CLI prints it.
+
+## Generated files
+
+```ts
+type SkipReason = "generated" | "vendored" | "build output" | "dependency" | "lockfile" | "minified";
+
+function skipReason(options: { path: string; src?: string }): SkipReason | null;
+function pathSkipReason(path: string): SkipReason | null;
+function contentSkipReason(src: string): SkipReason | null;
+```
+
+`narrator.diff` and `narrator.diffFiles` use these to decide what to skip. Pass paths relative to the project root, since a folder named `build` above the project would otherwise count.
+
+| Check | Skips |
+| --- | --- |
+| Path | Anything under `node_modules`, `dist`, `.next`, `.nuxt`, `.output`, `.svelte-kit`, `.vercel`, `.turbo`, `.cache`, `coverage`, `vendor` or `.yarn`; JavaScript under `build` or `out`; lockfiles; `.pnp.cjs`; `*.min.js`, `*.bundle.js` and `*.chunk.js`. |
+| Content | A banner comment in the first five lines containing `@generated`, `DO NOT EDIT` or `generated by`, and minified code, meaning lines that average more than 160 characters or any line over 10,000 characters. Only the first 64 KB are read, so huge files cost almost nothing. |
+
+`.gitattributes` needs file system access, so it lives in `@usenarrator/node` as `gitAttributeSkips` and `changedFilesFromGit`.
 
 ## Dependencies
 
@@ -144,11 +205,12 @@ interface SourceLanguage {
 interface FileNarrator {
   narrate(src: string, path: string): FileNarration;
   units(src: string, path: string): Unit[];
+  problems?(): NarrationProblem[]; // from the latest units() call
 }
 
-type FileNarration = { lines: Line[]; errors: number; stats: NarrationStats };
+type FileNarration = { lines: Line[]; errors: number; stats: NarrationStats; problems?: NarrationProblem[] };
 type NarrationStats = { nodes: number; fallbacks: number; fallbackTypes: Record<string, number>; ruleErrors?: RuleError[] };
-type RuleError = { plugin: string; rule: string; message: string; count: number };
+type RuleError = { plugin: string; rule: string; message: string; count: number; line?: number };
 ```
 
 See [Adding a source language](/guides/source-languages) and the [Locale reference](/reference/locale).
@@ -164,8 +226,13 @@ function diffUnits(before: Unit[], after: Unit[]): UnitDiff[];
 function diffLines(a: Line[], b: Line[], context?: number): Row[];
 function detectMoves(files: { path: string; units: UnitDiff[] }[]): void;
 function bodySimilarity(a: Line[], b: Line[]): number;
-function diffFiles(options: { files: ChangedFile[]; narratorFor: (path: string) => FileNarrator }): FileDiff[];
-function buildDiffReport(options: { files: ChangedFile[]; narratorFor: (path: string) => FileNarrator; resolve: Resolver }): FileJson[];
+function diffFiles(options: { files: ChangedFile[]; narratorFor: (path: string) => FileNarrator; includeGenerated?: boolean }): FileDiff[];
+function buildDiffReport(options: {
+  files: ChangedFile[];
+  narratorFor: (path: string) => FileNarrator;
+  resolve: Resolver;
+  includeGenerated?: boolean;
+}): FileJson[];
 ```
 
 `detectMoves` updates the unit diffs in place, marking matched pairs as `moved`, `renamed` or `moved-away`.

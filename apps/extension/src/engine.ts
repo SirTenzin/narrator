@@ -69,19 +69,22 @@ const ORDER: PluginId[] = [
 const pluginIds = (selected: Set<PluginId>) => ORDER.filter((id) => selected.has(id) && !(selected.has("autumn") && (id === "drizzle" || id === "decimal")));
 
 let sqlParser: SqlParser | null = null;
-let base: Promise<{ locale: Locale; typescript: typeof import("@usenarrator/lang-ts").typescript; parser: any; sql: TsPlugin }> | null = null;
+let base: Promise<{
+	locale: Locale;
+	typescript: typeof import("@usenarrator/lang-ts").typescript;
+	parser: import("@usenarrator/lang-ts").Parser;
+	sql: TsPlugin;
+}> | null = null;
 
 const loadBase = (wasmUrl: string) =>
 	(base ??= (async () => {
-		const [wasm, lang, adapter, locale, sql] = await Promise.all([
-			import("@oxc-parser/wasm/web/oxc_parser_wasm.js"),
+		const [lang, wasm, locale, sql] = await Promise.all([
 			import("@usenarrator/lang-ts"),
 			import("@usenarrator/lang-ts/wasm"),
 			import("@usenarrator/locale-en"),
 			import("@usenarrator/plugin-sql"),
 		]);
-		await wasm.default({ module_or_path: wasmUrl });
-		const parser = adapter.oxcWasmParser((src, opts) => wasm.parseSync(src, { ...opts, sourceFilename: opts.sourceFilename.replace(/\.(m|c)?js$/, ".ts") }));
+		const parser = await wasm.createWasmParser({ wasm: wasmUrl });
 		return { locale: locale.en, typescript: lang.typescript, parser, sql: sql.sql({ parser: () => sqlParser }) };
 	})());
 

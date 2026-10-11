@@ -80,7 +80,7 @@ async function buildReport(req: DiffRequest, progress: (t: string) => void): Pro
 		fetchSources({ gh, owner, repo, change, files, progress }),
 		fetchManifests({ gh, owner, repo, sha: change.head, paths: files.flatMap((f) => [f.filename, ...(f.previous_filename ? [f.previous_filename] : [])]) }),
 	]);
-	const { files: narrated, plugins } = await narrate({ owner, files: sources, manifests, wasmUrl: chrome.runtime.getURL("oxc_parser_wasm_bg.wasm") }, progress);
+	const { files: narrated, plugins } = await narrate({ owner, files: sources, manifests, wasmUrl: chrome.runtime.getURL("oxc-parser.wasm") }, progress);
 	const report: DiffReport = {
 		title: change.title,
 		subtitle: change.subtitle,

@@ -1,63 +1,47 @@
-import { execFileSync } from "node:child_process";
-import { existsSync, globSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, globSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
-import type { ChangedFile } from "@usenarrator/core";
+import { pathSkipReason } from "@usenarrator/core";
 
-const SKIP_DIRS = new Set(["node_modules", ".git", "dist", "build", "coverage", ".next", ".turbo"]);
-
-const walk = (dir: string): string[] =>
-	readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
-		const path = join(dir, entry.name);
-		if (entry.isDirectory()) return SKIP_DIRS.has(entry.name) ? [] : walk(path);
-		return entry.isFile() ? [path] : [];
+/** Files under `root`; `keep` sees root-relative paths, with a trailing slash for directories. */
+const walk = ({ root, keep, dir = "" }: { root: string; keep: (rel: string) => boolean; dir?: string }): string[] =>
+	readdirSync(join(root, dir), { withFileTypes: true }).flatMap((entry) => {
+		const rel = dir ? `${dir}/${entry.name}` : entry.name;
+		if (entry.name === ".git") return [];
+		if (entry.isDirectory()) return keep(`${rel}/`) ? walk({ root, keep, dir: rel }) : [];
+		return entry.isFile() && keep(rel) ? [join(root, rel)] : [];
 	});
 
-/** Files named by paths, directories (recursive) and globs, keeping those `accepts` takes. */
-export function expandTargets({ targets, accepts }: { targets: string[]; accepts: (path: string) => boolean }): string[] {
-	const files = targets.flatMap((target) => {
-		if (existsSync(target)) return (statSync(target).isDirectory() ? walk(target) : [target]).filter(accepts);
-		return globSync(target).filter((p) => accepts(p) && !p.split(/[\\/]/).some((seg) => SKIP_DIRS.has(seg)));
-	});
-	return [...new Set(files)].sort();
-}
-
-const git = ({ cwd, args }: { cwd: string; args: string[] }) =>
-	execFileSync("git", args, { cwd, encoding: "utf8", maxBuffer: 1 << 28, stdio: ["ignore", "pipe", "pipe"] });
-
-const show = ({ cwd, rev, path }: { cwd: string; rev: string; path: string }) => {
-	try {
-		return git({ cwd, args: ["show", `${rev}:${path}`] });
-	} catch {
-		return "";
-	}
+/** The part of a glob before its first wildcard segment, so skip rules only look at what the glob matched. */
+const globBase = (pattern: string) => {
+	const segments = pattern.split(/[\\/]/);
+	const firstWild = segments.findIndex((s) => /[*?[\]{}]/.test(s));
+	return segments.slice(0, firstWild === -1 ? segments.length : firstWild).join("/") || ".";
 };
 
-const STATUS: Record<string, ChangedFile["status"]> = { A: "added", D: "deleted", R: "renamed", C: "added" };
-
-/** The files changed between two revisions (`base..head`, or `base` alone for the working tree), with both sides' sources. */
-export function changedFiles({ root, range }: { root: string; range: string }): ChangedFile[] {
-	const [base, head] = range.includes("...")
-		? [git({ cwd: root, args: ["merge-base", ...range.split("...")] }).trim(), range.split("...")[1]]
-		: range.split("..");
-	if (!base) throw new Error(`Expected <base>..<head>, got "${range}"`);
-	const fields = git({ cwd: root, args: ["diff", "--name-status", "-z", "-M", base, ...(head ? [head] : [])] }).split("\0");
-	const files: ChangedFile[] = [];
-	for (let i = 0; i < fields.length - 1; ) {
-		const code = fields[i++]!.charAt(0);
-		const twoPaths = code === "R" || code === "C";
-		const oldPath = fields[i++]!;
-		const path = twoPaths ? fields[i++]! : oldPath;
-		const status = STATUS[code] ?? "modified";
-		const newSrc = status === "deleted" ? "" : head ? show({ cwd: root, rev: head, path }) : readFileSync(join(root, path), "utf8");
-		files.push({
-			path,
-			oldPath: code === "R" ? oldPath : null,
-			status,
-			oldSrc: status === "added" ? "" : show({ cwd: root, rev: base, path: oldPath }),
-			newSrc,
-		});
-	}
-	return files;
+/**
+ * Files named by paths, directories (recursive) and globs, keeping those `accepts` takes.
+ * Inside directories and globs, build and vendored paths are skipped unless `includeGenerated` (dependencies always are); a file named directly is always kept.
+ */
+export function expandTargets({
+	targets,
+	accepts,
+	includeGenerated = false,
+}: {
+	targets: string[];
+	accepts: (path: string) => boolean;
+	includeGenerated?: boolean;
+}): string[] {
+	const handWritten = (rel: string) => {
+		const reason = pathSkipReason(rel);
+		return !reason || (includeGenerated && reason !== "dependency");
+	};
+	const files = targets.flatMap((target) => {
+		if (existsSync(target) && !statSync(target).isDirectory()) return accepts(target) ? [target] : [];
+		if (existsSync(target)) return walk({ root: target, keep: handWritten }).filter(accepts);
+		const base = globBase(target);
+		return globSync(target).filter((p) => accepts(p) && handWritten(relative(base, p)));
+	});
+	return [...new Set(files)].sort();
 }
 
 export const displayPath = (path: string) => relative(process.cwd(), path) || path;
