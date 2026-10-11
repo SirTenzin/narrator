@@ -86,7 +86,7 @@ describe("select", () => {
 				"Let people be look up rows from person:",
 				"  • where something is found when we look up rows from pet:",
 				"    • where pet's owner ID is person's ID",
-				"  • only if only adults are set:",
+				"  • only if only adults is true:",
 				"    • where age is more than 18",
 				"  • sorted by name (lowest first), empty values last",
 			].join("\n"),

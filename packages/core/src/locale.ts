@@ -223,6 +223,8 @@ export interface ConditionPhrases {
 /** Control flow. Block intros omit their trailing colon; the walker adds it. */
 export interface StatementPhrases {
 	comment: Phrase<{ text: string }>;
+	/** Lines `from`..`to` (1-based) that couldn't be parsed and are left out. */
+	unreadable: Phrase<{ from: number; to: number }>;
 	/** `void run();`: start something without waiting for it to finish. */
 	startWithoutWaiting: Phrase<{ action: string }>;
 	/** `await pending;` on a value that isn't a call. */
@@ -299,7 +301,10 @@ export interface DeclarationPhrases {
 	};
 	signature: Phrase<{ title: string; params: string | null; returns: string | null; async: boolean }>;
 	class: Phrase<{ name: string; base: string | null }>;
-	constructor: Phrase<{ params: string | null }>;
+	/** A constructor's heading. Not named `constructor`, which every object already has. */
+	constructorHead: Phrase<{ params: string | null }>;
+	/** Constructor parameters stored as fields (`constructor(private db: Db)`); `count` is how many. */
+	keepParams: Phrase<{ names: string; count: number }>;
 	fieldInit: Phrase<{ field: string; value: string }>;
 	field: Phrase<{ field: string }>;
 }
@@ -392,6 +397,41 @@ export interface Locale {
 	id: string;
 	grammar: Grammar;
 	phrases: CorePhrases;
-	/** Translations for plugins that don't ship this locale themselves, keyed by plugin name. */
-	plugins?: { [K in keyof PluginPhrases]?: PluginPhrases[K] } & Record<string, unknown>;
+	/** Translations for plugins that don't ship this locale themselves, keyed by plugin name. Missing phrases fall back to the plugin's English. */
+	plugins?: { [K in keyof PluginPhrases]?: DeepPartial<PluginPhrases[K]> } & Record<string, unknown>;
+}
+
+/** `T` with every nested group optional; phrases (functions) and strings stay whole. */
+export type DeepPartial<T> = T extends (...args: any[]) => unknown ? T : T extends object ? { [K in keyof T]?: DeepPartial<T[K]> } : T;
+
+const isGroup = (x: unknown): x is Record<string, unknown> => typeof x === "object" && x !== null && !Array.isArray(x);
+
+/** Merges phrasebooks key by key: later ones win, and anything they leave out comes from the earlier ones. */
+export function mergePhrases<T>(base: T, ...overrides: (DeepPartial<T> | undefined)[]): T {
+	let out: unknown = base;
+	for (const o of overrides) {
+		if (!isGroup(o) || !isGroup(out)) {
+			if (o !== undefined) out = o;
+			continue;
+		}
+		const merged: Record<string, unknown> = { ...out };
+		for (const [k, v] of Object.entries(o)) if (v !== undefined) merged[k] = mergePhrases(merged[k], v);
+		out = merged;
+	}
+	return out as T;
+}
+
+/** A locale built on another: phrases and plugin phrasebooks merge key by key, grammar helpers replace one by one. */
+export function extendLocale(
+	base: Locale,
+	ext: { id: string; grammar?: Partial<Grammar>; phrases?: DeepPartial<CorePhrases>; plugins?: Locale["plugins"] },
+): Locale {
+	const plugins: Record<string, unknown> = { ...base.plugins };
+	for (const [name, p] of Object.entries(ext.plugins ?? {})) plugins[name] = mergePhrases(plugins[name], p);
+	return {
+		id: ext.id,
+		grammar: { ...base.grammar, ...ext.grammar },
+		phrases: mergePhrases<CorePhrases>(base.phrases, ext.phrases),
+		plugins,
+	};
 }

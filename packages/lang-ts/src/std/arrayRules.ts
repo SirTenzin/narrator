@@ -111,11 +111,10 @@ export const arrayRules: Calls = {
 		}
 		const start = init ? e.noun(init) : D(say.reduce.firstItem);
 		const steps = ex ? e.bullet(D(say.reduce.step({ value: e.text(ex) }))) : e.body(fn.body, 0);
-		return block(say.reduce.block({ list: list.t, start: start.t, item: item ? e.ref(item) : say.item, acc: acc ? e.ref(acc) : "" }), [
-			...list.kids,
-			...start.kids,
-			...steps,
-		]);
+		const pattern = item ? null : unwrap(fn.params[1]);
+		const parts = pattern ? e.g.list(e.patternNames(pattern)) : "";
+		const label = item ? e.ref(item) : !parts ? say.item : pattern.type === "ObjectPattern" ? `${e.g.possessive(say.item)} ${parts}` : parts;
+		return block(say.reduce.block({ list: list.t, start: start.t, item: label, acc: acc ? e.ref(acc) : "" }), [...list.kids, ...start.kids, ...steps]);
 	},
 	"*.sort": ({ obj, args, e, say }) => sortRule({ e, say, obj, args }),
 	"*.toSorted": ({ obj, args, e, say }) => sortRule({ e, say, obj, args }),

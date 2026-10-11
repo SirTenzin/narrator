@@ -11,8 +11,10 @@ import {
 	type LineKind,
 	type Locale,
 	lowerFirst,
+	mergePhrases,
 	mk,
 	plain,
+	type RuleError,
 	vlen,
 } from "@usenarrator/core";
 import type { Parser } from "./parser";
@@ -47,6 +49,30 @@ const markDetails = (said: string, title: string) => {
 };
 
 const asDoc = (x: Doc | string) => (typeof x === "string" ? D(x) : x);
+
+/** What a rule may hand back: a Doc, a string, or nothing (falsy) to pass. */
+const isRuleResult = (x: unknown) =>
+	!x || typeof x === "string" || (typeof x === "object" && typeof (x as Doc).t === "string" && Array.isArray((x as Doc).kids));
+const describeValue = (x: unknown) => (x === null ? "null" : Array.isArray(x) ? "an array" : typeof x === "object" ? "an object" : `${typeof x} ${String(x)}`);
+
+const ID = "[A-Za-z_$][\\w$]*";
+const INNER = `(?:${ID}|${ID}\\.${ID}|\\*\\.${ID})`;
+/** Call and condition keys: `f`, `new F`, `Obj.m`, `Obj.*`, `*.m`, `*.owner.m`, curried `inner()`, tagged ``tag`` ``. A bare `f` may be any
+ * dot-free name, since plugins can rewrite the tree with synthetic callees (Effect's `yield*`). */
+const CALL_KEY = new RegExp(
+	`^(?:[^\\s.()\`*][^\\s.()\`]*|new ${ID}|(?:new )?${ID}\\.(?:${ID}|\\*)|\\*\\.${ID}|\\*\\.${ID}\\.${ID}|${INNER}\\(\\)|${INNER}(?:\\(\\))?\`\`)$`,
+);
+/** Member keys: `Obj.prop`, `*.prop`, `*.owner.prop`, `Obj.*`, `*.owner.*`. */
+const MEMBER_KEY = new RegExp(`^(?:${ID}\\.(?:${ID}|\\*)|\\*\\.${ID}|\\*\\.${ID}\\.(?:${ID}|\\*))$`);
+const warnedKeys = new Set<string>();
+const warnBadKey = (plugin: string, kind: string, key: string) => {
+	const id = `${plugin}:${kind}:${key}`;
+	if (warnedKeys.has(id)) return;
+	warnedKeys.add(id);
+	console.warn(
+		`[narrator] plugin "${plugin}" has a ${kind} rule keyed "${key}", which no code can match. See the rule key grammar in the writing-a-plugin guide.`,
+	);
+};
 
 /** English list join. Kept for plugins; the walker itself uses the locale's `g.list`. */
 export const listJoin = (xs: string[], conj = "and") =>
@@ -186,7 +212,7 @@ export class Engine {
 	usedComments = new Set<number>();
 	/** Heading line text -> its short title (the declaration's name without signature details). */
 	headTitles = new Map<string, string>();
-	stats = { nodes: 0, fallbacks: 0, fallbackTypes: {} as Record<string, number> };
+	stats = { nodes: 0, fallbacks: 0, fallbackTypes: {} as Record<string, number>, ruleErrors: [] as RuleError[] };
 
 	readonly parse: Parser;
 	readonly locale: Locale;
@@ -205,10 +231,35 @@ export class Engine {
 	use(d: TsPlugin) {
 		this.dialects.push(d);
 		const say = this.phrasesFor(d) as DisplayText | undefined;
-		const bind =
-			<R extends (ctx: any) => any>(r: R): Bound<R> =>
-			(ctx) =>
-				r({ ...ctx, say });
+		const lib = d.library?.name;
+		const bind = <R extends (ctx: any) => any>(r: R, rule: string, ok: (out: unknown) => boolean, fallback: ReturnType<R>): Bound<R> => {
+			const bound = ((ctx: Omit<Parameters<R>[0], "say">) => {
+				const lines = this.lines;
+				const lineCount = lines.length;
+				try {
+					const out = r({ ...ctx, say });
+					if (ok(out)) return out;
+					this.ruleError(
+						d.name,
+						rule,
+						`returned ${describeValue(out)}; expected ${rule.startsWith("statements") ? "true or false" : "a Doc, a string or null"}`,
+					);
+				} catch (err) {
+					this.lines = lines;
+					lines.length = lineCount;
+					this.ruleError(d.name, rule, err instanceof Error ? err.message : String(err));
+				}
+				return fallback;
+			}) as Bound<R> & { lib?: string };
+			bound.lib = lib;
+			return bound;
+		};
+		const table = (kind: "calls" | "conditions" | "members", rules: Record<string, (ctx: any) => any> | undefined, into: Record<string, any[]>) => {
+			for (const [k, r] of Object.entries(rules ?? {})) {
+				if (!(kind === "members" ? MEMBER_KEY : CALL_KEY).test(k)) warnBadKey(d.name, kind, k);
+				(into[k] ??= []).unshift(bind(r, `${kind}["${k}"]`, isRuleResult, null));
+			}
+		};
 		if (d.vocabulary) this.lex.extend(d.vocabulary);
 		if (say?.glossary) this.lex.extend({ glossary: say.glossary });
 		for (const a of d.ambient ?? []) this.ambient.add(a);
@@ -216,18 +267,32 @@ export class Engine {
 		Object.assign(this.constants, d.constants, say?.constants);
 		if (d.errors instanceof RegExp) this.errorPattern = d.errors;
 		else for (const x of d.errors ?? []) this.errorNames.add(x);
-		for (const [k, r] of Object.entries(d.calls ?? {})) (this.calls[k] ??= []).unshift(bind(r));
-		for (const [k, r] of Object.entries(d.conditions ?? {})) (this.conds[k] ??= []).unshift(bind(r));
-		this.stmtRules.push(...(d.statements ?? []).map(bind));
-		if (d.jsx) this.jsxRules.unshift(bind(d.jsx));
-		for (const [k, r] of Object.entries(d.members ?? {})) (this.members[k] ??= []).unshift(bind(r));
+		table("calls", d.calls, this.calls);
+		table("conditions", d.conditions, this.conds);
+		table("members", d.members, this.members);
+		this.stmtRules.push(...(d.statements ?? []).map((r, i) => bind(r, `statements[${i}]`, (out) => typeof out === "boolean" || out == null, false)));
+		if (d.jsx) this.jsxRules.unshift(bind(d.jsx, "jsx", isRuleResult, null));
 		return this;
 	}
 
-	/** A plugin's phrasebook for this locale: locale override, then the plugin's own translation, then English. */
-	phrasesFor(d: TsPlugin): unknown {
-		return this.locale.plugins?.[d.name] ?? d.phrases?.[this.locale.id] ?? d.phrases?.en;
+	/** Records a plugin rule failure in `stats.ruleErrors`, counting repeats. */
+	ruleError(plugin: string, rule: string, message: string) {
+		const seen = this.stats.ruleErrors.find((x) => x.plugin === plugin && x.rule === rule && x.message === message);
+		if (seen) seen.count++;
+		else this.stats.ruleErrors.push({ plugin, rule, message, count: 1 });
 	}
+
+	/** A plugin's phrasebook for this locale, merged key by key: locale override, then the plugin's own translation, then English. */
+	phrasesFor(d: TsPlugin): unknown {
+		if (this.phrasebooks.has(d)) return this.phrasebooks.get(d);
+		const layers = [d.phrases?.en, this.locale.id === "en" ? undefined : d.phrases?.[this.locale.id], this.locale.plugins?.[d.name]].filter(
+			(x) => x !== undefined,
+		);
+		const merged = layers.length <= 1 ? layers[0] : mergePhrases(layers[0], ...layers.slice(1));
+		this.phrasebooks.set(d, merged);
+		return merged;
+	}
+	private phrasebooks = new WeakMap<TsPlugin, unknown>();
 
 	/** `isUpgrade` -> "is upgrade" / "is not upgrade". */
 	predicatePhrase(id: string, negated: boolean): string {
@@ -242,8 +307,14 @@ export class Engine {
 
 	schemaText(n: N): string | null {
 		for (const d of this.dialects) {
-			const t = d.describeSchema?.(this, n, this.phrasesFor(d));
-			if (t) return t;
+			if (!d.describeSchema) continue;
+			try {
+				const t = d.describeSchema(this, n, this.phrasesFor(d));
+				if (t && typeof t !== "string") this.ruleError(d.name, "describeSchema", `returned ${describeValue(t)}; expected a string or null`);
+				else if (t) return t;
+			} catch (err) {
+				this.ruleError(d.name, "describeSchema", err instanceof Error ? err.message : String(err));
+			}
 		}
 		return null;
 	}
@@ -279,10 +350,14 @@ export class Engine {
 		return tag?.type === "Identifier" && tag.name === "$" && this.imports.get("$")?.from === "bun";
 	}
 
-	/** Whether a variable's name only repeats the end of the function that produced it (`user = findUser()`). */
+	/** Whether a variable only names what the call produces (`user = findUser()`, `posts = getPostsFor(x)`, `widths = columnWidths()`), so the call says it. */
 	namesItsResult(fnName: string, varName: string): boolean {
 		const vw = this.lex.words(varName);
-		return vw.length > 0 && this.lex.words(fnName).slice(-vw.length).join(" ") === vw.join(" ");
+		const fw = this.lex.words(fnName);
+		if (!this.lex.startsWithVerb(fnName)) return vw.length > 0 && fw.slice(-vw.length).join(" ") === vw.join(" ");
+		const object = fw.slice(1);
+		const end = object.findIndex((w) => /^(by|for|from|of|in|on|at|to|with|into)$/.test(w));
+		return vw.length > 0 && (end < 0 ? object : object.slice(0, end)).join(" ") === vw.join(" ");
 	}
 
 	/** A verb-led name, or a function defined in this file, reads as an action. */
@@ -1066,24 +1141,45 @@ export class Engine {
 		const c = unwrap(n.callee);
 		const pre = n.type === "NewExpression" ? "new " : "";
 		const out: { rule: any; obj: N | null }[] = [];
-		const add = (key: string, obj: N | null) => {
-			for (const rule of table[key] ?? []) out.push({ rule, obj });
+		const add = (key: string, obj: N | null, from?: string) => {
+			for (const rule of table[key] ?? [])
+				if (from === undefined || (rule.lib && (from === rule.lib || from.startsWith(`${rule.lib}/`)))) out.push({ rule, obj });
 		};
+		const imported = this.importedKey(c);
 		if (c.type === "Identifier") add(pre + c.name, null);
 		else if (c.type === "CallExpression") {
 			const inner = this.ruleKeyOf(unwrap(c.callee));
 			if (inner) add(`${inner}()`, null);
+			const via = this.importedKey(unwrap(c.callee));
+			if (via) add(`${via.key}()`, null, via.from);
 		} else if (c.type === "MemberExpression" && !c.computed) {
 			const obj = unwrap(c.object);
 			const m = c.property.name;
 			if (obj.type === "Identifier") {
 				add(`${pre}${obj.name}.${m}`, obj);
+				if (imported) add(pre + imported.key, imported.key.includes(".") ? obj : null, imported.from);
 				add(`${pre}${obj.name}.*`, obj);
 			}
 			if (obj.type === "MemberExpression" && !obj.computed) add(`*.${obj.property.name}.${m}`, obj);
 			add(`*.${m}`, c.object);
 		}
+		if (imported && c.type === "Identifier") add(pre + imported.key, null, imported.from);
 		return out;
+	}
+
+	/** The key a callee has in its library when imported under another name: `plus` (`import { addDays as plus }`) -> `addDays`,
+	 * `dfn.addDays` (`import * as dfn`) -> `addDays`, `zod.object` (`import { z as zod }`) -> `z.object`. */
+	importedKey(c: N): { key: string; from: string } | null {
+		if (c?.type === "Identifier") {
+			const info = this.imports.get(c.name);
+			return info && info.name !== "*" && info.name !== "default" && info.name !== c.name ? { key: info.name, from: info.from } : null;
+		}
+		if (c?.type !== "MemberExpression" || c.computed || unwrap(c.object)?.type !== "Identifier") return null;
+		const local = unwrap(c.object).name;
+		const info = this.imports.get(local);
+		if (!info || info.name === local) return null;
+		const key = info.name === "*" || info.name === "default" ? c.property.name : `${info.name}.${c.property.name}`;
+		return { key, from: info.from };
 	}
 
 	/** Plugin member rules: keys `Obj.prop`, `*.owner.prop`, `*.prop`, then families `Obj.*` and `*.owner.*`; most specific first. */
@@ -1413,6 +1509,7 @@ export class Engine {
 				}
 				return D(k.flag({ subject: this.ref(n.name), neg }));
 			}
+			if (this.lex.isFlagName(n.name)) return D(k.flag({ subject: this.ref(n.name), neg }));
 			return D(k.isSet({ subject: this.ref(n.name), neg }));
 		}
 		if (n.type === "MemberExpression") {
@@ -1427,7 +1524,7 @@ export class Engine {
 				return D(k.subjectPredicate({ subject: inner.t, predicate: mk("v", this.predicatePhrase(last.name, neg), last.name) }), inner.kids);
 			}
 			const m = this.member(n);
-			if (last.name && this.bools.has(last.name)) return D(k.flag({ subject: m.t, neg }), m.kids);
+			if (last.name && (this.bools.has(last.name) || this.lex.isFlagName(last.name))) return D(k.flag({ subject: m.t, neg }), m.kids);
 			return D(k.isSet({ subject: m.t, neg }), m.kids);
 		}
 		if (n.type === "Literal" && typeof n.value === "boolean") return D(k.bool({ value: n.value !== neg }));
@@ -1897,8 +1994,11 @@ export class Engine {
 				if (!m.value?.body) continue;
 				if (m.kind === "constructor") {
 					const given = m.value.params.flatMap((p: N) => this.patternNames(p));
-					this.emitHead(d + 1, dc.constructor({ params: given.length ? this.g.list(given) : null }), dc.constructor({ params: null }), m);
-					this.block(m.value.body, d + 2);
+					this.emitHead(d + 1, dc.constructorHead({ params: given.length ? this.g.list(given) : null }), dc.constructorHead({ params: null }), m);
+					const kept = m.value.params.filter((p: N) => p.type === "TSParameterProperty");
+					const names = kept.flatMap((p: N) => this.patternNames(p.parameter));
+					if (names.length) this.emit(d + 2, `${dc.keepParams({ names: this.g.list(names), count: names.length })}.`, kept[0]);
+					if (!names.length || m.value.body.body.length) this.block(m.value.body, d + 2);
 				} else this.fnDecl(m.key.name ?? this.code(m.key), m.value, m, d + 1);
 			} else if (m.type === "PropertyDefinition") {
 				const k = m.key.name ?? this.code(m.key);
@@ -2278,7 +2378,7 @@ export class Engine {
 		this.usedComments = new Set();
 		this.headTitles = new Map();
 		const lang = /\.(tsx|jsx)$/.test(filename) ? filename : filename.replace(/\.(m|c)?js$/, ".ts");
-		const { program, errors, comments } = this.parse(lang, src);
+		const { program, errors, comments, gaps } = this.parseReadable(lang, src);
 		this.program = program;
 		this.imports = importsOf(program);
 		this.comments = comments ?? [];
@@ -2291,6 +2391,97 @@ export class Engine {
 			if (this.lines.length > before && (isBig || prevTop) && before > 0) this.lines.splice(before, 0, { d: 0, text: "", start: -1, end: -1, kind: "blank" });
 			prevTop = isBig;
 		}
+		const lineOf = (offset: number) => src.slice(0, offset).split("\n").length;
+		for (const g of gaps) {
+			const at = this.lines.findIndex((l) => l.start >= g.start);
+			const to = lineOf(g.start + src.slice(g.start, g.end).trimEnd().length);
+			const note: Line = {
+				d: at < 0 ? 0 : this.lines[at]!.d,
+				text: this.say.statements.unreadable({ from: lineOf(g.start), to }),
+				start: g.start,
+				end: g.end,
+				kind: "note",
+			};
+			this.lines.splice(at < 0 ? this.lines.length : at, 0, note);
+		}
 		return { lines: this.lines, errors: errors.length };
+	}
+
+	/** Parses `src`. oxc recovers from some errors itself; when one stops it cold (an empty program), the unreadable stretches are
+	 * blanked out (whole lines, offsets kept) so the rest still narrates. */
+	parseReadable(lang: string, src: string): ReturnType<Parser> & { gaps: { start: number; end: number }[] } {
+		type Gap = { start: number; end: number };
+		const readable = (r: ReturnType<Parser>) => !r.errors.length || r.program.body.length > 0;
+		const first = this.parse(lang, src);
+		if (readable(first)) return { ...first, gaps: [] };
+		const blank = (text: string, start: number, end: number) => text.slice(0, start) + text.slice(start, end).replace(/[^\r\n]/g, " ") + text.slice(end);
+		// The error that stopped the parser is the last one reported.
+		const stoppedAt = (r: ReturnType<Parser>) => {
+			const e = r.errors.at(-1) as { labels?: { start: number }[]; start?: number } | undefined;
+			return Math.min(e?.labels?.[0]?.start ?? e?.start ?? src.length, src.length);
+		};
+		const lineStarts = [0, ...[...src.matchAll(/\n/g)].map((m) => m.index + 1), src.length];
+		const lineAt = (offset: number) => lineStarts.findLastIndex((x) => x <= offset);
+		// Top-level statements usually start at column 0, so wide cuts are only tried there.
+		const topStarts = [0, ...[...src.matchAll(/\n(?=[^\s})\],.])/g)].map((m) => m.index + 1), src.length];
+		// Each try is a parse, hence the budget.
+		let budget = 80;
+		const tryParse = (text: string) => {
+			budget--;
+			return this.parse(lang, text);
+		};
+		/** Whether blanking [cut, resume) lets the parser read on to at least `past`. */
+		const getsPast = (text: string, cut: number, resume: number, past: number) => {
+			const next = tryParse(blank(text, cut, resume));
+			return readable(next) || stoppedAt(next) >= past;
+		};
+		/** The fewest whole lines near `at` (within three lines) whose removal lets parsing get well past them. */
+		const smallGap = (text: string, at: number, floor: number): Gap | null => {
+			const line = lineAt(at);
+			const last = lineStarts.length - 1;
+			for (let size = 1; size <= 4; size++)
+				for (const offset of [0, -1, 1, -2, 2, -3, 3]) {
+					const from = line + offset;
+					const start = lineStarts[from];
+					if (start === undefined || from + size > last || start < floor || budget <= 0) continue;
+					const end = lineStarts[from + size]!;
+					if (getsPast(text, start, end, lineStarts[Math.min(from + size + 2, last)]!)) return { start, end };
+				}
+			return null;
+		};
+		/** From the last top-level statement that parses on its own up to the first top-level statement after which parsing goes on. */
+		const wideGap = (text: string, at: number, floor: number): Gap => {
+			let start = floor;
+			for (const s of topStarts.filter((x) => x <= at && x > floor).reverse()) {
+				if (budget <= 0) break;
+				if (readable(tryParse(text.slice(0, s)))) {
+					start = s;
+					break;
+				}
+			}
+			const end = topStarts.find((s) => s > at && budget > 0 && getsPast(text, start, s, s)) ?? src.length;
+			return { start, end };
+		};
+		const recover = (small: boolean) => {
+			let text = src;
+			let r = first;
+			const gaps: Gap[] = [];
+			for (let round = 0; !readable(r) && round < 8 && budget > 0; round++) {
+				const at = stoppedAt(r);
+				const floor = gaps.at(-1)?.end ?? 0;
+				const gap = (small && smallGap(text, at, floor)) || wideGap(text, at, floor);
+				const prev = gaps.at(-1);
+				if (prev && !text.slice(prev.end, gap.start).trim()) prev.end = gap.end;
+				else gaps.push(gap);
+				text = blank(text, gap.start, gap.end);
+				r = tryParse(text);
+			}
+			return readable(r) ? { ...r, errors: first.errors, gaps } : null;
+		};
+		const done = recover(true) ?? recover(false);
+		if (done) return done;
+		const at = stoppedAt(first);
+		const start = topStarts.filter((x) => x <= at).findLast((s) => readable(this.parse(lang, src.slice(0, s)))) ?? 0;
+		return { ...this.parse(lang, blank(src, start, src.length)), errors: first.errors, gaps: [{ start, end: src.length }] };
 	}
 }

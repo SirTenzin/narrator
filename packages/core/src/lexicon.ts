@@ -156,6 +156,8 @@ unset unsubscribe unwind update upgrade validate verify view visit void walk war
 write overlap cover exceed fit belong conflict differ qualify fork unref ref ping del exec spy`.split(/\s+/),
 );
 
+const FLAG_HEADS = new Set(["only", "include", "exclude", "enable", "disable", "allow", "skip", "force", "with", "without", "dry", "no", "ignore"]);
+
 /** Per-narrator identifier knowledge; plugins extend it through their `vocabulary`. */
 export class Lexicon {
 	glossary: Record<string, string> = Object.assign(Object.create(null), DEFAULT_GLOSSARY);
@@ -190,6 +192,12 @@ export class Lexicon {
 		if (this.predicatePrefixes.has(w[0]!)) return true;
 		const first = w[0]!;
 		return /[^s]s$/.test(first) && !this.verbs.has(first) && (this.verbs.has(first.slice(0, -1)) || this.verbs.has(first.replace(/es$/, "")));
+	};
+
+	/** An option-style name (`onlyAdults`, `includeDeleted`, `skipCache`, `dryRun`): one on/off setting, however its last word reads. */
+	isFlagName = (id: string) => {
+		const w = splitWords(id);
+		return w.length > 1 && FLAG_HEADS.has(w[0]!);
 	};
 
 	startsWithVerb = (id: string) => this.verbs.has(splitWords(id)[0] ?? "");

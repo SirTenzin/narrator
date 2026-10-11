@@ -228,6 +228,56 @@ A tagged template rule receives the template literal as `args[0]`.
 
 When several plugins register the same key, the plugin listed later wins, and the built-in `std` plugin always comes first. If a rule returns `null` or `undefined`, the next rule for that key is tried, then the next key, and finally the engine's generic phrasing.
 
+### Key grammar
+
+In the keys below, `name` is a JavaScript identifier (letters, digits, `_` and `$`, not starting with a digit), and `*` is a literal wildcard.
+
+- **Call and condition keys** are one of `name`, `new name`, `name.name`, `new name.name`, `name.*`, `new name.*`, `*.name`, `*.name.name`, a curried call `inner()`, or a tagged template `` inner`` `` or `` inner()`` ``, where `inner` is `name`, `name.name` or `*.name`.
+- **Member keys** are one of `name.name`, `name.*`, `*.name`, `*.name.name` or `*.name.*`.
+
+A bare call key may also be any other name without spaces, dots, parentheses or backticks, for plugins that rewrite the syntax tree and give a node a made-up callee. Any other key can never match, so the engine prints a `console.warn` naming the plugin and the key the first time a plugin with such a key is loaded. `"Foo..bar"`, `"z object"` and `"new *.x"` are all reported.
+
+### Imports under another name
+
+Keys are written with the names a library exports, but code often imports them under other names. When your plugin declares its `library`, a call rule also matches calls that reach your library's export through an import:
+
+| Code | Matches the key |
+| --- | --- |
+| `import { addDays as plus } from "date-fns"`, then `plus(d, 1)` | `addDays` |
+| `import * as dfn from "date-fns"`, then `dfn.addDays(d, 1)` | `addDays` |
+| `import dfn from "date-fns"`, then `dfn.addDays(d, 1)` | `addDays` |
+| `import { z as zod } from "zod"`, then `zod.object({})` | `z.object` |
+
+The import must come from `library.name` or one of its subpaths, such as `date-fns/fp`. Plugins without a `library` only match the names as written. This applies to call and condition rules, including `new`, curried and tagged forms of a call; member rules match the names as written.
+
+{/* run file="examples/import-aliases.ts" */}
+```ts import-aliases.ts
+import { definePlugin } from "@usenarrator/lang-ts";
+import { narrate } from "@usenarrator/testkit";
+
+const dates = definePlugin({
+	name: "dates",
+	library: { name: "date-fns", versions: ">=3 <5" },
+	calls: {
+		addDays: ({ args, e }) => (args.length === 2 ? `${e.text(args[1])} days after ${e.text(args[0])}` : null),
+	},
+});
+
+const code = `
+import { addDays as plus } from "date-fns";
+import * as dfn from "date-fns";
+const due = plus(issuedAt, 30);
+const followUp = dfn.addDays(due, 7);
+`;
+
+console.log(narrate(code, { plugins: [dates] }));
+```
+
+```text Output
+Let due be 30 days after issued at.
+Let follow up be 7 days after due.
+```
+
 ## Member rules and JSX
 
 Calls aren't the only thing a library gives meaning to. `members` rules read property access, such as `c.env.DB` in a Cloudflare Worker or `env.STRIPE_KEY` in a config module, and a `jsx` rule reads JSX elements wherever the engine meets one: in arguments, in lambdas and in returns. The [React plugin](/plugins/react) uses a `jsx` rule to read JSX as UI.
@@ -292,9 +342,18 @@ Common guards in the repository's plugins:
 
 Plugins that need more facts about a file, such as which variables hold a Stripe client, compute them once per file from `e.program`, the file's syntax tree, and cache them by engine or by `e.program`. `e.path` gives the file's path, which the Next.js plugin uses to read routes.
 
-<Warning>
-  A rule that throws stops narration of that statement. Prefer returning `null` for anything unexpected.
-</Warning>
+### When a rule fails
+
+A rule that throws, or returns something other than a `Doc`, a string or `null`, doesn't stop narration. The engine treats it as if the rule had returned `null`: the next rule for that key gets a try, then the engine's own phrasing. Any lines the rule emitted before it failed are removed. The same goes for `statements` rules (which should return `true` or `false`), the `jsx` rule and `describeSchema`.
+
+Each failure is recorded in the narration's `stats.ruleErrors` with the plugin's name, the rule (for example `calls["*.plus"]` or `statements[0]`), the error message and how many times it happened. A host can log these, and a test can assert the list is empty:
+
+```ts
+const { stats } = narrator.narrate(source, "billing.ts");
+for (const err of stats.ruleErrors ?? []) console.warn(`${err.plugin} ${err.rule}: ${err.message} (${err.count}x)`);
+```
+
+Returning `null` is still the right answer for anything a rule doesn't recognise, because a failure costs a little time and leaves a warning behind.
 
 ## Other plugin fields
 

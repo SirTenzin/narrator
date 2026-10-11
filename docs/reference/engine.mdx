@@ -40,6 +40,10 @@ type Parser = (filename: string, src: string) => ParseOutput;
 type ParseOutput = { program: any; comments: { type: string; value: string; start: number; end: number }[]; errors: unknown[] };
 ```
 
+### Syntax errors
+
+A file with a syntax error is still narrated. oxc recovers from some errors on its own, such as a `return` outside a function, and the file reads as usual. When an error stops the parser, the engine blanks out the fewest whole lines that let the rest parse (falling back to whole top-level statements), narrates everything else, and puts a note where the gap is, such as "Line 12 has a syntax error, so it's left out." The narration's `errors` still counts every error the parser reported, and the note's text comes from the locale's `statements.unreadable` phrase.
+
 ## The Engine inside rules
 
 Every rule receives the engine as `e`. These are the methods plugins in the repository use, roughly from most to least common.
@@ -108,9 +112,9 @@ These describe the file being narrated. They are set before any rule runs.
 | `e.say` | The locale's core phrases. |
 | `e.g` | The locale's grammar. |
 | `e.locale` | The active locale. |
-| `e.stats` | Node and fallback counts for the current file. |
+| `e.stats` | Node and fallback counts, plus `ruleErrors`: every plugin rule that threw or returned something unusable, as `{ plugin, rule, message, count }`. |
 | `e.parse` | The parser, if a rule needs to parse a fragment. |
-| `e.phrasesFor(plugin)` | Another plugin's phrasebook for the active locale, for plugins that render each other's phrases. |
+| `e.phrasesFor(plugin)` | Another plugin's phrasebook for the active locale, merged key by key over its English, for plugins that render each other's phrases. |
 
 <Warning>
   The Engine is a large class and most of its members are public. The methods above are the ones plugins rely on today. Others are internal to the walker and may change without notice.

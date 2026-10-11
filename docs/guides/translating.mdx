@@ -17,32 +17,29 @@ See the [Locale reference](/reference/locale) for the full type.
 
 ## A partial translation
 
-You don't have to translate everything at once. Spread the English locale and replace what you have. Anything you haven't translated stays in English, which keeps the output readable while a translation is in progress.
+You don't have to translate everything at once. `extendLocale` from `@usenarrator/core` builds a locale on top of English: you pass only the phrases you have, and everything you leave out stays English, key by key. That keeps the output readable while a translation is in progress.
 
 {/* run file="examples/spanish.ts" */}
 ```ts spanish.ts
-import type { Locale } from "@usenarrator/core";
+import { extendLocale } from "@usenarrator/core";
 import { en } from "@usenarrator/locale-en";
-import { type DecimalPhrases, decimal, decimalEn } from "@usenarrator/plugin-decimal";
+import { decimal, decimalEn } from "@usenarrator/plugin-decimal";
 import { narrate, phrasebookGaps } from "@usenarrator/testkit";
 
-// A partial Spanish locale: unchanged phrases fall back to English.
-const decimalEs: DecimalPhrases = {
-	...decimalEn,
-	times: ({ a, b }) => `${a} por ${b}`,
-	plus: ({ a, b }) => `${a} más ${b}`,
-};
-
-const es: Locale = {
+// A partial Spanish locale: every phrase left out falls back to English, key by key.
+const es = extendLocale(en, {
 	id: "es",
-	grammar: en.grammar,
 	phrases: {
-		...en.phrases,
-		declarations: { ...en.phrases.declarations, let: ({ name, value }) => `Sea ${name} igual a ${value}` },
-		statements: { ...en.phrases.statements, ifThen: ({ condition, action }) => `Si ${condition}, ${action}` },
+		declarations: { let: ({ name, value }) => `Sea ${name} igual a ${value}` },
+		statements: { ifThen: ({ condition, action }) => `Si ${condition}, ${action}` },
 	},
-	plugins: { decimal: decimalEs },
-};
+	plugins: {
+		decimal: {
+			times: ({ a, b }) => `${a} por ${b}`,
+			plus: ({ a, b }) => `${a} más ${b}`,
+		},
+	},
+});
 
 const code = `
 const total = new Decimal(price).times(quantity).plus(shipping);
@@ -50,7 +47,7 @@ if (total.isZero()) stop();
 `;
 
 console.log(narrate(code, { plugins: [decimal()], locale: es }));
-console.log(phrasebookGaps(decimalEn, { times: () => "", plus: () => "" }));
+console.log(phrasebookGaps(decimalEn, es.plugins?.decimal ?? {}));
 ```
 
 ```text Output
@@ -65,7 +62,13 @@ Si total is zero, stop.
 }
 ```
 
-The first line is fully Spanish because both `declarations.let` and the decimal phrases were translated. The second line mixes languages because the decimal plugin's `isZero` phrase and the phrase for a plain action call like `stop()` are still English. The `phrasebookGaps` call at the end lists exactly which phrases are still missing.
+The first line is fully Spanish because both `declarations.let` and the decimal phrases were translated. The second line mixes languages because the decimal plugin's `isZero` phrase and the phrase for a plain action call like `stop()` are still English. The `phrasebookGaps` call at the end lists exactly which decimal phrases are still missing.
+
+`extendLocale(base, { id, phrases, grammar, plugins })` works the same way at every level:
+
+- `phrases` and each entry in `plugins` are merged into the base key by key, however deeply nested.
+- `grammar` replaces helpers one at a time, so you can bring your own `list` and `article` and keep the rest.
+- The base can be any locale, including one made with `extendLocale`, so a regional variant such as `es-MX` can start from `es`.
 
 <Note>
   Identifiers are still read with English word rules, because source code is almost always written in English. A locale changes how those words are displayed through a plugin phrasebook's `glossary`, not how names are split.
@@ -73,15 +76,15 @@ The first line is fully Spanish because both `declarations.let` and the decimal 
 
 ## How plugin phrases are chosen
 
-When the engine loads a plugin, it picks the plugin's phrasebook for the active locale in this order:
+When the engine loads a plugin, it builds the plugin's phrasebook for the active locale by layering three sources, phrase by phrase:
 
-1. `locale.plugins[plugin.name]`, an override supplied by the locale.
-2. `plugin.phrases[locale.id]`, a translation the plugin ships itself.
-3. `plugin.phrases.en`, the English phrasebook every plugin must have.
+1. `locale.plugins[plugin.name]`, an override supplied by the locale, wins where it has a phrase.
+2. `plugin.phrases[locale.id]`, a translation the plugin ships itself, comes next.
+3. `plugin.phrases.en`, the English phrasebook every plugin must have, fills in everything else.
 
-This lets a locale package translate third-party plugins without waiting for each plugin to add the language, and lets a plugin ship its own translations once they exist.
+Any of the first two can be partial. A locale that only translates `times` and `plus` for decimal.js still gets English for every other decimal phrase, and a plugin's own `es` phrasebook is used where it has words even if a locale overrides a few of them. This lets a locale package translate third-party plugins without waiting for each plugin to add the language, and lets a plugin ship its own translations once they exist.
 
-Every plugin exports its English phrasebook as `en`, typed with its own phrasebook type, such as `DecimalPhrases` or `ReactPhrases`. Spread it to start a translation, as the Spanish example does.
+Every plugin exports its English phrasebook as `en`, typed with its own phrasebook type, such as `DecimalPhrases` or `ReactPhrases`. It's the reference for what a translation can contain.
 
 ### Typed overrides
 
@@ -95,36 +98,47 @@ declare module "@usenarrator/core" {
 }
 ```
 
-Once the plugin's package is imported, `plugins: { decimal: ... }` in a `Locale` must match `DecimalPhrases`, so a missing phrase or a wrong argument name is a compile error rather than an English fallback at runtime. Plugins that don't register a type are still accepted under their name, without checking. Today zod, Testing, decimal.js, Drizzle, Effect, Better Auth, Hono, Elysia, the AI SDK and SQL register their types.
+Once the plugin's package is imported, `plugins: { decimal: ... }` in a `Locale` is checked against `DecimalPhrases`. Every phrase is optional, because missing phrases fall back to English, but a misspelled phrase name or a wrong argument name is a compile error. Use `phrasebookGaps` (below) to find what's still missing. Plugins that don't register a type are still accepted under their name, without checking. Every plugin in the repository registers its type.
 
 A plugin phrasebook can also carry `glossary`, `constants` and `errorLabels`. The engine merges these over the plugin's own fields, so a translation can say "cliente" for `cus` or give an error class a Spanish name.
+
+## Grammar, gender and number
+
+`grammar` covers the mechanics the engine and the English phrases lean on: joining lists, articles, plurals, possessives, negation and time words. Phrases receive pieces that are already rendered to text, so a phrase decides its own word order and agreement.
+
+Two limits are worth knowing before you start:
+
+- **Narrator doesn't track grammatical gender.** Nothing in the engine knows whether a noun is masculine or feminine. `grammar.article(noun)` receives the noun it precedes, so a locale can choose "un" or "una" from its own word list, and a phrase can inspect the pieces it receives. There is no gender argument on phrases.
+- **Number is decided from the words.** English phrases call `grammar.isPluralSubject` to pick "is" or "are". A locale can implement that check for its own language. The one place the engine knows better is a yes or no setting such as `onlyAdults`: it always reaches the `conditions.flag` phrase, which should treat its subject as singular.
+
+Some English also lives inside phrases you might not expect, such as loop labels ("each seat") and time comparisons ("is before"). If a sentence stays partly English after you translate the obvious phrase, run `phrasebookGaps` and look for the phrase that builds the leftover words.
 
 ## Write a full locale
 
 <Steps>
-  <Step title="Start from the English package">
-    Copy `packages/locale-en` as `locale-xx`. Its `phrases/` folder has one file per area (`calls.ts`, `conditions.ts`, `declarations.ts`, `expressions.ts`, `statements.ts`, `types.ts`), and each file is typed against `CorePhrases`, so TypeScript tells you when a phrase is missing or has the wrong shape.
+  <Step title="Start from English with extendLocale">
+    Create a package that exports `extendLocale(en, { id: "xx", ... })` and add phrases area by area. The full English phrasebook is the reference: it lives in [`packages/locale-en/src/phrases`](https://github.com/SirTenzin/narrator/tree/main/packages/locale-en/src/phrases) on GitHub, one file per area (`calls.ts`, `conditions.ts`, `declarations.ts`, `expressions.ts`, `statements.ts`, `types.ts`). The `CorePhrases` type in `@usenarrator/core` tells you each phrase's arguments.
   </Step>
   <Step title="Rewrite the grammar">
-    Start with `grammar.ts`. List joining, articles, plurals and possessives are used everywhere, so getting them right first makes every phrase easier. Keep the helpers markup aware: a possessive must go after a name's closing marker, not inside it. See [Markup](/concepts/markup).
+    Start with the `grammar` helpers. List joining, articles, plurals and possessives are used everywhere, so getting them right first makes every phrase easier. The English versions are in [`grammar.ts`](https://github.com/SirTenzin/narrator/blob/main/packages/locale-en/src/grammar.ts). Keep the helpers markup aware: a possessive must go after a name's closing marker, not inside it. See [Markup](/concepts/markup).
   </Step>
   <Step title="Translate area by area">
     Phrases receive pieces in a fixed shape, but they can arrange them in any order. Word order differences between languages belong in the phrase, not in the rules.
   </Step>
   <Step title="Translate the plugins you care about">
-    Either add a phrasebook to each plugin (`phrases: { en, es }`) or put the translations in your locale under `plugins`.
+    Either add a phrasebook to each plugin (`phrases: { en, es }`) or put the translations in your locale under `plugins`. Both can be partial.
   </Step>
   <Step title="Check for gaps">
-    Use `phrasebookGaps(reference, translation)` from `@usenarrator/testkit` in a test. It compares the key paths of two phrasebooks and returns `missing` and `extra` lists.
+    Use `phrasebookGaps(reference, translation)` from `@usenarrator/testkit` in a test. It compares the key paths of two phrasebooks and returns `missing` and `extra` lists. Compare against your overrides, not the merged locale, which is always complete.
 
     ```ts
     import { expect, test } from "bun:test";
     import { phrases as english } from "@usenarrator/locale-en";
     import { phrasebookGaps } from "@usenarrator/testkit";
-    import { phrases as spanish } from "../src/phrasebook";
+    import { spanishPhrases } from "../src/phrases";
 
     test("the Spanish phrasebook is complete", () => {
-      expect(phrasebookGaps(english, spanish)).toEqual({ missing: [], extra: [] });
+      expect(phrasebookGaps(english, spanishPhrases)).toEqual({ missing: [], extra: [] });
     });
     ```
   </Step>

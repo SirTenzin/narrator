@@ -30,7 +30,8 @@ export const declarations: DeclarationPhrases = {
 		return `${title}${async ? " (async)" : ""}${parts.length ? `, ${parts.join("; ")}` : ""}`;
 	},
 	class: ({ name, base }) => `Class ${name}${base !== null ? ` (extends ${base})` : ""}`,
-	constructor: ({ params }) => `When created${params !== null ? `, given ${params}` : ""}`,
+	keepParams: ({ names, count }) => `Keep ${names} as ${count === 1 ? "a field" : "fields"}`,
+	constructorHead: ({ params }) => `When created${params !== null ? `, given ${params}` : ""}`,
 	fieldInit: ({ field, value }) => `Field ${field} starts as ${value}`,
 	field: ({ field }) => `Field ${field}`,
 };

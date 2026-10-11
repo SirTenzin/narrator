@@ -23,7 +23,7 @@ export const conditions: ConditionPhrases = {
 	},
 	methodPredicate: ({ object, predicate, args }) => `${object !== null ? `${object} ` : ""}${predicate}${args}`,
 	subjectPredicate: ({ subject, predicate }) => `${subject} ${predicate}`,
-	flag: ({ subject, neg }) => `${subject} ${verbFor(subject).is} ${neg ? "false" : "true"}`,
+	flag: ({ subject, neg }) => `${subject} is ${neg ? "false" : "true"}`,
 	isSet: ({ subject, neg }) => `${subject} ${verbFor(subject).is} ${neg ? "missing" : "set"}`,
 	calledWithNew: ({ neg }) => `this ${neg ? "was not" : "was"} called with new`,
 	isEmpty: ({ subject, neg }) => `${subject} ${isVerb(subject, neg)} empty`,

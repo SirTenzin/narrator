@@ -4,7 +4,8 @@ import { corpusFiles } from "./corpus";
 
 const root = process.argv[2] ?? "/workspace/autumn";
 const crashes: { f: string; err: string }[] = [];
-const totals = { files: 0, nodes: 0, fallbacks: 0, lines: 0, rawLines: 0, srcLines: 0, ms: 0 };
+const totals = { files: 0, nodes: 0, fallbacks: 0, lines: 0, rawLines: 0, srcLines: 0, ruleErrors: 0, ms: 0 };
+const ruleErrors: Record<string, number> = {};
 const ft: Record<string, number> = {};
 const t0 = performance.now();
 for (const f of await corpusFiles(root)) {
@@ -18,6 +19,10 @@ for (const f of await corpusFiles(root)) {
 		totals.rawLines += lines.filter((l) => l.kind === "raw").length;
 		totals.srcLines += src.split("\n").length;
 		for (const [k, v] of Object.entries(stats.fallbackTypes)) ft[k] = (ft[k] ?? 0) + v;
+		for (const e of stats.ruleErrors ?? []) {
+			totals.ruleErrors += e.count;
+			ruleErrors[`${e.plugin} ${e.rule}: ${e.message}`] = (ruleErrors[`${e.plugin} ${e.rule}: ${e.message}`] ?? 0) + e.count;
+		}
 		renderText(lines);
 	} catch (err: any) {
 		crashes.push({
@@ -37,3 +42,4 @@ console.log(
 	JSON.stringify({ ...totals, crashes: crashes.length, fallbackRate: +(totals.fallbacks / Math.max(1, totals.nodes)).toFixed(4), topFallbacks: top }, null, 1),
 );
 for (const c of crashes.slice(0, 10)) console.log(c.f, c.err);
+for (const [k, n] of Object.entries(ruleErrors).slice(0, 10)) console.log(`rule error x${n}: ${k}`);

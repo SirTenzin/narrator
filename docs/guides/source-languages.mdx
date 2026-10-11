@@ -21,7 +21,8 @@ interface FileNarrator {
 }
 
 type FileNarration = { lines: Line[]; errors: number; stats: NarrationStats };
-type NarrationStats = { nodes: number; fallbacks: number; fallbackTypes: Record<string, number> };
+type NarrationStats = { nodes: number; fallbacks: number; fallbackTypes: Record<string, number>; ruleErrors?: RuleError[] };
+type RuleError = { plugin: string; rule: string; message: string; count: number };
 type Unit = { key: string; title: string; start: number; end: number; lines: Line[] };
 ```
 

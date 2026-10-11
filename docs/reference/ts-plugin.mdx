@@ -37,7 +37,7 @@ type TsPlugin<P = any> = {
   Phrasebooks keyed by locale id. `en` is required. A phrasebook may also include `glossary`, `constants` and `errorLabels`, which the engine merges over the plugin's own fields.
 </ParamField>
 <ParamField path="library" type="{ name: string; versions: string }">
-  The npm package this plugin reads and the semver range it was written against. The engine doesn't enforce it; guard rules with `e.usesLibrary` and pick readings with `e.libraryMajor`. See [Plugin versioning](/guides/plugin-versioning).
+  The npm package this plugin reads and the semver range it was written against. The engine doesn't enforce it; guard rules with `e.usesLibrary` and pick readings with `e.libraryMajor`. See [Plugin versioning](/guides/plugin-versioning). With `library` set, call and condition rules also match the library's exports when they're imported under another name or through a namespace. See [Imports under another name](/guides/writing-a-plugin#imports-under-another-name).
 </ParamField>
 <ParamField path="vocabulary" type="Vocabulary">
   Glossary entries, acronyms, verbs and predicate prefixes used to read identifiers.
@@ -55,7 +55,7 @@ type TsPlugin<P = any> = {
   Exact source text mapped to a phrase.
 </ParamField>
 <ParamField path="calls" type="Record<string, CallRule<P>>">
-  Call rules keyed by callee. See [rule keys](/guides/writing-a-plugin#rule-keys).
+  Call rules keyed by callee. See [rule keys](/guides/writing-a-plugin#rule-keys) and the [key grammar](/guides/writing-a-plugin#key-grammar). A key no code can match is reported with `console.warn` when the plugin loads.
 </ParamField>
 <ParamField path="conditions" type="Record<string, CondRule<P>>">
   Condition rules, used when a call appears where a yes or no answer is expected.
@@ -67,7 +67,7 @@ type TsPlugin<P = any> = {
   Reads a JSX element or fragment wherever the engine meets one. Later plugins' rules are tried first.
 </ParamField>
 <ParamField path="statements" type="StmtRule<P>[]">
-  Rules that can take over a whole statement.
+  Rules that can take over a whole statement. Each returns `true` once it has emitted lines, or `false`.
 </ParamField>
 <ParamField path="describeSchema" type="(e, n, say) => string | null">
   Describes a schema-builder expression as a type, or returns `null` if the node isn't one.
@@ -111,6 +111,8 @@ type JsxRule<P> = (ctx: { node: N; e: Engine; say: P }) => RuleResult;
 </ResponseField>
 
 Return `null` or `undefined` to let the next rule try. A string result is treated as a `Doc` with no block lines.
+
+A rule that throws, or returns anything else, is treated as if it returned `null` (or `false` for a statement rule), and any lines it emitted are removed. The failure is recorded in the narration's `stats.ruleErrors` as `{ plugin, rule, message, count }`, where `rule` reads like `calls["*.plus"]`, `statements[0]`, `jsx` or `describeSchema`. See [When a rule fails](/guides/writing-a-plugin#when-a-rule-fails).
 
 ## Other exports
 

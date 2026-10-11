@@ -17,7 +17,7 @@ type N = any;
 /** Splits a narrated file into units keyed by declaration name, so old and new can be matched. */
 export function unitsOf(e: Engine, src: string, filename: string): Unit[] {
 	const { lines } = e.narrate(src, filename);
-	const { program } = e.parse(filename.replace(/\.(m|c)?js$/, ".ts"), src);
+	const program = e.program;
 	const seen = new Map<string, number>();
 	const units: Unit[] = [];
 	for (const st of program.body) {

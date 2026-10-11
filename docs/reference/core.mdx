@@ -147,7 +147,8 @@ interface FileNarrator {
 }
 
 type FileNarration = { lines: Line[]; errors: number; stats: NarrationStats };
-type NarrationStats = { nodes: number; fallbacks: number; fallbackTypes: Record<string, number> };
+type NarrationStats = { nodes: number; fallbacks: number; fallbackTypes: Record<string, number>; ruleErrors?: RuleError[] };
+type RuleError = { plugin: string; rule: string; message: string; count: number };
 ```
 
 See [Adding a source language](/guides/source-languages) and the [Locale reference](/reference/locale).

@@ -3,7 +3,10 @@ import type { Unit } from "./diff";
 import type { Line } from "./lines";
 import type { Locale } from "./locale";
 
-export type NarrationStats = { nodes: number; fallbacks: number; fallbackTypes: Record<string, number> };
+/** A plugin rule that threw or returned something unusable; narration fell back to the next rule. `count` is how often it happened. */
+export type RuleError = { plugin: string; rule: string; message: string; count: number };
+
+export type NarrationStats = { nodes: number; fallbacks: number; fallbackTypes: Record<string, number>; ruleErrors?: RuleError[] };
 
 export type FileNarration = { lines: Line[]; errors: number; stats: NarrationStats };
 

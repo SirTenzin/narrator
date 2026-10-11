@@ -4,7 +4,7 @@ description: "The type an output language implements."
 ---
 
 ```ts
-import type { Locale, Grammar, CorePhrases } from "@usenarrator/core";
+import { extendLocale, mergePhrases, type Locale, type Grammar, type CorePhrases } from "@usenarrator/core";
 import { en } from "@usenarrator/locale-en";
 ```
 
@@ -13,10 +13,13 @@ interface Locale {
   id: string;
   grammar: Grammar;
   phrases: CorePhrases;
-  plugins?: { [K in keyof PluginPhrases]?: PluginPhrases[K] } & Record<string, unknown>;
+  plugins?: { [K in keyof PluginPhrases]?: DeepPartial<PluginPhrases[K]> } & Record<string, unknown>;
 }
 
 interface PluginPhrases {} // plugins add themselves by declaration merging
+
+// Every nested group optional; phrases and strings stay whole.
+type DeepPartial<T> = T extends (...args: any[]) => unknown ? T : T extends object ? { [K in keyof T]?: DeepPartial<T[K]> } : T;
 ```
 
 <ParamField path="id" type="string" required>
@@ -29,8 +32,27 @@ interface PluginPhrases {} // plugins add themselves by declaration merging
   Every phrase the TypeScript engine can produce.
 </ParamField>
 <ParamField path="plugins" type="Record<string, unknown>">
-  Phrasebooks for plugins that don't ship this locale, keyed by plugin name. These take priority over the plugin's own phrasebooks. Entries for plugins registered in `PluginPhrases` are type-checked against that plugin's phrasebook type. See [Typed overrides](/guides/translating#typed-overrides).
+  Phrasebooks for plugins that don't ship this locale, keyed by plugin name. They can be partial: each phrase here takes priority over the plugin's own translation, and anything missing falls back to it and then to the plugin's English. Entries for plugins registered in `PluginPhrases` are type-checked against that plugin's phrasebook type. See [Typed overrides](/guides/translating#typed-overrides).
 </ParamField>
+
+## extendLocale
+
+```ts
+function extendLocale(
+  base: Locale,
+  ext: { id: string; grammar?: Partial<Grammar>; phrases?: DeepPartial<CorePhrases>; plugins?: Locale["plugins"] },
+): Locale;
+```
+
+Builds a locale on top of another. `phrases` and each plugin's phrasebook are merged into the base key by key, so anything you leave out keeps the base's wording. `grammar` helpers replace the base's one by one. This is the recommended way to start a translation.
+
+## mergePhrases
+
+```ts
+function mergePhrases<T>(base: T, ...overrides: (DeepPartial<T> | undefined)[]): T;
+```
+
+The merge `extendLocale` and the engine use: later phrasebooks win, nested groups are merged rather than replaced, and anything they leave out comes from the earlier ones.
 
 ## Grammar
 
@@ -62,6 +84,8 @@ interface Grammar {
 
 All of these receive strings that may contain [markup](/concepts/markup).
 
+There is no hook for grammatical gender, because the engine doesn't know a noun's gender. `article` receives the noun it goes with, so a locale can look the gender up itself. See [Grammar, gender and number](/guides/translating#grammar-gender-and-number).
+
 ## CorePhrases
 
 `CorePhrases` groups phrases by area. Each phrase is a function from already-rendered pieces to a string, or a plain string for fixed words.
@@ -75,22 +99,18 @@ All of these receive strings that may contain [markup](/concepts/markup).
 | `declarations` | Functions, classes, variables, type headings | `let`, `signature`, `class`, `title.converter` |
 | `types` | Type annotations and the type explainer | `listOf`, `oneOf`, `objectWith`, `pick`, `omit` |
 
-The complete, commented type is in `packages/core/src/locale.ts`, and the English implementation lives in `packages/locale-en/src/phrases/`, one file per area.
+The complete, commented type ships with `@usenarrator/core`. The English implementation is on GitHub in [`packages/locale-en/src/phrases`](https://github.com/SirTenzin/narrator/tree/main/packages/locale-en/src/phrases), one file per area.
 
 ## Example
 
 ```ts
-import type { Locale } from "@usenarrator/core";
+import { extendLocale } from "@usenarrator/core";
 import { en } from "@usenarrator/locale-en";
 
-const es: Locale = {
+const es = extendLocale(en, {
   id: "es",
-  grammar: en.grammar,
-  phrases: {
-    ...en.phrases,
-    statements: { ...en.phrases.statements, ifThen: ({ condition, action }) => `Si ${condition}, ${action}` },
-  },
-};
+  phrases: { statements: { ifThen: ({ condition, action }) => `Si ${condition}, ${action}` } },
+});
 ```
 
 See [Translating Narrator](/guides/translating) for a full walkthrough.

@@ -2,6 +2,8 @@ import type { StatementPhrases } from "@usenarrator/core";
 
 export const statements: StatementPhrases = {
 	comment: ({ text }) => `“${text}”`,
+	unreadable: ({ from, to }) =>
+		from === to ? `Line ${from} has a syntax error, so it's left out.` : `Lines ${from} to ${to} have a syntax error, so they're left out.`,
 	startWithoutWaiting: ({ action }) => `${action} (without waiting for it to finish)`,
 	waitFor: ({ value }) => `wait for ${value}`,
 	doNothing: "Do nothing",
