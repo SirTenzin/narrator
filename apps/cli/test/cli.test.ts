@@ -1,0 +1,106 @@
+import { describe, expect, test } from "bun:test";
+import { execFileSync } from "node:child_process";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { parseArgs } from "../src/args";
+import { run } from "../src/main";
+import { detectPlugins } from "../src/plugins";
+
+const project = (files: Record<string, string>) => {
+	const dir = mkdtempSync(join(tmpdir(), "narrator-cli-"));
+	for (const [path, text] of Object.entries(files)) {
+		mkdirSync(join(dir, path, ".."), { recursive: true });
+		writeFileSync(join(dir, path), text);
+	}
+	return dir;
+};
+
+const SCHEMA = `import { z } from "zod";\nexport const User = z.object({ email: z.string() });\n`;
+const cli = (argv: string[]) => run({ argv, isTTY: false });
+
+describe("arguments", () => {
+	test("flags take values inline or as the next argument", () => {
+		expect(parseArgs({ argv: ["src", "--plugins", "zod, drizzle", "--locale=en", "--json"], isTTY: true })).toEqual({
+			command: "narrate",
+			targets: ["src"],
+			plugins: ["zod", "drizzle"],
+			locale: "en",
+			preset: null,
+			format: "json",
+		});
+	});
+	test("diff takes a range; output defaults to ANSI only on a terminal", () => {
+		expect(parseArgs({ argv: ["diff", "main..HEAD"], isTTY: false })).toMatchObject({ command: "diff", targets: ["main..HEAD"], format: "plain" });
+		expect(parseArgs({ argv: ["a.ts"], isTTY: true }).format).toBe(process.env.NO_COLOR ? "plain" : "ansi");
+	});
+	test("unknown options are rejected", () => expect(() => parseArgs({ argv: ["--nope"], isTTY: false })).toThrow("Unknown option --nope"));
+});
+
+test("plugins are detected from dependency names", () => {
+	expect(detectPlugins(["zod", "drizzle-orm", "@effect/platform", "@ai-sdk/openai", "react"])).toEqual(["zod", "drizzle", "effect", "ai-sdk"]);
+	expect(detectPlugins(["react"])).toEqual([]);
+});
+
+describe("narrating files", () => {
+	test("plugins come from the nearest package.json, merged over the workspace root", async () => {
+		const dir = project({
+			"package.json": JSON.stringify({ workspaces: ["apps/*"], devDependencies: { zod: "^3" } }),
+			"apps/api/package.json": JSON.stringify({ dependencies: { hono: "^4" } }),
+			"apps/api/user.ts": SCHEMA,
+		});
+		expect(await cli([join(dir, "apps/api/user.ts")])).toBe("Let user be a schema for an object with email.");
+		expect(await cli([join(dir, "apps/api/user.ts"), "--plugins", "none"])).not.toContain("schema");
+	});
+	test("a directory narrates every TS/JS file under it, each under its path", async () => {
+		const dir = project({ "a.ts": "const a = 1;\n", "lib/b.js": "const b = 2;\n", "notes.md": "# hi\n", "node_modules/x/index.js": "x();\n" });
+		const out = await cli([dir]);
+		expect(out).toContain("a.ts\n  Let a be 1.");
+		expect(out).toContain("lib/b.js\n  Let b be 2.");
+		expect(out).not.toContain("notes");
+		expect(out).not.toContain("node_modules");
+	});
+	test("globs expand, and --json gives plain-text lines", async () => {
+		const dir = project({ "src/a.ts": "const a = 1;\n", "src/b.ts": "const b = 2;\n" });
+		const [first] = JSON.parse(await cli([join(dir, "src/*.ts"), "--json"]));
+		expect(first.lines).toEqual([{ depth: 0, kind: "stmt", text: "Let a be 1.", start: 0, end: 12 }]);
+	});
+	test("the Autumn preset is opt-in", async () => {
+		const dir = project({ "package.json": "{}", "x.ts": "const n = cusEnts.length;\n" });
+		expect(await cli([join(dir, "x.ts")])).toBe("Let n be the number of cus ents.");
+		expect(await cli([join(dir, "x.ts"), "--preset", "autumn"])).toBe("Let n be the number of customer entitlements.");
+	});
+	test("bad input explains itself", async () => {
+		const dir = project({ "a.ts": "const a = 1;\n" });
+		await expect(cli([join(dir, "*.md")])).rejects.toThrow("No TS/JS files match");
+		await expect(cli([join(dir, "a.ts"), "--plugins", "nope"])).rejects.toThrow('Unknown plugin "nope"');
+		await expect(cli([join(dir, "a.ts"), "--preset", "nope"])).rejects.toThrow('Unknown preset "nope"');
+	});
+});
+
+test("diff narrates a git range as English line changes", async () => {
+	const dir = project({ "package.json": "{}", "a.ts": "export function isAdult(age: number) {\n  return age >= 18;\n}\n" });
+	const git = (...args: string[]) => execFileSync("git", args, { cwd: dir, encoding: "utf8" }).trim();
+	git("init", "-q");
+	git("add", "-A");
+	const base = git("write-tree");
+	writeFileSync(join(dir, "a.ts"), "export function isAdult(age: number) {\n  return age >= 21;\n}\n");
+	git("add", "-A");
+	const head = git("write-tree");
+	const cwd = process.cwd();
+	process.chdir(dir);
+	try {
+		expect(await cli(["diff", `${base}..${head}`])).toBe(
+			[
+				"a.ts [modified, +1 -1]",
+				"  ~ Is adult? [modified]",
+				"      Is adult?, given age:",
+				"    -   Give back whether age is at least 18.",
+				"    +   Give back whether age is at least 21.",
+			].join("\n"),
+		);
+		expect(await cli(["diff", `${base}..`, "--html"])).toContain('<div class="row mod">');
+	} finally {
+		process.chdir(cwd);
+	}
+});

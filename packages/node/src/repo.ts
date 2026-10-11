@@ -5,19 +5,37 @@ import { createDependencyIndex, type DependencyIndex, defaultManifestReaders, ty
 
 const SKIP_DIRS = new Set(["node_modules", ".git", "dist", "target", ".venv", "venv", "vendor"]);
 
-/** The enclosing git checkout of `dir`, or `dir` itself outside git. */
-export function findRepoRoot(dir: string): string {
+const hasManifest = (dir: string, readers: ManifestReader[]) => {
+	try {
+		return readdirSync(dir).some((name) => readers.some((r) => r.matches(name)));
+	} catch {
+		return false;
+	}
+};
+
+/** The enclosing git checkout of `dir`; outside git, its outermost ancestor holding a manifest, else `dir` itself. */
+export function findRepoRoot(dir: string, readers: ManifestReader[] = defaultManifestReaders): string {
+	let outermost = resolve(dir);
 	for (let d = resolve(dir); ; d = dirname(d)) {
 		if (existsSync(join(d, ".git"))) return d;
-		if (dirname(d) === d) return resolve(dir);
+		if (hasManifest(d, readers)) outermost = d;
+		if (dirname(d) === d) return outermost;
 	}
 }
 
 // Outside git the root may be any directory (even $HOME), so the fallback walk stays shallow.
 const MAX_WALK_DEPTH = 4;
 
+const entries = (path: string) => {
+	try {
+		return readdirSync(path, { withFileTypes: true });
+	} catch {
+		return [];
+	}
+};
+
 const walk = (root: string, dir = "", depth = 0): string[] =>
-	readdirSync(join(root, dir), { withFileTypes: true }).flatMap((entry) => {
+	entries(join(root, dir)).flatMap((entry) => {
 		const rel = dir ? `${dir}/${entry.name}` : entry.name;
 		if (entry.isDirectory()) return SKIP_DIRS.has(entry.name) || entry.name.startsWith(".") || depth >= MAX_WALK_DEPTH ? [] : walk(root, rel, depth + 1);
 		return entry.isFile() ? [rel] : [];
@@ -26,7 +44,12 @@ const walk = (root: string, dir = "", depth = 0): string[] =>
 /** Every file in a repo, relative to its root: `git ls-files` when possible (respects .gitignore), else a shallow directory walk. */
 export function listRepoFiles(root: string): string[] {
 	try {
-		const out = execFileSync("git", ["ls-files", "-z", "--cached", "--others", "--exclude-standard"], { cwd: root, encoding: "utf8", maxBuffer: 1 << 28 });
+		const out = execFileSync("git", ["ls-files", "-z", "--cached", "--others", "--exclude-standard"], {
+			cwd: root,
+			encoding: "utf8",
+			maxBuffer: 1 << 28,
+			stdio: ["ignore", "pipe", "ignore"],
+		});
 		return out.split("\0").filter(Boolean);
 	} catch {
 		return walk(root);

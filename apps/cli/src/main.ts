@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { createNarrator, type DependencyIndex, type Locale } from "@usenarrator/core";
 import { autumn } from "@usenarrator/example-autumn";
@@ -56,7 +56,8 @@ export async function run({ argv, isTTY }: { argv: string[]; isTTY: boolean }): 
 		return renderDiff({ structured: () => narrator.diffFiles(files), html: () => narrator.diff(files), format: args.format });
 	}
 
-	const root = findRepoRoot(args.targets[0] ? dirname(resolve(args.targets[0])) : process.cwd());
+	const first = args.targets[0] && existsSync(args.targets[0]) ? resolve(args.targets[0]) : process.cwd();
+	const root = findRepoRoot(statSync(first).isDirectory() ? first : dirname(first));
 	const index = loadDependencyIndex({ root });
 	if (!args.targets.length) {
 		const narrator = buildNarrator({ args, index, paths: [resolve("stdin.ts")], locale });
