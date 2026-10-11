@@ -188,7 +188,7 @@ export function renderParams(c: Ctx, node: N, scope: Scope): Rendered {
 			else out.lines.push(D((after ? say.params.startingAfter : say.params.endingBefore)({ value })));
 		} else if (k === "query") head(say.params.query({ query: str !== null ? code(str) : e.text(v) }));
 		else if (k === "mode" && str && Object.hasOwn(say.params.mode, str)) head(say.params.mode[str as keyof typeof say.params.mode]);
-		else if (k === "percent_off") out.lines.push(D(say.params.percentOff({ percent: e.text(v) })));
+		else if (k === "percent_off" && typeof lit === "number") out.lines.push(D(say.params.percentOff({ percent: e.text(v) })));
 		else if (k === "duration" && (str === "once" || str === "forever")) out.lines.push(D(say.params.duration[str]));
 		else if (k === "duration" && str === "repeating") continue;
 		else if (k === "duration_in_months" && typeof lit === "number") out.lines.push(D(say.params.durationMonths({ months: e.text(v) })));

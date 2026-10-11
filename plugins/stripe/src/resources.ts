@@ -29,10 +29,16 @@ export function targetOf(c: Ctx, id: N, one: string): Doc {
 	return D(say.target.byId({ resource: one, id: v.t }), v.kids);
 }
 
+const isNullish = (n: N) => {
+	const u = unwrap(n);
+	return (u?.type === "Identifier" && u.name === "undefined") || (u?.type === "Literal" && u.value === null && !u.regex);
+};
+
 type Parts = { id: N | null; params: N | null; options: N | null };
 
 /** Splits arguments by position, treating a trailing `{ idempotencyKey, stripeAccount }` as request options. */
-function partsOf(call: StripeCall, args: N[]): Parts {
+function partsOf(call: StripeCall, all: N[]): Parts {
+	const args = all.filter((a, i) => i === 0 || !isNullish(a));
 	const takesId = !NO_ID.has(call.method) && args[0] && !isObject(args[0]);
 	const rest = takesId ? args.slice(1) : args;
 	const [first, second] = rest;
