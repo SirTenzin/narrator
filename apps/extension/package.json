@@ -26,6 +26,7 @@
 		"@usenarrator/plugin-react": "workspace:*",
 		"@usenarrator/plugin-sql": "workspace:*",
 		"@usenarrator/plugin-stripe": "workspace:*",
+		"@usenarrator/plugin-autumn-js": "workspace:*",
 		"@usenarrator/plugin-tanstack-query": "workspace:*",
 		"@usenarrator/plugin-temporal": "workspace:*",
 		"@usenarrator/plugin-testing": "workspace:*",

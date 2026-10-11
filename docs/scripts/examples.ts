@@ -7,6 +7,7 @@ import { tmpdir } from "node:os";
 import type { TsPlugin } from "@usenarrator/lang-ts";
 import { aiSdk } from "@usenarrator/plugin-ai-sdk";
 import { arktype } from "@usenarrator/plugin-arktype";
+import { autumnJs } from "@usenarrator/plugin-autumn-js";
 import { betterAuth } from "@usenarrator/plugin-better-auth";
 import { bullmq } from "@usenarrator/plugin-bullmq";
 import { decimal } from "@usenarrator/plugin-decimal";
@@ -72,6 +73,7 @@ const PLUGINS: Record<string, () => TsPlugin | TsPlugin[]> = {
 	"trigger-dev": triggerDev,
 	temporal,
 	stripe,
+	"autumn-js": () => autumnJs(),
 	prisma,
 	kysely,
 	valibot,

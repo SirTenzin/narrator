@@ -30,6 +30,7 @@
 		"@usenarrator/plugin-trigger-dev": "workspace:*",
 		"@usenarrator/plugin-temporal": "workspace:*",
 		"@usenarrator/plugin-stripe": "workspace:*",
+		"@usenarrator/plugin-autumn-js": "workspace:*",
 		"@usenarrator/plugin-prisma": "workspace:*",
 		"@usenarrator/plugin-kysely": "workspace:*",
 		"@usenarrator/plugin-valibot": "workspace:*",

@@ -1,0 +1,126 @@
+---
+title: "Autumn"
+description: "Read Autumn's JavaScript SDK as the billing it does: checking and tracking feature usage, attaching plans, customers and entities, backend handlers and React hooks."
+---
+
+<span className="nr-pill">@usenarrator/plugin-autumn-js</span>
+
+The [Autumn](https://docs.useautumn.com) plugin reads `autumn-js` calls the way Autumn's docs explain them. A `check` asks whether the customer can use a feature, a `track` records uses of it, and `attach` gives the customer a plan. Each line names the customer, the feature and the plan, so `autumn.check({ customerId: "user_123", featureId: "messages" })` reads as "Check whether the customer "user_123" can use the messages feature". A check's answer, kept as `allowed`, `res.allowed` or 0.x's `data.allowed`, reads as that same question wherever it's tested.
+
+```ts
+import { autumnJs } from "@usenarrator/plugin-autumn-js";
+
+typescript({ parser: oxcParser, plugins: [autumnJs()] });
+```
+
+The plugin declares `library: { name: "autumn-js", versions: ">=0.1 <2" }`. It reads both majors: 1.x's camelCase parameters and namespaces (`billing.attach`, `customers.getOrCreate`, `plans`) and 0.x's snake_case parameters, `{ data, error }` results, `products` and static `Autumn.check(…)`. Same-named calls kept their meaning between the two, so there is no version option. It only narrates files that import `autumn-js` or belong to a package that depends on it (see [Dependency detection](/concepts/dependency-detection)), and only calls on something it can show is an Autumn client: a `new Autumn(…)`, a value typed `Autumn`, the `Autumn` class, or an `autumn` the file imports from the app's own module. Another SDK's `autumn.attach(…)`, a Stripe call and a `useCustomer` from elsewhere are left alone.
+
+## Examples
+
+{/* narrate plugins="autumn-js" path="chat.ts" */}
+```ts Checking and tracking
+import { Autumn } from "autumn-js";
+
+const autumn = new Autumn({ secretKey: process.env.AUTUMN_SECRET_KEY });
+
+export async function sendMessage(customerId: string, text: string) {
+  const { allowed } = await autumn.check({ customerId, featureId: "messages" });
+  if (!allowed) throw new Error("You've run out of messages");
+  await chat(text);
+  await autumn.track({ customerId, featureId: "messages", value: 1 });
+}
+```
+
+```text English
+Let autumn be an Autumn client authenticated with the AUTUMN_SECRET_KEY environment variable.
+
+To send message (async), given customer ID and text:
+  Check whether the customer can use the messages feature, and call the answer allowed.
+  If the customer can't use the messages feature, fail with an error: "You've run out of messages".
+  Run chat (text).
+  Record 1 use of the messages feature for the customer.
+```
+
+{/* narrate plugins="autumn-js" path="billing.ts" */}
+```ts Plans and billing
+import { Autumn } from "autumn-js";
+
+const autumn = new Autumn();
+
+const response = await autumn.billing.attach({
+  customerId: user.id,
+  planId: "pro",
+  customize: { freeTrial: { durationLength: 14, durationType: "day", cardRequired: true } },
+});
+redirect(response.paymentUrl);
+
+await autumn.billing.update({ customerId: user.id, planId: "pro", cancelAction: "cancel_end_of_cycle" });
+
+const { url } = await autumn.billing.openCustomerPortal({ customerId: user.id, returnUrl: "https://example.com/billing" });
+```
+
+```text English
+Let autumn be an Autumn client authenticated with the AUTUMN_SECRET_KEY environment variable.
+
+Attach the pro plan to the customer with ID user's ID, and call the result response:
+  • with a 14-day free trial
+  • card required for the trial
+
+Redirect (the payment page URL).
+Cancel the pro plan for the customer with ID user's ID at the end of the billing cycle.
+
+Create a billing portal link for the customer with ID user's ID, and take its URL:
+  • coming back to "https://example.com/billing" afterwards
+```
+
+{/* narrate plugins="autumn-js" path="app/api/autumn/[...all]/route.ts" */}
+```ts A backend handler
+import { autumnHandler } from "autumn-js/next";
+import { auth } from "@/lib/auth";
+
+export const { GET, POST } = autumnHandler({
+  identify: async (request) => {
+    const session = await auth.api.getSession({ headers: request.headers });
+    return { customerId: session?.user.id, customerData: { name: session?.user.name, email: session?.user.email } };
+  },
+});
+```
+
+```text English
+Serve Autumn's backend routes for the React hooks, answering GET and POST requests:
+  • identifying the customer as session's user's ID, along with their name and email, after:
+    Get auth's API session (headers: request's headers).
+```
+
+{/* narrate plugins="react,autumn-js" path="upgrade.tsx" */}
+```tsx React hooks
+import { useCustomer } from "autumn-js/react";
+
+export function UpgradeButton() {
+  const { check, attach } = useCustomer();
+  if (check({ featureId: "premium" }).allowed) return null;
+  return <button onClick={() => attach({ planId: "pro" })}>Upgrade to Pro</button>;
+}
+```
+
+```text English
+UpgradeButton, a component:
+  Load the customer's plans and balances from Autumn, and take its check and attach.
+  If the customer can use the premium feature, show nothing.
+  Show a button "Upgrade to Pro" (when clicked, attach the pro plan to the customer).
+```
+
+## What it covers
+
+- The client: `new Autumn` with its secret key (or the `AUTUMN_SECRET_KEY` it falls back to), server URL and fail-open setting.
+- `check` with `requiredBalance`, `sendEvent`, `lock`, entities, event properties and `withPreview`; its answer as a condition, its balance, and 0.x's `{ data, error }`.
+- `track`, negative values, event names, `async: false`, idempotency keys, `trackTokens` and `batchTrack`; setting usage directly with `balances.update` or 0.x `usage`; granting balances and finishing locks with `balances.finalize`.
+- Billing: `attach`, `multiAttach`, previews, 0.x `checkout`, `billing.update` with its cancel actions and quantities, 0.x `cancel`, the billing portal and payment setup, with trials, prepaid quantities, proration, discounts and redirects as bullets. The payment, checkout and portal URLs on the results read as what they open.
+- Customers (`getOrCreate`, `get`, `update` with billing controls, `delete`, 0.x `create` and `updateBalances`), entities in both call styles, plans, products, features, referrals, rewards, licenses and usage totals (`events.aggregate`, 0.x `query`). Invoices, webhooks, keys and sandboxes read by method.
+- `autumnHandler` from every framework adapter, with how it identifies the customer, and the low-level handler from `autumn-js/backend`.
+- React: `useCustomer` and the functions it hands back (`attach`, `checkout`, `check`, `track`, `cancel`, `updateSubscription`, `openBillingPortal`, `openCustomerPortal`, `setupPayment`, `refetch` and the rest), `useEntity`, `usePricingTable`, `useListPlans`, `useReferrals`, `useListEvents`, `useAggregateEvents` and `usePaywall`. Components such as `PricingTable` and `CheckoutDialog` are read by the [React plugin](/plugins/react) like any other component.
+- Better Auth's `autumn()` plugin is read by the [Better Auth plugin](/plugins/better-auth).
+
+## Translating
+
+The English phrasebook is exported as `en` and typed as `AutumnPhrases`.
