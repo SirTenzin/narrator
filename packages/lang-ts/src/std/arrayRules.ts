@@ -1,7 +1,7 @@
 import { D, type Doc, mk, plain } from "@usenarrator/core";
 import { type Engine, type N, unwrap } from "../engine";
 import type { CallRule } from "../plugin";
-import { block, isFn, itemName, lambdaBlock, lambdaCond, lambdaNoun, pluckedListProp, pluckedProp, propPlural } from "./lambdas";
+import { block, isBlockHeader, isFn, itemName, lambdaBlock, lambdaCond, lambdaNoun, pluckedListProp, pluckedProp, propPlural } from "./lambdas";
 import type { StdPhrases } from "./phrases";
 
 type Calls = Record<string, CallRule<StdPhrases>>;
@@ -49,7 +49,7 @@ export const arrayRules: Calls = {
 		if (fn.type === "Identifier" && fn.name === "Boolean") return D(say.filter.dropEmpty({ list: list.t }), list.kids);
 		if (!isFn(fn)) return D(say.filter.passing({ list: list.t, fn: e.text(fn) }), list.kids);
 		const c = lambdaCond(e, fn);
-		const keep = e.isDestructured(fn) ? say.filter.whose : say.filter.where;
+		const keep = c && e.readsWhose(fn, c) ? say.filter.whose : say.filter.where;
 		if (c) return D(keep({ list: list.t, cond: c.t }), [...list.kids, ...c.kids]);
 		return block(say.filter.checkBlock({ list: list.t, items: e.g.plural(itemName({ e, fn, say })) }), [...list.kids, ...lambdaBlock(e, fn).kids]);
 	},
@@ -59,7 +59,7 @@ export const arrayRules: Calls = {
 		if (!fn || !isFn(fn)) return null;
 		const c = lambdaCond(e, fn);
 		const item = itemName({ e, fn, say });
-		if (c && e.isDestructured(fn)) return D(say.find.whose({ list: list.t, cond: c.t }), [...list.kids, ...c.kids]);
+		if (c && e.readsWhose(fn, c)) return D(say.find.whose({ list: list.t, cond: c.t }), [...list.kids, ...c.kids]);
 		if (c) return D(say.find.firstWhere({ item, list: list.t, cond: c.t }), [...list.kids, ...c.kids]);
 		return block(say.find.firstCheckBlock({ item, list: list.t }), [...list.kids, ...lambdaBlock(e, fn).kids]);
 	},
@@ -97,9 +97,16 @@ export const arrayRules: Calls = {
 					() => e.noun(u.right),
 				);
 				const r = unwrap(u.right);
-				const prop = r.type === "MemberExpression" && unwrap(r.object).name === item ? r.property.name : null;
-				if (prop) return D(say.reduce.totalProp({ prop: e.prop(prop), list: list.t }), list.kids);
-				return D(say.reduce.total({ value: term.t, list: list.t }), [...list.kids, ...term.kids]);
+				const prop = r.type === "MemberExpression" && !r.computed && unwrap(r.object).name === item ? r.property.name : null;
+				const total = prop
+					? D(say.reduce.totalProp({ prop: e.prop(prop), list: list.t }), list.kids)
+					: r.type === "Identifier" && r.name === item
+						? D(say.reduce.sum({ list: list.t }), list.kids)
+						: D(say.reduce.total({ value: term.t, list: list.t }), [...list.kids, ...term.kids]);
+				const u0 = unwrap(init);
+				if (!init || (u0.type === "Literal" && (u0.value === 0 || u0.value === ""))) return total;
+				const start = e.noun(init);
+				return D(say.reduce.plusStart({ start: start.t, total: total.t }), [...total.kids, ...start.kids]);
 			}
 		}
 		const start = init ? e.noun(init) : D(say.reduce.firstItem);
@@ -114,7 +121,15 @@ export const arrayRules: Calls = {
 	"*.toSorted": ({ obj, args, e, say }) => sortRule({ e, say, obj, args }),
 	"*.join": ({ obj, args, e, say }) => {
 		const list = e.noun(obj);
-		return D(args[0] ? say.join.with({ list: list.t, sep: e.text(args[0]) }) : say.join.commas({ list: list.t }), list.kids);
+		const sep = unwrap(args[0]);
+		const shown = isBlockHeader(e, list) ? say.following : list.t;
+		const text =
+			!sep || (sep.type === "Literal" && sep.value === ",")
+				? say.join.commas({ list: shown })
+				: sep.type === "Literal" && sep.value === "\n"
+					? say.join.lines({ list: shown })
+					: say.join.with({ list: shown, sep: e.text(sep) });
+		return isBlockHeader(e, list) ? block(text, list.kids) : D(text, list.kids);
 	},
 	"*.slice": ({ obj, args, e, say }) => {
 		const list = e.noun(obj);
@@ -138,6 +153,7 @@ export const arrayRules: Calls = {
 		return D(say.concat({ list: list.t, rest: e.g.list(rest.map((r: Doc) => r.t)) }), [...list.kids, ...rest.flatMap((r: Doc) => r.kids)]);
 	},
 	"*.push": ({ obj, args, e, say }) => {
+		if (!args.length) return null;
 		const list = e.noun(obj);
 		if (args.length === 1 && unwrap(args[0]).type === "SpreadElement") {
 			const x = e.noun(unwrap(args[0]).argument);
@@ -146,7 +162,7 @@ export const arrayRules: Calls = {
 		const items = args.map((a: N) => e.noun(a));
 		const joined = e.g.list(items.map((i: Doc) => i.t));
 		if (items.some((i: Doc) => i.kids.length) || plain(joined).length > 80) {
-			if (items.length === 1) return block(say.push.add({ values: items[0]!.t.replace(/:$/, ""), list: list.t }), items[0]!.kids);
+			if (items.length === 1) return block(say.push.addBlock({ value: items[0]!.t.replace(/:$/, ""), list: list.t }), items[0]!.kids);
 			return block(
 				say.push.addThese({ list: list.t }),
 				items.flatMap((i: Doc) => e.bullet(i)),
@@ -155,8 +171,8 @@ export const arrayRules: Calls = {
 		return D(say.push.add({ values: joined, list: list.t }), list.kids);
 	},
 	"*.unshift": ({ obj, args, e, say }) => D(say.unshift({ values: e.g.list(args.map((a: N) => e.text(a))), list: e.text(obj) })),
-	"*.pop": ({ obj, e, say }) => D(say.pop({ list: e.text(obj) })),
-	"*.shift": ({ obj, e, say }) => D(say.shift({ list: e.text(obj) })),
+	"*.pop": ({ obj, args, e, say, stmt }) => (args.length ? null : D(say.pop({ list: e.text(obj), stmt }))),
+	"*.shift": ({ obj, args, e, say, stmt }) => (args.length ? null : D(say.shift({ list: e.text(obj), stmt }))),
 	"*.indexOf": ({ obj, args, e, say }) => D(say.indexOf({ value: e.text(args[0]), list: e.text(obj) })),
 	"*.keys": ({ obj, args, e, say }) => (unwrap(obj).name === "Object" ? D(say.object.keys({ value: e.text(args[0]) })) : null),
 	"*.values": ({ obj, args, e, say }) => (unwrap(obj).name === "Object" ? D(say.object.values({ value: e.text(args[0]) })) : null),
@@ -175,12 +191,19 @@ export const arrayRules: Calls = {
 	"Array.from": ({ args, e, say }) => {
 		const src = e.noun(args[0]);
 		const fn = args[1] && unwrap(args[1]);
+		const a = unwrap(args[0]);
+		const length = a?.type === "ObjectExpression" && a.properties.length === 1 ? a.properties.find((p: N) => p.key?.name === "length")?.value : null;
+		if (length && fn && isFn(fn) && e.paramName(fn.params[1]) && unwrap(e.lambdaExpr(fn))?.name === e.paramName(fn.params[1]))
+			return D(say.arrayFrom.range({ count: e.text(length) }));
+		if (length && fn && isFn(fn)) {
+			const value = e.lambdaExpr(fn) ? e.noun(e.lambdaExpr(fn)) : null;
+			if (value) return D(say.arrayFrom.sizedEach({ count: e.text(length), value: value.t }), value.kids);
+		}
+		if (length) return D(say.arrayFrom.sized({ count: e.text(length) }));
 		if (fn && isFn(fn)) {
 			const body = lambdaNoun({ e, fn, say, eachAlias: true });
 			if (body) return D(say.arrayFrom.mapped({ source: src.t, value: body.t }), [...src.kids, ...body.kids]);
 		}
-		const a = unwrap(args[0]);
-		if (a?.type === "ObjectExpression") return D(say.arrayFrom.sized({ count: e.noun(a.properties.find((p: N) => p.key?.name === "length")?.value).t }));
 		return D(say.arrayFrom.list({ source: src.t }), src.kids);
 	},
 	"Array.isArray": ({ args, e, say }) => D(say.whether({ cond: say.isList({ value: e.text(args[0]), neg: false }) })),
@@ -205,7 +228,6 @@ export const arrayRules: Calls = {
 	"new Map": ({ args, e, say }) => D(args[0] ? say.collection.lookupFrom({ value: e.text(args[0]) }) : say.collection.emptyLookup),
 	"new WeakMap": ({ say }) => D(say.collection.emptyLookup),
 	"new Date": ({ args, e, say }) => D(args.length ? say.date.from({ value: e.text(args[0]) }) : say.date.now),
-	"new Promise": ({ say }) => D(say.collection.promise),
 };
 
 const whether = (say: StdPhrases, c: Doc | null) => (c ? D(say.whether({ cond: c.t }), c.kids) : null);
@@ -221,8 +243,8 @@ export function someEvery({ e, say, obj, args, neg, kind }: CondArgs & { kind: "
 	const item = itemName({ e, fn, say });
 	const c = lambdaCond(e, fn);
 	if (!c) return block(phrases.checkBlock({ item, list: list.t, neg }), [...list.kids, ...lambdaBlock(e, fn).kids]);
-	if (e.isDestructured(fn)) return D(phrases.whose({ list: list.t, cond: c.t, neg }), [...list.kids, ...c.kids]);
-	return D(phrases.where({ item, list: list.t, cond: c.t, neg }), [...list.kids, ...c.kids]);
+	if (e.readsWhose(fn, c)) return D(phrases.whose({ list: list.t, cond: c.t, neg }), [...list.kids, ...c.kids]);
+	return D(phrases.where({ item, list: list.t, cond: c.t, neg, article: e.g.article(plain(item)) }), [...list.kids, ...c.kids]);
 }
 
 export function includes({ e, say, obj, args, neg }: CondArgs): Doc {
@@ -247,37 +269,47 @@ export function isIn({ e, say, obj, args, neg }: CondArgs): Doc {
 
 const SELF = "value";
 
+type SortOrder = "smallestFirst" | "largestFirst" | "alphabetical" | "reverseAlphabetical";
+
+/** A comparator read as an order over a key: `(a, b) => a.x - b.x` -> smallest first by `x`. */
+export function sortSpec({ e, say, fn }: { e: Engine; say: StdPhrases; fn: N }): { order: SortOrder; key: string } | null {
+	const ex = e.lambdaExpr(fn);
+	const a = e.paramName(fn.params[0]);
+	const b = e.paramName(fn.params[1]);
+	if (!ex || !a || !b) return null;
+	const u = unwrap(ex);
+	const keyOf = (side: N, who: string) => {
+		const s = unwrap(side);
+		if (s.type === "Identifier" && s.name === who) return SELF;
+		if (s.type === "MemberExpression" && !s.computed && unwrap(s.object).name === who) return s.property.name as string;
+		return null;
+	};
+	const spec = (order: SortOrder, k: string) => ({ order, key: k === SELF ? mk("v", say.sort.value, SELF) : e.prop(k) });
+	if (u.type === "BinaryExpression" && u.operator === "-") {
+		const ka = keyOf(u.left, a);
+		if (ka && ka === keyOf(u.right, b)) return spec("smallestFirst", ka);
+		const ra = keyOf(u.left, b);
+		if (ra && ra === keyOf(u.right, a)) return spec("largestFirst", ra);
+	}
+	if (u.type === "CallExpression" && unwrap(u.callee).property?.name === "localeCompare") {
+		const k1 = keyOf(unwrap(u.callee).object, a);
+		if (k1 && k1 === keyOf(u.arguments[0], b)) return spec("alphabetical", k1);
+		const r1 = keyOf(unwrap(u.callee).object, b);
+		if (r1) return spec("reverseAlphabetical", r1);
+	}
+	return null;
+}
+
 function sortRule({ e, say, obj, args }: { e: Engine; say: StdPhrases; obj: N; args: N[] }): Doc {
 	const list = e.noun(obj);
 	const fn = args[0] && unwrap(args[0]);
 	if (!fn) return D(say.sort.sorted({ list: list.t }), list.kids);
 	if (!isFn(fn)) return D(say.sort.using({ list: list.t, fn: e.text(fn) }), list.kids);
+	const spec = sortSpec({ e, say, fn });
+	if (spec) return D(say.sort[spec.order]({ list: list.t, key: spec.key }), list.kids);
 	const ex = e.lambdaExpr(fn);
 	const a = e.paramName(fn.params[0]);
 	const b = e.paramName(fn.params[1]);
-	if (ex && a && b) {
-		const u = unwrap(ex);
-		const keyOf = (side: N, who: string) => {
-			const s = unwrap(side);
-			if (s.type === "Identifier" && s.name === who) return SELF;
-			if (s.type === "MemberExpression" && !s.computed && unwrap(s.object).name === who) return s.property.name as string;
-			return null;
-		};
-		const sorted = (phrase: StdPhrases["sort"]["smallestFirst"], k: string) =>
-			D(phrase({ list: list.t, key: k === SELF ? mk("v", say.sort.value, SELF) : e.prop(k) }), list.kids);
-		if (u.type === "BinaryExpression" && u.operator === "-") {
-			const ka = keyOf(u.left, a);
-			if (ka && ka === keyOf(u.right, b)) return sorted(say.sort.smallestFirst, ka);
-			const ra = keyOf(u.left, b);
-			if (ra && ra === keyOf(u.right, a)) return sorted(say.sort.largestFirst, ra);
-		}
-		if (u.type === "CallExpression" && unwrap(u.callee).property?.name === "localeCompare") {
-			const k1 = keyOf(unwrap(u.callee).object, a);
-			if (k1 && k1 === keyOf(u.arguments[0], b)) return sorted(say.sort.alphabetical, k1);
-			const r1 = keyOf(unwrap(u.callee).object, b);
-			if (r1) return sorted(say.sort.reverseAlphabetical, r1);
-		}
-	}
 	return block(say.sort.byRule({ list: list.t }), [
 		...list.kids,
 		...(ex ? e.bullet(D(say.sort.compare({ a: `${a}`, b: `${b}`, expr: e.text(ex) }))) : e.body(fn.body, 0)),

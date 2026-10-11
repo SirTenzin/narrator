@@ -11,7 +11,7 @@ test("guard clause with a missing property", () => {
 
 test("object entries loop with a skip", () => {
 	expect(narrate("for (const [key, value] of Object.entries(prices)) { if (value > 100) continue; log(key); }")).toBe(
-		"For each key key and value value in prices:\n  Skip it if value is more than 100.\n  Log (key).",
+		"For each key and its value in prices:\n  Skip it if value is more than 100.\n  Log (key).",
 	);
 });
 
@@ -19,7 +19,7 @@ test("predicate function signature and boolean return", () => {
 	expect(
 		narrate('export function isActive(subscription: Subscription): boolean { return subscription.status === "active" && subscription.items.length > 0; }'),
 	).toBe(
-		"Is active?, given subscription (Subscription); gives back true/false:\n  Give back whether subscription's status is \"active\" and subscription's items is not empty.",
+		"Is active?, given subscription (Subscription); gives back true/false:\n  Give back whether subscription's status is \"active\" and subscription's items are not empty.",
 	);
 });
 
@@ -40,5 +40,5 @@ test("type alias with an optional member", () => {
 });
 
 test("inline ternary", () => {
-	expect(narrate('const label = isTrial ? "trial" : "paid";')).toBe('Let label be "trial" if is trial, otherwise "paid".');
+	expect(narrate('const label = isTrial ? "trial" : "paid";')).toBe('Let label be "trial" if it is trial, otherwise "paid".');
 });

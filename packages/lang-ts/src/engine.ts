@@ -78,6 +78,20 @@ const isNullish = (n: N) => {
 		(n.type === "UnaryExpression" && n.operator === "void")
 	);
 };
+/** Whether an `await` sits under any parentheses or casts. */
+const unwrapsAwait = (n: N): boolean => {
+	let cur = n;
+	while (cur && cur.type !== "AwaitExpression" && cur !== unwrap(cur)) cur = cur.expression ?? cur.argument;
+	return cur?.type === "AwaitExpression";
+};
+
+const ESCAPES: Record<string, string> = { "\n": "\\n", "\t": "\\t", "\r": "\\r", "\0": "\\0" };
+
+/** Control characters in text shown as their escapes (`\n`, `\t`, `\0`), so output stays on one visible line. */
+const visible = (text: string) => text.replace(/[\u0000-\u001f\u007f]/g, (c) => ESCAPES[c] ?? `\\u${c.charCodeAt(0).toString(16).padStart(4, "0")}`);
+
+const HTTP_METHODS = new Set(["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"]);
+
 const isBoolLit = (n: N) => unwrap(n)?.type === "Literal" && typeof unwrap(n).value === "boolean";
 const calleeName = (n: N): string | null => {
 	const c = unwrap(n?.callee);
@@ -92,6 +106,19 @@ const colonSplit = (t: string) => ({ text: t.replace(/:$/, ""), colon: t.endsWit
 const WRAPPERS = new Set(["Promise", "Array", "Partial", "Readonly", "Required", "NonNullable", "Awaited", "ReadonlyArray", "Pick", "Omit"]);
 
 /** The named type behind an annotation (`Promise<Foo[]> | null` -> "Foo"), or null for primitives/inline shapes. */
+/** `Item[]`, `Array<Item>`, `readonly Item[]`, optionally `| null`: a list annotation. */
+function isListType(t: N): boolean {
+	if (!t) return false;
+	if (t.type === "TSArrayType") return true;
+	if (t.type === "TSParenthesizedType" || t.type === "TSTypeOperator") return isListType(t.typeAnnotation);
+	if (t.type === "TSTypeReference") return /^(Readonly)?Array$/.test(t.typeName?.name ?? "");
+	if (t.type === "TSUnionType") {
+		const real = t.types.filter((x: N) => !/^TS(Null|Undefined)Keyword$/.test(x.type));
+		return real.length === 1 && isListType(real[0]);
+	}
+	return false;
+}
+
 export function typeRefName(t: N, code: (n: N) => string): string | null {
 	if (!t) return null;
 	switch (t.type) {
@@ -120,13 +147,13 @@ export class Engine {
 	dialects: TsPlugin[] = [];
 	ambient = new Set<string>();
 	errorNames = new Set<string>();
-	errorLabels: Record<string, string> = {};
-	constants: Record<string, string> = {};
+	errorLabels: Record<string, string> = Object.create(null);
+	constants: Record<string, string> = Object.create(null);
 	errorPattern: RegExp | null = null;
-	calls: Record<string, Bound<CallRule>[]> = {};
-	conds: Record<string, Bound<CondRule>[]> = {};
+	calls: Record<string, Bound<CallRule>[]> = Object.create(null);
+	conds: Record<string, Bound<CondRule>[]> = Object.create(null);
 	stmtRules: Bound<StmtRule>[] = [];
-	members: Record<string, Bound<MemberRule>[]> = {};
+	members: Record<string, Bound<MemberRule>[]> = Object.create(null);
 	/** The current file's AST and its imports (local name -> where it came from), set by `narrate`. */
 	program: N = null;
 	imports = new Map<string, ImportInfo>();
@@ -206,7 +233,7 @@ export class Engine {
 
 	/** A property or key name as linked display text: `cusId` -> "customer ID". */
 	prop(key: string): string {
-		return mk("v", this.lex.humanize(key), key);
+		return mk("v", this.words(key), key);
 	}
 
 	schemaText(n: N): string | null {
@@ -234,7 +261,29 @@ export class Engine {
 		const alias = this.aliases.get(name);
 		if (alias) return alias;
 		const t = this.varTypes.get(name);
-		return mk("v", this.lex.humanize(name), t ? `${name}|${t}` : name);
+		return mk("v", this.words(name), t ? `${name}|${t}` : name);
+	}
+
+	/** An identifier as words; HTTP methods and vowelless initialisms (`GET`, `KV`) keep their casing, other constants read as words. */
+	words(name: string): string {
+		return HTTP_METHODS.has(name) || /^[B-DF-HJ-NP-TV-Z][B-DF-HJ-NP-TV-Z0-9]{1,3}$/.test(name) ? name : this.lex.humanize(name);
+	}
+
+	/** `` $`…` `` with `$` imported from "bun". */
+	isBunShell(n: N): boolean {
+		const tag = unwrap(n.tag);
+		return tag?.type === "Identifier" && tag.name === "$" && this.imports.get("$")?.from === "bun";
+	}
+
+	/** Whether a variable's name only repeats the end of the function that produced it (`user = findUser()`). */
+	namesItsResult(fnName: string, varName: string): boolean {
+		const vw = this.lex.words(varName);
+		return vw.length > 0 && this.lex.words(fnName).slice(-vw.length).join(" ") === vw.join(" ");
+	}
+
+	/** A verb-led name, or a function defined in this file, reads as an action. */
+	isActionName(name: string): boolean {
+		return this.lex.startsWithVerb(name) || this.localFns.has(name);
 	}
 
 	fnRef(name: string, text: string) {
@@ -360,7 +409,7 @@ export class Engine {
 					path: p.importMeta.path,
 				};
 				if (meta[1] === "env" && meta[2]) return D(p.envVar({ name: mk("l", meta[2]) }));
-				if (M[meta[1]!]) return D(M[meta[1]!]!);
+				if (Object.hasOwn(M, meta[1]!)) return D(M[meta[1]!]!);
 			}
 			const env = /^process\.env\.(\w+)$/.exec(k) ?? /^Bun\.env\.(\w+)$/.exec(k);
 			if (env) return D(p.envVar({ name: mk("l", env[1]!) }));
@@ -394,6 +443,8 @@ export class Engine {
 			case "UnaryExpression":
 				if (n.operator === "!") return this.wrap(this.cond(n.argument, true), (t) => p.whether({ condition: t }));
 				if (n.operator === "typeof") return this.wrap(this.noun(n.argument), (t) => p.typeOf({ value: t }));
+				if (n.operator === "-" && unwrap(n.argument)?.type === "Literal" && typeof unwrap(n.argument).value === "number")
+					return D(mk("l", `-${plain(this.literal(unwrap(n.argument)))}`));
 				if (n.operator === "-") return this.wrap(this.noun(n.argument), (t) => p.negative({ value: t }));
 				if (n.operator === "void") return D(p.nothing);
 				if (n.operator === "+") return this.wrap(this.noun(n.argument), (t) => p.asNumber({ value: t }));
@@ -432,7 +483,10 @@ export class Engine {
 					.replace(/\s+/g, " ")
 					.trim();
 				if (/sql/i.test(tagCode)) return D(p.sql({ query: mk("c", text) }));
-				return D(this.raw(n));
+				const quoted = this.template(n.quasi);
+				if (this.isBunShell(n)) return this.wrap(quoted, (t) => p.shell({ command: t, stmt: false }));
+				const by = this.noun(n.tag);
+				return D(p.tagged({ tag: by.t, text: quoted.t }), [...by.kids, ...quoted.kids]);
 			}
 			case "ClassExpression":
 				return D(p.classExpr({ name: n.id?.name ?? null }));
@@ -440,7 +494,7 @@ export class Engine {
 			case "JSXFragment":
 				return this.jsx(n);
 			case "MetaProperty":
-				return D(p.metaProperty);
+				return D(n.meta?.name === "new" ? p.newTarget : p.metaProperty);
 			default:
 				return D(this.raw(n));
 		}
@@ -453,7 +507,7 @@ export class Engine {
 	literal(n: N): string {
 		if (n.regex) return mk("c", n.raw);
 		if (n.value === null) return this.say.expressions.nothing;
-		if (typeof n.value === "string") return mk("l", `"${n.value}"`);
+		if (typeof n.value === "string") return mk("l", `"${visible(n.value)}"`);
 		if (typeof n.value === "number") {
 			const v = n.value;
 			if (Number.isInteger(v) && Math.abs(v) >= 10000) return mk("l", this.g.formatNumber(v));
@@ -464,11 +518,12 @@ export class Engine {
 
 	template(n: N): Doc {
 		if (n.expressions.length === 1 && n.quasis.every((q: N) => !q.value.cooked)) return this.noun(n.expressions[0]);
-		if (!n.expressions.length) return D(mk("l", `"${n.quasis[0].value.cooked}"`));
-		let t = mk("l", `"${n.quasis[0].value.cooked}`);
+		const quasi = (i: number) => visible(n.quasis[i].value.cooked ?? n.quasis[i].value.raw);
+		if (!n.expressions.length) return D(mk("l", `"${quasi(0)}"`));
+		let t = mk("l", `"${quasi(0)}`);
 		n.expressions.forEach((ex: N, i: number) => {
 			t += `{${this.noun(ex).t}}`;
-			t += mk("l", `${n.quasis[i + 1].value.cooked}${i === n.expressions.length - 1 ? '"' : ""}`);
+			t += mk("l", `${quasi(i + 1)}${i === n.expressions.length - 1 ? '"' : ""}`);
 		});
 		return D(t);
 	}
@@ -488,7 +543,27 @@ export class Engine {
 		return { root: cur, steps };
 	}
 
+	/** `c.env.DB.name`: a member rule that claims an inner link (`c.env.DB`) becomes the owner of the rest of the chain. */
+	innerMemberRule(n: N): Doc | null {
+		const outer: string[] = [];
+		let cur = unwrap(n);
+		while (cur?.type === "MemberExpression" && !cur.computed && cur.property?.type === "Identifier" && cur.property.name !== "length") {
+			outer.unshift(cur.property.name);
+			cur = unwrap(cur.object);
+			if (cur?.type !== "MemberExpression") return null;
+			const r = this.memberRule(cur);
+			if (r)
+				return this.joinPossessive(
+					r,
+					outer.map((name) => mk("v", this.words(name), name)),
+				);
+		}
+		return null;
+	}
+
 	member(n: N): Doc {
+		const inner = this.innerMemberRule(n);
+		if (inner) return inner;
 		const m = this.say.expressions.member;
 		const { root, steps } = this.chain(n);
 		const last = steps.at(-1)!;
@@ -504,7 +579,7 @@ export class Engine {
 			if (ex) {
 				const coll = this.noun(unwrap(root.callee).object);
 				const c = this.cond(ex);
-				const count = this.isDestructured(fn) ? m.countWhose : m.countWhere;
+				const count = this.readsWhose(fn, c) ? m.countWhose : m.countWhere;
 				return D(count({ collection: coll.t, condition: c.t }), [...coll.kids, ...c.kids]);
 			}
 		}
@@ -561,7 +636,7 @@ export class Engine {
 			const rootType = i === 0 && root?.type === "Identifier" ? this.varTypes.get(root.name) : undefined;
 			const ownerType = rootType && !rootType.startsWith("@") ? rootType : null;
 			names.push(s.name!);
-			words.push(mk("v", this.lex.humanize(s.name!), ownerType ? `${s.name}|@${ownerType}.${s.name}` : s.name!));
+			words.push(mk("v", this.words(s.name!), ownerType ? `${s.name}|@${ownerType}.${s.name}` : s.name!));
 		}
 		return this.joinPossessive(base, words, root?.type === "CallExpression" && !!base && base === firstBase);
 	}
@@ -660,6 +735,9 @@ export class Engine {
 				? mk("v", this.lex.humanize(p.key.name), p.key.name)
 				: this.literal(p.key);
 		if (p.shorthand && p.key.type === "Identifier") return D(this.ref(p.key.name));
+		const key = p.computed ? null : p.key.type === "Identifier" ? p.key.name : typeof p.key.value === "string" ? p.key.value : null;
+		const v0 = unwrap(p.value);
+		if (key && v0?.type === "Identifier" && this.lex.humanize(v0.name) === this.lex.humanize(key)) return D(this.ref(v0.name));
 		if (p.kind === "get") return D(x.object.getter({ key: keyText }));
 		if (p.method || (isFn(p.value) && unwrap(p.value).body.type === "BlockStatement")) {
 			const f = p.method ? p.value : unwrap(p.value);
@@ -909,6 +987,11 @@ export class Engine {
 		return this.say.expressions.item;
 	}
 
+	/** A destructuring lambda's condition reads "whose …" unless it opens on a bare "it …" predicate. */
+	readsWhose(fn: N, cond: Doc): boolean {
+		return this.isDestructured(fn) && !plain(cond.t).startsWith(`${plain(this.say.conditions.it)} `);
+	}
+
 	isDestructured(fn: N) {
 		return fn.params[0]?.type === "ObjectPattern";
 	}
@@ -943,7 +1026,9 @@ export class Engine {
 			if (this.ambient.has(p.name)) return [];
 			const t = withTypes ? this.varTypes.get(p.name) : undefined;
 			const typeName = t?.startsWith("@") ? null : t;
-			return [typeName ? x.typed({ name: this.ref(p.name), type: mk("t", typeName, typeName) }) : this.ref(p.name)];
+			if (!typeName) return [this.ref(p.name)];
+			const shown = isListType(p.typeAnnotation?.typeAnnotation) ? this.say.types.listOf({ item: typeName }) : typeName;
+			return [x.typed({ name: this.ref(p.name), type: mk("t", shown, typeName) })];
 		}
 		if (p.type === "AssignmentPattern") {
 			const inner = this.patternNames(p.left, withTypes);
@@ -993,7 +1078,7 @@ export class Engine {
 		return out;
 	}
 
-	/** Plugin member rules: keys `Obj.prop`, `*.owner.prop`, `*.prop`, most specific first. */
+	/** Plugin member rules: keys `Obj.prop`, `*.owner.prop`, `*.prop`, then families `Obj.*` and `*.owner.*`; most specific first. */
 	memberRule(n: N): Doc | null {
 		if (n.computed || n.property?.type !== "Identifier") return null;
 		const obj = unwrap(n.object);
@@ -1002,6 +1087,8 @@ export class Engine {
 			obj.type === "Identifier" ? `${obj.name}.${prop}` : null,
 			obj.type === "MemberExpression" && !obj.computed ? `*.${obj.property.name}.${prop}` : null,
 			`*.${prop}`,
+			obj.type === "Identifier" ? `${obj.name}.*` : null,
+			obj.type === "MemberExpression" && !obj.computed ? `*.${obj.property.name}.*` : null,
 		];
 		for (const key of keys)
 			for (const rule of key ? (this.members[key] ?? []) : []) {
@@ -1132,7 +1219,8 @@ export class Engine {
 		const fn = this.fnRef(name, words);
 		const a = this.argList(args);
 		const parts = { fn, owner: via, args: a.t };
-		if (this.lex.startsWithVerb(name) || this.localFns.has(name)) return D(c.action(parts), a.kids);
+		if (stmt && name === "main") return D(c.run(parts), a.kids);
+		if (this.isActionName(name)) return D(c.action(parts), a.kids);
 		if (stmt && this.lex.words(name)[0] === "on") return D(c.trigger(parts), a.kids);
 		if (stmt && this.lex.words(name).length > 1) return D(c.action(parts), a.kids);
 		if (stmt) return D(c.run(parts), a.kids);
@@ -1151,13 +1239,14 @@ export class Engine {
 		const a = this.argList(args);
 		const object = this.isAmbient(objNode) ? null : obj.t;
 		const kids = [...obj.kids, ...a.kids];
+		const verbObject = unwrap(objNode)?.type === "ThisExpression" ? null : object;
 		if (this.lex.isPredicateName(method))
 			return D(c.methodPredicate({ object, predicate: this.predicatePhrase(method, false), args: a.t, action: stmt }), kids);
 		const w = this.lex.words(method);
 		const verb = mk("f", this.lex.display(w.slice(0, 1)), "");
 		const rest = w.length > 1 ? mk("f", this.lex.display(w.slice(1)), "") : null;
-		if (this.lex.startsWithVerb(method)) return D(c.methodVerb({ verb, object, rest, args: a.t }), kids);
-		if (stmt && w.length > 1 && w[0] !== "on") return D(c.methodVerb({ verb, object, rest, args: a.t }), kids);
+		if (this.lex.startsWithVerb(method)) return D(c.methodVerb({ verb, object: verbObject, rest, args: a.t }), kids);
+		if (stmt && w.length > 1 && w[0] !== "on") return D(c.methodVerb({ verb, object: verbObject, rest, args: a.t }), kids);
 		const phrase = stmt ? (w[0] === "on" ? c.methodTrigger : c.methodRun) : c.method;
 		return D(phrase({ object, method: mk("f", this.lex.humanize(method), ""), args: a.t }), kids);
 	}
@@ -1310,7 +1399,10 @@ export class Engine {
 		if (n.type === "Identifier") {
 			if (this.isBoolName(n.name)) {
 				const aux = /^(is|has|have|can|should|was|were|did|does|will|needs|must|are|had)$/.test(this.lex.words(n.name)[0]!);
-				if (this.lex.isPredicateName(n.name) && aux) return D(this.aliases.get(n.name) ?? mk("v", this.predicatePhrase(n.name, neg), n.name));
+				if (this.lex.isPredicateName(n.name) && aux) {
+					const alias = this.aliases.get(n.name);
+					return D(alias ?? k.subjectPredicate({ subject: k.it, predicate: mk("v", this.predicatePhrase(n.name, neg), n.name) }));
+				}
 				return D(k.flag({ subject: this.ref(n.name), neg }));
 			}
 			return D(k.isSet({ subject: this.ref(n.name), neg }));
@@ -1331,6 +1423,7 @@ export class Engine {
 			return D(k.isSet({ subject: m.t, neg }), m.kids);
 		}
 		if (n.type === "Literal" && typeof n.value === "boolean") return D(k.bool({ value: n.value !== neg }));
+		if (n.type === "MetaProperty" && n.meta?.name === "new") return D(k.calledWithNew({ neg }));
 		if (n.type === "AssignmentExpression") {
 			const a = this.assign(n);
 			return D(k.afterAssign({ action: a.t, neg }), a.kids);
@@ -1385,7 +1478,11 @@ export class Engine {
 				const inner = this.noun(L.object);
 				return D(k.isEmpty({ subject: inner.t, neg: !eq }), inner.kids);
 			}
-			if (R.type === "Literal" && typeof R.value === "boolean") return this.cond(L, eq ? !R.value : R.value);
+			if (R.type === "Literal" && typeof R.value === "boolean") {
+				const isFalse = eq ? !R.value : R.value;
+				if (this.looksBoolean(L)) return this.cond(L, isFalse);
+				return this.wrap(this.noun(L), (t) => k.flag({ subject: t, neg: isFalse }));
+			}
 			if (this.looksBoolean(L) && this.looksBoolean(R)) {
 				const lc = this.cond(L);
 				const rc = this.cond(R);
@@ -1407,7 +1504,9 @@ export class Engine {
 			}
 			const l = this.noun(L);
 			const r = this.noun(R);
-			const time = this.g.isTimeLike(plain(l.t)) || this.g.isTimeLike(plain(r.t));
+			// A difference of two moments (or its absolute value) is a duration, not a moment.
+			const isSpan = (x: N) => (x.type === "BinaryExpression" && x.operator === "-") || (x.type === "CallExpression" && this.code(x.callee) === "Math.abs");
+			const time = !isSpan(L) && !isSpan(R) && (this.g.isTimeLike(plain(l.t)) || this.g.isTimeLike(plain(r.t)));
 			if (!time && R.type === "Literal" && R.value === 0) return D(k.sign[rel]({ subject: l.t }), l.kids);
 			return D(k.compare[rel]({ left: l.t, right: r.t, time }), [...l.kids, ...r.kids]);
 		}
@@ -1601,6 +1700,16 @@ export class Engine {
 			}
 			return this.emitDoc(d, this.call(u, true), n);
 		}
+		if (u.type === "TaggedTemplateExpression" && this.isBunShell(u))
+			return this.emitDoc(
+				d,
+				this.wrap(this.template(u.quasi), (t) => this.say.expressions.shell({ command: t, stmt: true })),
+				n,
+			);
+		if (u.type === "NewExpression") {
+			const ruled = this.applyRules(this.calls, u, { stmt: true });
+			if (ruled) return this.emitDoc(d, ruled, n);
+		}
 		if (u.type === "AssignmentExpression") return this.emitDoc(d, this.assign(u), n);
 		if (u.type === "UpdateExpression") return this.emitDoc(d, this.noun(u), n);
 		if (u.type === "LogicalExpression" && u.operator === "&&") {
@@ -1609,6 +1718,20 @@ export class Engine {
 			return this.emitDoc(d, D(s.ifThen({ condition: c.t, action: r.t }), [...c.kids, ...r.kids]), n);
 		}
 		if (u.type === "Literal" && typeof u.value === "string") return;
+		if (u.type === "UnaryExpression" && u.operator === "void" && unwrap(u.argument)?.type === "CallExpression") {
+			const call = this.call(unwrap(u.argument), true);
+			return this.emitDoc(
+				d,
+				this.wrap(call, (t) => s.startWithoutWaiting({ action: t })),
+				n,
+			);
+		}
+		if (unwrapsAwait(expr) && (u.type === "Identifier" || u.type === "MemberExpression"))
+			return this.emitDoc(
+				d,
+				this.wrap(this.noun(u), (t) => s.waitFor({ value: t })),
+				n,
+			);
 		return this.emitDoc(d, this.noun(u), n);
 	}
 
@@ -1628,6 +1751,10 @@ export class Engine {
 			}
 			const name = this.ref(id.name);
 			if (!init) return this.emit(d, `${dc.uninitialized({ name })}.`, n);
+			if (kind === "let" && isBoolLit(init)) {
+				this.bools.add(id.name);
+				return this.emit(d, `${capFirst(dc.letStart({ name, value: this.literal(init) }))}.`, n);
+			}
 			if (this.looksBoolean(init) || (init.type === "LogicalExpression" && this.isBoolName(id.name))) {
 				this.bools.add(id.name);
 				const c = this.cond(init);
@@ -1635,14 +1762,11 @@ export class Engine {
 			}
 			if (init.type === "CallExpression") {
 				const fname = calleeName(init);
-				const verbal = fname && (this.lex.startsWithVerb(fname) || this.localFns.has(fname)) && !this.lex.converterParts(fname) && !this.applyRulesQuiet(init);
+				const verbal = fname && this.isActionName(fname) && !this.lex.converterParts(fname) && !this.applyRulesQuiet(init);
 				if (verbal) {
 					const call = this.call(init, true);
 					const { text, colon } = colonSplit(call.t);
-					const vw = this.lex.words(id.name);
-					const fw = this.lex.words(fname);
-					const subsumed = vw.length && fw.slice(-vw.length).join(" ") === vw.join(" ");
-					const phrase = subsumed ? dc.callInto : dc.callAs;
+					const phrase = this.namesItsResult(fname, id.name) ? dc.callInto : dc.callAs;
 					return this.emitDoc(d, D(`${phrase({ call: text, name })}${colon}`, call.kids), n);
 				}
 			}
@@ -1674,7 +1798,10 @@ export class Engine {
 					const x = unwrap(el).type === "CallExpression" ? this.call(unwrap(el), true) : this.noun(el);
 					const { text, colon } = colonSplit(x.t);
 					const name = names[i];
-					this.emitDoc(d + 1, D(`• ${name ? dc.callInto({ call: text, name }) : text}${colon}`, x.kids), el, "", "bullet");
+					const local = id.elements[i]?.type === "Identifier" ? id.elements[i].name : null;
+					const fn = unwrap(el).type === "CallExpression" ? calleeName(unwrap(el)) : null;
+					const phrase = fn && local && this.namesItsResult(fn, local) ? dc.callInto : dc.callAs;
+					this.emitDoc(d + 1, D(`• ${name ? phrase({ call: text, name }) : text}${colon}`, x.kids), el, "", "bullet");
 				});
 				return;
 			}
@@ -1784,13 +1911,13 @@ export class Engine {
 		const s = this.say.statements;
 		const u = unwrap(ex);
 		if (isNullish(u)) return this.emit(d, `${s.returnNothing}.`, n);
-		if (this.looksBoolean(u)) {
+		if (this.looksBoolean(u) && !isBoolLit(u)) {
 			const c = this.cond(u);
 			return this.emitDoc(d, D(s.returnWhether({ condition: c.t }), c.kids), n);
 		}
 		if (u.type === "CallExpression") {
 			const name = calleeName(u);
-			if (name && (this.lex.startsWithVerb(name) || this.localFns.has(name)) && !this.lex.converterParts(name) && !this.applyRulesQuiet(u)) {
+			if (name && this.isActionName(name) && !this.lex.converterParts(name) && !this.applyRulesQuiet(u)) {
 				const call = this.call(u, true);
 				const { text, colon } = colonSplit(call.t);
 				return this.emitDoc(d, D(`${s.returnCall({ call: text })}${colon}`, call.kids), n);
@@ -2004,6 +2131,11 @@ export class Engine {
 				}
 				if ((name === "Partial" || name === "Readonly" || name === "Required" || name === "Awaited" || name === "NonNullable") && args[0])
 					return this.typeText(args[0], top);
+				const shape = /^(z\.)?(infer|input|output|Infer)$/.exec(name);
+				if (shape && args[0]?.type === "TSTypeQuery") {
+					const schema = this.code(args[0].exprName);
+					return y.schemaShape({ schema: mk("t", schema, schema), side: shape[2] === "input" || shape[2] === "output" ? shape[2] : "data" });
+				}
 				if (name === "ReturnType" && args[0]) return y.returnOf({ fn: this.typeSubject(args[0]) });
 				if (name === "Parameters" && args[0]) return y.paramsOf({ fn: this.typeSubject(args[0]), index: null });
 				return y.reference({ type: mk("t", name, name), name });

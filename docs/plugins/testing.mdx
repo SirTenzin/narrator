@@ -34,12 +34,12 @@ describe("cart", () => {
 ```text English
 Test group "cart":
   Before each test:
-    reset cart
+    Reset cart.
   Test "starts empty":
-    Check that cart's items has 0 item(s).
+    Check that cart's items are empty.
     Check that cart's total is 0.
   Test "rejects unknown coupons":
-    Check that a function giving back apply coupon (cart and "NOPE") throws "Unknown coupon".
+    Check that running apply coupon (cart and "NOPE") throws "Unknown coupon".
 ```
 
 {/* narrate plugins="testing" path="user.test.ts" */}

@@ -41,7 +41,7 @@ Let program be the result of these steps:
   1. Start with an effect that runs these steps:
     Get the Database service, and call it DB.
     Query DB ("select * from users"), and call the result rows.
-    If rows is empty, fail with a user not found error (ID: "1").
+    If rows are empty, fail with a user not found error (ID: "1").
     Log "loaded users".
     Give back rows.
   2. Retry with exponential backoff starting at 100 millis

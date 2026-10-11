@@ -251,7 +251,7 @@ const requireUser = createMiddleware<{ Variables: { user: User } }>(async (c, ne
 });
 app.get("/me", requireUser, (c) => c.json(c.get("user")));`);
 		expect(text).toContain("Let require user be custom middleware:");
-		expect(text).toContain("  Get user (the Authorization request header) → user.");
+		expect(text).toContain("  Get user (the Authorization request header).");
 		expect(text).toContain(`  If user is missing, reply with an object with error: "Unauthorized" as JSON (status 401 Unauthorized).`);
 		expect(text).toContain("  Store user as the user context variable.");
 		expect(text).toContain("  Let the next handler run.");
@@ -412,7 +412,7 @@ serve({ fetch: app.fetch, port: 8787 }, (info) => {
 		);
 		expect(read(`${HONO}const app = new Hono();\nDeno.serve(app.fetch);`)).toContain("Serve app.");
 		const vercel = read(`${HONO}import { handle } from "hono/vercel";\nconst app = new Hono();\nexport const GET = handle(app);\nexport default handle(app);`);
-		expect(vercel).toContain("Let get be app as a Vercel handler.");
+		expect(vercel).toContain("Let GET be app as a Vercel handler.");
 		expect(vercel).toContain("Export app as this module's Vercel handler.");
 	});
 });

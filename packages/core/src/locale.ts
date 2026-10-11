@@ -14,6 +14,8 @@ export interface Grammar {
 	negatePredicateHead(head: string): string;
 	/** A rendered type phrase as a bare noun, for use after "a list of": "a number" -> "number". */
 	bareNoun(phrase: string): string;
+	/** Whether a rendered sentence subject takes a plural verb ("customer's items are", "the number of items is"). */
+	isPluralSubject(subject: string): boolean;
 	/** Whether a rendered (plain) noun phrase names a moment in time, so comparisons read "before"/"after". */
 	isTimeLike(phrase: string): boolean;
 }
@@ -42,6 +44,8 @@ export interface ExpressionPhrases {
 	this: string;
 	parentClass: string;
 	metaProperty: string;
+	/** `new.target`: the class a constructor was invoked through. */
+	newTarget: string;
 	importMeta: { main: string; dir: string; url: string; path: string };
 	envVar: Phrase<{ name: string }>;
 	whether: Phrase<{ condition: string }>;
@@ -57,6 +61,10 @@ export interface ExpressionPhrases {
 	yieldAll: Phrase<{ value: string }>;
 	dynamicImport: Phrase<{ path: string }>;
 	sql: Phrase<{ query: string }>;
+	/** Bun's `` $`cmd` ``: a shell command; `command` is the rendered template. */
+	shell: Phrase<{ command: string; stmt: boolean }>;
+	/** Any other tagged template: `tag` processes the rendered `text`. */
+	tagged: Phrase<{ tag: string; text: string }>;
 	classExpr: Phrase<{ name: string | null }>;
 	/** "key: value" for a labelled item in a list. */
 	labeled: Phrase<{ key: string; value: string }>;
@@ -194,6 +202,8 @@ export interface ConditionPhrases {
 	subjectPredicate: Phrase<{ subject: string; predicate: string }>;
 	flag: Phrase<{ subject: string } & Neg>;
 	isSet: Phrase<{ subject: string } & Neg>;
+	/** `if (new.target)`: whether the function was invoked with `new`. */
+	calledWithNew: Phrase<Neg>;
 	isEmpty: Phrase<{ subject: string } & Neg>;
 	afterAssign: Phrase<{ action: string } & Neg>;
 	allOf: string;
@@ -213,6 +223,10 @@ export interface ConditionPhrases {
 /** Control flow. Block intros omit their trailing colon; the walker adds it. */
 export interface StatementPhrases {
 	comment: Phrase<{ text: string }>;
+	/** `void run();`: start something without waiting for it to finish. */
+	startWithoutWaiting: Phrase<{ action: string }>;
+	/** `await pending;` on a value that isn't a call. */
+	waitFor: Phrase<{ value: string }>;
 	doNothing: string;
 	continue: string;
 	break: string;
@@ -263,6 +277,7 @@ export interface DeclarationPhrases {
 	enum: Phrase<{ name: string; members: string }>;
 	uninitialized: Phrase<{ name: string }>;
 	letMean: Phrase<{ name: string; condition: string }>;
+	/** A call whose result's name only repeats the function's own words (`const user = await findUser(id)`). */
 	callInto: Phrase<{ call: string; name: string }>;
 	callAs: Phrase<{ call: string; name: string }>;
 	letStart: Phrase<{ name: string; value: string }>;
@@ -329,6 +344,8 @@ export interface TypePhrases {
 	keyOf: Phrase<{ type: string }>;
 	bigint: string;
 	predicate: Phrase<{ subject: string; type: string }>;
+	/** `z.infer<typeof S>` / `z.input` / `z.output`: the data a schema describes. */
+	schemaShape: Phrase<{ schema: string; side: "data" | "input" | "output" }>;
 	member: Phrase<{ name: string; optional: boolean }>;
 	explain: {
 		object: Phrase<{ name: string; bases: string | null }>;

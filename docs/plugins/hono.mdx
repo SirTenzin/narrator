@@ -41,7 +41,7 @@ Create a Hono app as app.
 Answer GET /users/:id:
   Let ID be the id path parameter.
   Let page be the page query parameter.
-  Find user (ID) → user.
+  Find user (ID).
   If user is missing, reply with the not-found response.
   Set the Cache-Control response header to "no-store".
   Reply with an object with user and page as JSON.
@@ -94,7 +94,7 @@ Create a Hono app as app.
 
 Answer POST /posts, after a check of the JSON body against a schema for an object with title:
   From the validated JSON body, take title.
-  Create post (title) → post.
+  Create post (title).
   Reply with post as JSON (status 201 Created).
 ```
 

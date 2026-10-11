@@ -1,6 +1,7 @@
 import { capFirst, D, type Doc, mk } from "@usenarrator/core";
 import { type Engine, type N, unwrap } from "../engine";
 import type { CallRule } from "../plugin";
+import { sortSpec } from "./arrayRules";
 import { block, isFn, itemName, lambdaBlock, lambdaCond, lambdaNoun, pluckedListProp, pluckedProp, propPlural } from "./lambdas";
 import type { StdPhrases } from "./phrases";
 
@@ -63,7 +64,7 @@ function stageDoc({ e, say, step: { m, args, node } }: { e: Engine; say: StdPhra
 		case "filter": {
 			if (fn?.type === "Identifier" && fn.name === "Boolean") return D(pipe.dropEmpty);
 			const c = lam ? lambdaCond(e, fn) : null;
-			if (c) return D((whose ? pipe.keepWhose : pipe.keepWhere)({ cond: c.t }), c.kids);
+			if (c) return D((whose && e.readsWhose(fn, c) ? pipe.keepWhose : pipe.keepWhere)({ cond: c.t }), c.kids);
 			if (lam) return block(pipe.keepCheckBlock({ items: e.g.plural(itemName({ e, fn, say })) }), lambdaBlock(e, fn).kids);
 			return D(pipe.keepPassing({ fn: e.text(fn) }));
 		}
@@ -82,7 +83,7 @@ function stageDoc({ e, say, step: { m, args, node } }: { e: Engine; say: StdPhra
 		case "findLast": {
 			const last = m === "findLast";
 			const c = lam ? lambdaCond(e, fn) : null;
-			if (c) return D((whose ? pipe.takeWhose : pipe.takeWhere)({ cond: c.t, last }), c.kids);
+			if (c) return D((whose && e.readsWhose(fn, c) ? pipe.takeWhose : pipe.takeWhere)({ cond: c.t, last }), c.kids);
 			if (lam) return block(pipe.takeCheckBlock({ last }), lambdaBlock(e, fn).kids);
 			return D(pipe.takePassing({ fn: e.text(fn), last }));
 		}
@@ -97,6 +98,13 @@ function stageDoc({ e, say, step: { m, args, node } }: { e: Engine; say: StdPhra
 			if (lam) return block(pipe.checkPassesBlock({ some }), lambdaBlock(e, fn).kids);
 			return D(pipe.checkPasses({ fn: e.text(fn), some }));
 		}
+		case "sort":
+		case "toSorted": {
+			if (!fn) return D(pipe.sort);
+			const spec = lam ? sortSpec({ e, say, fn }) : null;
+			if (spec) return D(pipe.sortBy[spec.order]({ key: spec.key }));
+			break;
+		}
 		case "dedupe":
 			return D(pipe.dedupe);
 		case "join":
@@ -104,15 +112,13 @@ function stageDoc({ e, say, step: { m, args, node } }: { e: Engine; say: StdPhra
 		case "reverse":
 		case "toReversed":
 			return D(pipe.reverse);
-		default: {
-			const inner = e.withAlias(
-				{ params: [THEM] },
-				(p) => mk("v", pipe.them, p),
-				() => e.call({ ...node, callee: { ...unwrap(node.callee), object: THEM } }, false),
-			);
-			return D(inner.t, inner.kids);
-		}
 	}
+	const inner = e.withAlias(
+		{ params: [THEM] },
+		(p) => mk("v", pipe.them, p),
+		() => e.call({ ...node, callee: { ...unwrap(node.callee), object: THEM } }, false),
+	);
+	return D(inner.t, inner.kids);
 }
 
 /** `xs.filter(...).map(...)` -> the source, then numbered steps. */

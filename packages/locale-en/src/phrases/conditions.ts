@@ -1,7 +1,11 @@
 import { type ConditionPhrases, plain } from "@usenarrator/core";
-import { grammar } from "../grammar";
+import { grammar, pluralSubject, verbFor } from "../grammar";
 
-const missingOrSet = (neg: boolean) => (neg ? "is missing" : "is set");
+/** "there are more than 2 items" for a plain plural; "customer's prices have more than 2 items" otherwise. */
+const items = (subject: string, count: number, cmp: string) => {
+	const simple = pluralSubject(subject) && !/['’]/.test(plain(subject)) && count !== 1;
+	return simple ? `there are ${cmp} ${count} ${subject}` : `${subject} ${verbFor(subject).has} ${cmp} ${count} item${count === 1 ? "" : "s"}`;
+};
 
 export const conditions: ConditionPhrases = {
 	bool: ({ value }) => (value ? "true" : "false"),
@@ -19,10 +23,11 @@ export const conditions: ConditionPhrases = {
 	},
 	methodPredicate: ({ object, predicate, args }) => `${object !== null ? `${object} ` : ""}${predicate}${args}`,
 	subjectPredicate: ({ subject, predicate }) => `${subject} ${predicate}`,
-	flag: ({ subject, neg }) => `${subject} is ${neg ? "false" : "true"}`,
-	isSet: ({ subject, neg }) => `${subject} ${missingOrSet(neg)}`,
-	isEmpty: ({ subject, neg }) => `${subject} ${neg ? "is not empty" : "is empty"}`,
-	afterAssign: ({ action, neg }) => `(after we ${action}) the result ${missingOrSet(neg)}`,
+	flag: ({ subject, neg }) => `${subject} ${verbFor(subject).is} ${neg ? "false" : "true"}`,
+	isSet: ({ subject, neg }) => `${subject} ${verbFor(subject).is} ${neg ? "missing" : "set"}`,
+	calledWithNew: ({ neg }) => `this ${neg ? "was not" : "was"} called with new`,
+	isEmpty: ({ subject, neg }) => `${subject} ${isVerb(subject, neg)} empty`,
+	afterAssign: ({ action, neg }) => `(after we ${action}) the result ${neg ? "is missing" : "is set"}`,
 	allOf: "all of these are true",
 	anyOf: "any of these is true",
 	typeofNames: {
@@ -35,27 +40,32 @@ export const conditions: ConditionPhrases = {
 		bigint: "a big number",
 		symbol: "a symbol",
 	},
-	isType: ({ subject, type, neg }) => `${subject} ${neg ? "is not" : "is"} ${type}`,
+	isType: ({ subject, type, neg }) => `${subject} ${isVerb(subject, neg)} ${type}`,
 	sameAs: ({ left, right, neg }) => `(${left}) ${neg ? "differs from" : "is the same as"} (${right})`,
-	equals: ({ left, right, neg }) => `${left} ${neg ? "is not" : "is"} ${right}`,
+	equals: ({ left, right, neg }) => `${left} ${isVerb(left, neg)} ${right}`,
 	countCompare: {
-		"<": ({ subject, count }) => `${subject} has fewer than ${count} item${count === 1 ? "" : "s"}`,
-		">": ({ subject, count }) => `${subject} has more than ${count} item${count === 1 ? "" : "s"}`,
-		"<=": ({ subject, count }) => `${subject} has at most ${count} item${count === 1 ? "" : "s"}`,
-		">=": ({ subject, count }) => `${subject} has at least ${count} item${count === 1 ? "" : "s"}`,
+		"<": ({ subject, count }) => items(subject, count, "fewer than"),
+		">": ({ subject, count }) => items(subject, count, "more than"),
+		"<=": ({ subject, count }) => items(subject, count, "at most"),
+		">=": ({ subject, count }) => items(subject, count, "at least"),
 	},
 	sign: {
-		">": ({ subject }) => `${subject} is positive`,
-		"<": ({ subject }) => `${subject} is negative`,
-		">=": ({ subject }) => `${subject} is zero or more`,
-		"<=": ({ subject }) => `${subject} is zero or less`,
+		">": ({ subject }) => `${subject} ${verbFor(subject).is} positive`,
+		"<": ({ subject }) => `${subject} ${verbFor(subject).is} negative`,
+		">=": ({ subject }) => `${subject} ${verbFor(subject).is} zero or more`,
+		"<=": ({ subject }) => `${subject} ${verbFor(subject).is} zero or less`,
 	},
 	compare: {
-		"<": ({ left, right, time }) => `${left} ${time ? "is before" : "is less than"} ${right}`,
-		">": ({ left, right, time }) => `${left} ${time ? "is after" : "is more than"} ${right}`,
-		"<=": ({ left, right, time }) => `${left} ${time ? "is at or before" : "is at most"} ${right}`,
-		">=": ({ left, right, time }) => `${left} ${time ? "is at or after" : "is at least"} ${right}`,
+		"<": ({ left, right, time }) => `${left} ${verbFor(left).is} ${time ? "before" : "less than"} ${right}`,
+		">": ({ left, right, time }) => `${left} ${verbFor(left).is} ${time ? "after" : "more than"} ${right}`,
+		"<=": ({ left, right, time }) => `${left} ${verbFor(left).is} ${time ? "at or before" : "at most"} ${right}`,
+		">=": ({ left, right, time }) => `${left} ${verbFor(left).is} ${time ? "at or after" : "at least"} ${right}`,
 	},
-	instanceOf: ({ subject, type, typeWords, neg }) => `${subject} ${neg ? "is not" : "is"} ${grammar.article(typeWords)} ${type}`,
-	hasKey: ({ object, key, neg }) => `${object} ${neg ? "has no" : "has a"} ${key} key`,
+	instanceOf: ({ subject, type, typeWords, neg }) => `${subject} ${isVerb(subject, neg)} ${grammar.article(typeWords)} ${type}`,
+	hasKey: ({ object, key, neg }) => `${object} ${neg ? `${verbFor(object).has} no` : `${verbFor(object).has} a`} ${key} key`,
 };
+
+function isVerb(subject: string, neg: boolean) {
+	const v = verbFor(subject);
+	return neg ? v.isNot : v.is;
+}

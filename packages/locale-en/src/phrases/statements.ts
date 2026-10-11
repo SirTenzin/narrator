@@ -2,6 +2,8 @@ import type { StatementPhrases } from "@usenarrator/core";
 
 export const statements: StatementPhrases = {
 	comment: ({ text }) => `“${text}”`,
+	startWithoutWaiting: ({ action }) => `${action} (without waiting for it to finish)`,
+	waitFor: ({ value }) => `wait for ${value}`,
 	doNothing: "Do nothing",
 	continue: "Move on to the next one",
 	break: "Stop the loop",
@@ -14,7 +16,7 @@ export const statements: StatementPhrases = {
 	doWhileTail: ({ condition }) => `…and keep repeating while ${condition}`,
 	loopItem: {
 		each: ({ item }) => `each ${item}`,
-		key: ({ key, value }) => `each key ${key}${value ? ` and value ${value}` : ""}`,
+		key: ({ key, value }) => `each ${key}${value ? ` and its ${value}` : ""}`,
 		indexed: ({ item, position }) => `each ${item}${position ? ` (at position ${position})` : ""}`,
 	},
 	forOf: ({ label, collection, async }) => `For ${label} in ${collection}${async ? " (as they arrive)" : ""}`,

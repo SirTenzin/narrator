@@ -71,7 +71,7 @@ Let weather be a tool the model can call to get the weather in a location:
 
 To post (async), given request (Request):
   From request's JSON, take messages.
-  Stream text from the AI Gateway's anthropic/claude-sonnet-4.5 model → result:
+  Stream text from the AI Gateway's anthropic/claude-sonnet-4.5 model, and call the result result:
     • the conversation so far: messages, converted for the model
     • tools it can use: weather
     • stop after 5 steps

@@ -1,4 +1,4 @@
-import type { Grammar } from "@usenarrator/core";
+import { type Grammar, plain } from "@usenarrator/core";
 
 const NEGATED_PREFIX: Record<string, string> = {
 	is: "is not",
@@ -40,11 +40,20 @@ const possessive = (s: string) => {
 	return /s$/.test(bare) && !/(ss|us|is)$/.test(bare) ? `${s}'` : `${s}'s`;
 };
 
+/** Initialisms are read letter by letter, so "an HTTP", "an SQL", "a URL"; words go by their first sound. */
+const article = (s: string) => {
+	const first = plain(s).trim().split(/[\s-]/)[0] ?? "";
+	if (/^[A-Z][A-Z0-9]*[A-Z0-9](s|es)?$/.test(first) || /^[A-Z][A-Z]+[a-z]/.test(first)) return /^[AEFHILMNORSX]/.test(first) ? "an" : "a";
+	if (/^[a-z]$/i.test(first)) return /^[aefhilmnorsx]$/i.test(first) ? "an" : "a";
+	if (/^(hour|honest|honou?r|heir)/i.test(first)) return "an";
+	return /^[aeiou]/i.test(first) && !/^(one|once|uni|use|usu|uti|eu|ure|ura)/i.test(first) ? "an" : "a";
+};
+
 export const grammar: Grammar = {
 	list: (xs, conj = "and") =>
 		xs.length <= 1 ? (xs[0] ?? "") : xs.length === 2 ? `${xs[0]} ${conj} ${xs[1]}` : `${xs.slice(0, -1).join(", ")}, ${conj} ${xs.at(-1)}`,
 	formatNumber: (n) => n.toLocaleString("en-US"),
-	article: (s) => (/^[aeiou]/i.test(s) && !/^(one|uni|use)/i.test(s) ? "an" : "a"),
+	article,
 	possessive,
 	plural: (w) => {
 		if (isPlural(w)) return w;
@@ -63,7 +72,58 @@ export const grammar: Grammar = {
 	isPlural,
 	negatePredicateHead: (w) => NEGATED_PREFIX[w] ?? `does not ${w.replace(/(ch|sh|x|ss)es$/, "$1").replace(/s$/, "")}`,
 	bareNoun: (s) => s.replace(/^an? /, ""),
+	isPluralSubject: (s) => pluralSubject(s),
 	isTimeLike: (s) => TIME_WORDS.test(s) || /\b(now|date)\b/i.test(s),
+};
+
+const SINGULAR_S = new Set([
+	"ms",
+	"this",
+	"its",
+	"has",
+	"was",
+	"yes",
+	"always",
+	"plus",
+	"news",
+	"series",
+	"species",
+	"canvas",
+	"alias",
+	"atlas",
+	"bias",
+	"gas",
+	"lens",
+	"chaos",
+	"perhaps",
+	"whereas",
+	"unless",
+	"sometimes",
+	"analytics",
+]);
+
+/** Whether a rendered subject's head noun is plural: "customer's items" yes, "the number of items" and "status" no. */
+export const pluralSubject = (subject: string) => {
+	const text = plain(subject);
+	const [front = "", ...after] = text.split(/ (?:of|in|across) /);
+	// "the unique values of codes' size": a possessive after "of" makes the last word the head.
+	const owned = after.length > 0 && /['’]s? \S+$/.test(after.join(" ").split(/[,(]/)[0]!);
+	const phrase = owned
+		? text.split(/[,(]/)[0]!
+		: front.split(/ (?:for|from|with|where|whose|keeping|that|which|without|minus|plus|times|divided|joined|if|or|and|as)\b|[,(:]/)[0]!;
+	const head = phrase.trim().split(/\s+/).at(-1) ?? "";
+	// "check messages (…)": a call's name isn't a plural noun.
+	if (!owned && /^\s*\(/.test(front.slice(phrase.length))) return false;
+	if (/^[A-Z]+s$/.test(head)) return true;
+	const w = head.toLowerCase();
+	if (SINGULAR_S.has(w) || /(ss|us|is|'s)$/.test(w)) return false;
+	return /[a-z]s$/.test(w) || w === "people" || w === "children";
+};
+
+/** "is"/"are" (and friends) agreeing with a rendered subject. */
+export const verbFor = (subject: string) => {
+	const many = pluralSubject(subject);
+	return { is: many ? "are" : "is", isNot: many ? "are not" : "is not", has: many ? "have" : "has", does: many ? "do" : "does" };
 };
 
 /** Owner-first possessive chain: ["customer", "plan", "name"] -> "customer's plan's name". */

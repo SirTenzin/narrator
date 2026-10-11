@@ -33,7 +33,7 @@ const p = Effect.gen(function* () {
   if ((yield* Ref.get(counter)) > 10) yield* Effect.log("big")
   const db = (yield* Database).pipe(withRetries)
 })`);
-	test("as a condition", () => expect(text).toContain(`If is admin, log "admin".`));
+	test("as a condition", () => expect(text).toContain(`If it is admin, log "admin".`));
 	test("as operands", () => expect(text).toContain("Let total be the result of get a plus the result of get b."));
 	test("an Effect call reads as its own value", () => expect(text).toContain(`If the current value of counter is more than 10, log "big".`));
 	test("a yielded service", () => expect(text).toContain("Let DB be the Database service, then apply with retries."));
