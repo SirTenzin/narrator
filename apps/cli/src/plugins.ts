@@ -1,6 +1,7 @@
 import type { TsPlugin } from "@usenarrator/lang-ts";
 import { aiSdk } from "@usenarrator/plugin-ai-sdk";
 import { arktype } from "@usenarrator/plugin-arktype";
+import { autumnJs } from "@usenarrator/plugin-autumn-js";
 import { betterAuth } from "@usenarrator/plugin-better-auth";
 import { bullmq } from "@usenarrator/plugin-bullmq";
 import { decimal } from "@usenarrator/plugin-decimal";
@@ -65,6 +66,7 @@ export const PLUGINS: Record<string, PluginSpec> = {
 	"trigger-dev": { create: () => [triggerDev()], detect: (name) => name.startsWith("@trigger.dev/") },
 	temporal: { create: () => [temporal()], detect: (name) => name.startsWith("@temporalio/") },
 	stripe: { create: () => [stripe()], detect: oneOf("stripe") },
+	"autumn-js": { create: () => [autumnJs()], detect: oneOf("autumn-js", "@useautumn/sdk") },
 	prisma: { create: () => [prisma()], detect: oneOf("@prisma/client", "prisma") },
 	kysely: { create: () => [kysely()], detect: oneOf("kysely") },
 	valibot: { create: () => [valibot()], detect: oneOf("valibot") },

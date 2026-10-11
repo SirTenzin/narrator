@@ -43,6 +43,7 @@ export type PluginId =
 	| "triggerDev"
 	| "temporal"
 	| "stripe"
+	| "autumnJs"
 	| "prisma"
 	| "kysely"
 	| "valibot"
@@ -71,6 +72,7 @@ const LIBRARIES: Record<Exclude<PluginId, "testing" | "autumn">, (string | RegEx
 	triggerDev: [/^@trigger\.dev\//],
 	temporal: [/^@temporalio\//],
 	stripe: ["stripe"],
+	autumnJs: ["autumn-js", "@useautumn/sdk"],
 	prisma: ["@prisma/client", "prisma"],
 	kysely: ["kysely"],
 	valibot: ["valibot"],

@@ -107,7 +107,7 @@
 					},
 					{
 						"group": "Payments, auth & AI",
-						"pages": ["plugins/stripe", "plugins/better-auth", "plugins/ai-sdk"]
+						"pages": ["plugins/stripe", "plugins/autumn-js", "plugins/better-auth", "plugins/ai-sdk"]
 					},
 					{
 						"group": "Jobs",

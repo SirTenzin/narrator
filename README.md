@@ -50,7 +50,7 @@ Plugins teach Narrator what popular libraries mean, so `app.get("/", (c) => c.te
 | Data | Drizzle, Prisma, Kysely, SQL |
 | Servers | Hono, Elysia, Express, Fastify, tRPC |
 | Frontend | React, Next.js, TanStack Query |
-| Payments, auth and AI | Stripe, Better Auth, AI SDK |
+| Payments, auth and AI | Stripe, Autumn, Better Auth, AI SDK |
 | Jobs | BullMQ, Inngest, Trigger.dev, Temporal |
 | Other | Effect, testing (bun:test, Vitest, Jest), decimal.js |
 

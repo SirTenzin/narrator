@@ -5,6 +5,7 @@ import { oxcParser } from "@usenarrator/lang-ts/oxc";
 import { en } from "@usenarrator/locale-en";
 import { aiSdk } from "@usenarrator/plugin-ai-sdk";
 import { arktype } from "@usenarrator/plugin-arktype";
+import { autumnJs } from "@usenarrator/plugin-autumn-js";
 import { betterAuth } from "@usenarrator/plugin-better-auth";
 import { bullmq } from "@usenarrator/plugin-bullmq";
 import { effect } from "@usenarrator/plugin-effect";
@@ -57,6 +58,7 @@ export const narrator = createNarrator({
 				triggerDev(),
 				temporal(),
 				stripe(),
+				autumnJs(),
 				prisma(),
 				kysely(),
 				valibot(),

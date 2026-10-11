@@ -28,7 +28,7 @@ test("testing loads for a test runner or a test file; autumn only for its own re
 });
 
 test("no manifest found loads everything", () => {
-	expect(selectPlugins({ union: null, paths: ["a.ts"], owner: "x" }).size).toBe(25);
+	expect(selectPlugins({ union: null, paths: ["a.ts"], owner: "x" }).size).toBe(26);
 });
 
 test("ancestor directories run from the file's folder to the root", () => {

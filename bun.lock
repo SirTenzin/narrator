@@ -28,6 +28,7 @@
         "@usenarrator/node": "workspace:^",
         "@usenarrator/plugin-ai-sdk": "workspace:^",
         "@usenarrator/plugin-arktype": "workspace:^",
+        "@usenarrator/plugin-autumn-js": "workspace:^",
         "@usenarrator/plugin-better-auth": "workspace:^",
         "@usenarrator/plugin-bullmq": "workspace:^",
         "@usenarrator/plugin-decimal": "workspace:^",
@@ -65,6 +66,7 @@
         "@usenarrator/locale-en": "workspace:*",
         "@usenarrator/plugin-ai-sdk": "workspace:*",
         "@usenarrator/plugin-arktype": "workspace:*",
+        "@usenarrator/plugin-autumn-js": "workspace:*",
         "@usenarrator/plugin-better-auth": "workspace:*",
         "@usenarrator/plugin-bullmq": "workspace:*",
         "@usenarrator/plugin-decimal": "workspace:*",
@@ -102,6 +104,7 @@
         "@usenarrator/locale-en": "workspace:*",
         "@usenarrator/plugin-ai-sdk": "workspace:*",
         "@usenarrator/plugin-arktype": "workspace:*",
+        "@usenarrator/plugin-autumn-js": "workspace:*",
         "@usenarrator/plugin-better-auth": "workspace:*",
         "@usenarrator/plugin-bullmq": "workspace:*",
         "@usenarrator/plugin-drizzle": "workspace:*",
@@ -207,6 +210,19 @@
     },
     "plugins/arktype": {
       "name": "@usenarrator/plugin-arktype",
+      "version": "0.1.0",
+      "devDependencies": {
+        "@usenarrator/core": "workspace:^",
+        "@usenarrator/lang-ts": "workspace:^",
+        "@usenarrator/testkit": "workspace:^",
+      },
+      "peerDependencies": {
+        "@usenarrator/core": "workspace:^",
+        "@usenarrator/lang-ts": "workspace:^",
+      },
+    },
+    "plugins/autumn-js": {
+      "name": "@usenarrator/plugin-autumn-js",
       "version": "0.1.0",
       "devDependencies": {
         "@usenarrator/core": "workspace:^",
@@ -683,6 +699,8 @@
     "@usenarrator/plugin-ai-sdk": ["@usenarrator/plugin-ai-sdk@workspace:plugins/ai-sdk"],
 
     "@usenarrator/plugin-arktype": ["@usenarrator/plugin-arktype@workspace:plugins/arktype"],
+
+    "@usenarrator/plugin-autumn-js": ["@usenarrator/plugin-autumn-js@workspace:plugins/autumn-js"],
 
     "@usenarrator/plugin-better-auth": ["@usenarrator/plugin-better-auth@workspace:plugins/better-auth"],
 
