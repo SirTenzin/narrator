@@ -201,6 +201,17 @@
         "@usenarrator/testkit": "workspace:*",
       },
     },
+    "plugins/prisma": {
+      "name": "@usenarrator/plugin-prisma",
+      "version": "0.0.0",
+      "dependencies": {
+        "@usenarrator/core": "workspace:*",
+        "@usenarrator/lang-ts": "workspace:*",
+      },
+      "devDependencies": {
+        "@usenarrator/testkit": "workspace:*",
+      },
+    },
     "plugins/sql": {
       "name": "@usenarrator/plugin-sql",
       "version": "0.0.0",
@@ -352,6 +363,8 @@
     "@usenarrator/plugin-elysia": ["@usenarrator/plugin-elysia@workspace:plugins/elysia"],
 
     "@usenarrator/plugin-hono": ["@usenarrator/plugin-hono@workspace:plugins/hono"],
+
+    "@usenarrator/plugin-prisma": ["@usenarrator/plugin-prisma@workspace:plugins/prisma"],
 
     "@usenarrator/plugin-sql": ["@usenarrator/plugin-sql@workspace:plugins/sql"],
 
