@@ -6,14 +6,29 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import type { TsPlugin } from "@usenarrator/lang-ts";
 import { aiSdk } from "@usenarrator/plugin-ai-sdk";
+import { arktype } from "@usenarrator/plugin-arktype";
 import { betterAuth } from "@usenarrator/plugin-better-auth";
+import { bullmq } from "@usenarrator/plugin-bullmq";
 import { decimal } from "@usenarrator/plugin-decimal";
 import { drizzle } from "@usenarrator/plugin-drizzle";
 import { effect } from "@usenarrator/plugin-effect";
 import { elysia } from "@usenarrator/plugin-elysia";
+import { express } from "@usenarrator/plugin-express";
+import { fastify } from "@usenarrator/plugin-fastify";
 import { hono } from "@usenarrator/plugin-hono";
+import { inngest } from "@usenarrator/plugin-inngest";
+import { kysely } from "@usenarrator/plugin-kysely";
+import { nextjs } from "@usenarrator/plugin-nextjs";
+import { prisma } from "@usenarrator/plugin-prisma";
+import { react } from "@usenarrator/plugin-react";
 import { sql } from "@usenarrator/plugin-sql";
+import { stripe } from "@usenarrator/plugin-stripe";
+import { tanstackQuery } from "@usenarrator/plugin-tanstack-query";
+import { temporal } from "@usenarrator/plugin-temporal";
 import { testing } from "@usenarrator/plugin-testing";
+import { triggerDev } from "@usenarrator/plugin-trigger-dev";
+import { trpc } from "@usenarrator/plugin-trpc";
+import { valibot } from "@usenarrator/plugin-valibot";
 import { zod } from "@usenarrator/plugin-zod";
 import { narrateWithStats } from "@usenarrator/testkit";
 import { Glob } from "bun";
@@ -24,7 +39,7 @@ const DOCS = `${import.meta.dir}/..`;
 const ROOT = `${DOCS}/..`;
 const write = process.argv.includes("--write");
 
-const PLUGINS: Record<string, () => TsPlugin> = {
+const PLUGINS: Record<string, () => TsPlugin | TsPlugin[]> = {
 	zod,
 	testing,
 	decimal,
@@ -42,6 +57,25 @@ const PLUGINS: Record<string, () => TsPlugin> = {
 	elysia: () => elysia(),
 	"elysia@1": () => elysia({ version: 1 }),
 	"elysia@2": () => elysia({ version: 2 }),
+	react: () => react(),
+	nextjs: () => nextjs(),
+	"tanstack-query": () => tanstackQuery(),
+	"tanstack-query@4": () => tanstackQuery({ version: 4 }),
+	"tanstack-query@5": () => tanstackQuery({ version: 5 }),
+	trpc,
+	express,
+	fastify: () => fastify(),
+	"fastify@4": () => fastify({ version: 4 }),
+	"fastify@5": () => fastify({ version: 5 }),
+	bullmq,
+	inngest,
+	"trigger-dev": triggerDev,
+	temporal,
+	stripe,
+	prisma,
+	kysely,
+	valibot,
+	arktype,
 };
 
 type Fence = { open: number; close: number; body: string };

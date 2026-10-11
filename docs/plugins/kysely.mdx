@@ -1,0 +1,98 @@
+---
+title: "Kysely"
+description: "Read Kysely query builder chains as the rows they fetch, insert, update or delete."
+---
+
+<span className="nr-pill">@usenarrator/plugin-kysely</span>
+
+The [Kysely](https://kysely.dev) plugin reads a query builder chain as the query it builds. Joins, `where` clauses, the expression builder's `and` and `or`, ordering and limits each become a bullet, and the `like` patterns read as "ends with" or "contains". Inserts and updates list the columns they set, and upserts say what happens on a conflict.
+
+```ts
+import { kysely } from "@usenarrator/plugin-kysely";
+
+typescript({ parser: oxcParser, plugins: [kysely()] });
+```
+
+The plugin declares `library: { name: "kysely", versions: ">=0.27 <1" }`. It only narrates files that import `kysely` or belong to a package that depends on it (see [Dependency detection](/concepts/dependency-detection)), and Drizzle and other query builders are left alone. Kysely's `sql` template tag is read by the [SQL plugin](/plugins/sql).
+
+## Examples
+
+{/* narrate plugins="kysely" path="people.ts" */}
+```ts A select with a join
+import { Kysely } from "kysely";
+
+const rows = await db
+  .selectFrom("person")
+  .innerJoin("pet", "pet.owner_id", "person.id")
+  .select(["person.id", "pet.name as pet_name"])
+  .where((eb) => eb.or([eb("first_name", "=", "Jennifer"), eb("last_name", "like", "%ston")]))
+  .where("age", ">=", 18)
+  .orderBy("created_at", "desc")
+  .limit(10)
+  .execute();
+```
+
+```text English
+Let rows be look up person's ID and pet's name, named pet name from person:
+  • joined with pet on pet's owner ID is person's ID
+  • where any of these is true:
+    • first name is "Jennifer"
+    • last name ends with "ston"
+  • where age is at least 18
+  • sorted by created at (newest first)
+  • at most 10 row(s)
+```
+
+{/* narrate plugins="kysely" path="writes.ts" */}
+```ts Writes and an upsert
+import { Kysely } from "kysely";
+
+const person = await db
+  .insertInto("person")
+  .values({ first_name: "Jennifer", last_name: "Aniston" })
+  .onConflict((oc) => oc.column("email").doUpdateSet({ last_name: "Aniston" }))
+  .returning(["id"])
+  .executeTakeFirstOrThrow();
+
+await db.deleteFrom("pet").where("owner_id", "=", person.id).execute();
+```
+
+```text English
+Let person be the first row we get when we insert into person, failing if there is none:
+  • first name: "Jennifer"
+  • last name: "Aniston"
+  • updating rows that already exist (matched on email):
+    • setting last name: "Aniston"
+  • giving back ID
+
+Delete from pet:
+  • where owner ID is person's ID
+```
+
+{/* narrate plugins="kysely" path="tx.ts" */}
+```ts A transaction
+import { Kysely } from "kysely";
+
+await db.transaction().setIsolationLevel("serializable").execute(async (trx) => {
+  await trx.updateTable("account").set({ balance: 0 }).where("id", "=", accountId).execute();
+});
+```
+
+```text English
+Do this all-or-nothing, in one transaction (isolation level serializable):
+  Update account:
+    • setting balance: 0
+    • where ID is account ID
+```
+
+## What it covers
+
+- `selectFrom` with `select`, joins (including callback and left joins), `where`, `having`, `groupBy`, `orderBy`, `limit`, `offset` and `distinct`.
+- The expression builder: `eb(...)` comparisons, `and`, `or`, `not`, `exists` subqueries, aggregates, JSON helpers, and destructured or typed builder parameters.
+- `executeTakeFirst`, `executeTakeFirstOrThrow`, `execute` and `compile`.
+- Writes: `insertInto` with one or many rows, `onConflict`, `returning`, `updateTable` and `deleteFrom`.
+- Transactions with an isolation level, `$if`, and clauses added to a builder held in a variable.
+
+## Translating
+
+The English phrasebook is exported as `en` and typed as `KyselyPhrases`.

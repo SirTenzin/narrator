@@ -1,0 +1,75 @@
+---
+title: "ArkType"
+description: "Read ArkType definitions, including the string syntax, as the shapes they describe."
+---
+
+<span className="nr-pill">@usenarrator/plugin-arktype</span>
+
+The [ArkType](https://arktype.io) plugin reads `type(...)` definitions as the shapes they describe, the same way the [zod](/plugins/zod) and [Valibot](/plugins/valibot) plugins do. It understands ArkType's string syntax, so `"1 <= string <= 280"` reads as "text (at least 1 long, at most 280 long)" and `"'admin' | 'member'"` reads as one of two values. Calling a schema reads as validating data with it.
+
+```ts
+import { arktype } from "@usenarrator/plugin-arktype";
+
+typescript({ parser: oxcParser, plugins: [arktype()] });
+```
+
+The plugin declares `library: { name: "arktype", versions: ">=2 <3" }`. It only reads `type` and `scope` when they are imported from `arktype`, so a local function named `type` is left alone.
+
+## Examples
+
+{/* narrate plugins="arktype" path="user.ts" */}
+```ts Definitions
+import { type } from "arktype";
+
+const Bio = type("1 <= string <= 280");
+const Age = type("0 < number.integer <= 130");
+const Role = type("'admin' | 'member'");
+const Ids = type("string.uuid[]");
+const Plan = type("string = 'free'");
+const User = type({ name: "string", email: "string.email", "role?": Role, bio: "string | null" });
+```
+
+```text English
+Let bio be a schema for text (at least 1 long, at most 280 long).
+Let age be a schema for a number (whole number, more than 0, at most 130).
+Let role be a schema for one of "admin" or "member".
+Let IDs be a schema for a list of text (a UUID).
+Let plan be a schema for text (defaults to "free").
+Let user be a schema for an object with name, email, role, and bio.
+```
+
+{/* narrate plugins="arktype" path="validate.ts" */}
+```ts Validation
+import { type } from "arktype";
+
+const User = type({ name: "string", email: "string.email" });
+
+export function register(data: unknown) {
+  const out = User(data);
+  if (out instanceof type.errors) return out.summary;
+  User.assert(data);
+  return save(out);
+}
+```
+
+```text English
+Let user be a schema for an object with name and email.
+
+To register, given data:
+  Let out be data, checked against user (either the valid data or the problems found).
+  If out is a type.errors, give back out's summary.
+  Check that data matches user, failing if it doesn't.
+  Save (out), and give back the result.
+```
+
+## What it covers
+
+- Object definitions with optional keys, nested objects and arrays.
+- The string syntax: keywords such as `string.email`, `string.uuid` and `number.integer`, bounds, unions, arrays, defaults, divisors and parsing keywords like `string.numeric.parse`.
+- Chained methods and statics such as `.array()`, `.or()`, `.and()`, `.pipe()`, `.narrow()`, `.optional()`, `.default()` and `type.enumerated`.
+- Validation: calling a schema, `type.errors`, `assert` and `allows`.
+- `scope(...)` with its named schemas.
+
+## Translating
+
+The English phrasebook is exported as `en` and typed as `ArkTypePhrases`.

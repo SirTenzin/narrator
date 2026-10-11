@@ -1,4 +1,4 @@
-import { createNarrator } from "@usenarrator/core";
+import { createNarrator, renderDiffText } from "@usenarrator/core";
 import { typescript } from "@usenarrator/lang-ts";
 import { oxcParser } from "@usenarrator/lang-ts/oxc";
 import { en } from "@usenarrator/locale-en";
@@ -19,20 +19,5 @@ export function countOpenSeats(team: Team) {
 }
 `;
 
-const [file] = narrator.diff([{ path: "team.ts", oldPath: null, status: "modified", oldSrc: before, newSrc: after }]);
-const text = (html: string) =>
-	html
-		.replace(/<span class="t">(.*?)<\/span>/g, "($1)")
-		.replace(/<[^>]+>/g, "")
-		.replaceAll("&amp;", "&")
-		.replaceAll("&lt;", "<")
-		.replaceAll("&gt;", ">");
-
-for (const unit of file!.units) {
-	console.log(`${unit.title} (${unit.status}, +${unit.adds} -${unit.dels})`);
-	for (const row of unit.rows) {
-		if (row.kind === "same") console.log(`    ${text(row.right!.html)}`);
-		if (row.left && row.kind !== "same") console.log(`  - ${text(row.left.html)}`);
-		if (row.right && row.kind !== "same") console.log(`  + ${text(row.right.html)}`);
-	}
-}
+const files = narrator.diffFiles([{ path: "team.ts", oldPath: null, status: "modified", oldSrc: before, newSrc: after }]);
+console.log(renderDiffText({ files }));

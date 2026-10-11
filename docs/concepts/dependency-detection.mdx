@@ -1,0 +1,96 @@
+---
+title: "Dependency detection"
+description: "How Narrator learns which libraries a file's package uses, so plugins switch on and pick the right version."
+---
+
+A plugin should only explain a call when it knows the call belongs to its library. Imports are the first clue, but plenty of files use a library without importing it: a route file that receives `app` from somewhere else, or a helper that gets a Stripe client passed in. So Narrator also reads the dependency manifests in your repository. A file belongs to the package whose manifest is nearest to it, and that package's dependencies tell plugins what the file can use.
+
+## What plugins get
+
+Inside a rule, the engine exposes two questions that combine both clues:
+
+| Method | Answers |
+| --- | --- |
+| `e.usesLibrary("hono")` | `true` when this file imports `hono` (or a subpath such as `hono/cors`), or its package depends on `hono`. |
+| `e.libraryMajor("effect")` | The major version the package declares, for example `3` for `"^3.10.0"`, or `null` when it isn't listed. |
+
+Plugins use the first to stay quiet in files that don't use their library, and the second to pick between readings when a library changed meaning across majors. See [Plugin versioning](/guides/plugin-versioning). The raw data is also available as `e.dependencies`, a map from package name to version range.
+
+## An example
+
+This monorepo has two packages, and only `apps/api` depends on Hono. The same file reads as a Hono route in that package and as a plain method call in the other one, even though neither file imports `hono`.
+
+{/* run file="examples/dependencies.ts" */}
+```ts dependencies.ts
+import { createDependencyIndex, createNarrator, renderText } from "@usenarrator/core";
+import { typescript } from "@usenarrator/lang-ts";
+import { oxcParser } from "@usenarrator/lang-ts/oxc";
+import { en } from "@usenarrator/locale-en";
+import { hono } from "@usenarrator/plugin-hono";
+
+// A monorepo with two packages: only apps/api depends on Hono.
+const dependencies = createDependencyIndex({
+	manifests: new Map([
+		["package.json", JSON.stringify({ devDependencies: { typescript: "^5" } })],
+		["apps/api/package.json", JSON.stringify({ dependencies: { hono: "^4.6.0" } })],
+		["apps/worker/package.json", JSON.stringify({ dependencies: { bullmq: "^5.0.0" } })],
+	]),
+});
+
+const narrator = createNarrator({ languages: [typescript({ parser: oxcParser, plugins: [hono()] })], locale: en, dependencies });
+
+// No import of "hono" in either file: the package manifest decides.
+const source = `import { app } from "./app";
+app.get("/health", (c) => c.json({ ok: true }));`;
+
+console.log(dependencies.forFile("apps/api/src/health.ts", "npm"));
+console.log(renderText(narrator.narrate(source, "apps/api/src/health.ts").lines));
+console.log(renderText(narrator.narrate(source, "apps/worker/src/health.ts").lines));
+```
+
+```text Output
+{
+  typescript: "^5",
+  hono: "^4.6.0",
+}
+Answer GET /health with an object with ok: true as JSON.
+Get app ("/health" and a function of c giving back c's JSON (ok)).
+```
+
+## How manifests are found
+
+`createDependencyIndex({ manifests, readers? })` from `@usenarrator/core` takes a map from repository paths to file contents and builds the lookup. For each file, `forFile(path, ecosystem)` returns the nearest manifest's dependencies merged over the repository root's, so workspace-wide tools declared at the root apply everywhere.
+
+You rarely build the map yourself:
+
+- **On Node and Bun**, `loadDependencyIndex({ root })` from `@usenarrator/node` lists the repository's files with `git ls-files`, falling back to a shallow directory walk outside git, and reads every manifest it finds. `createNodeNarrator()` does this for you, starting from the git checkout around the working directory. Manifests are read the first time a file is narrated.
+- **The CLI** builds the index for the repository that contains your files, and uses the same index to decide which plugins to load.
+- **The browser extension** lists the repository's tree with one GitHub API call, then fetches only the manifests that sit in a changed file's directory or one of its parents.
+
+Pass the index to `createNarrator({ languages, locale, dependencies })`. Without it, plugins fall back to imports alone.
+
+## Manifests are language-agnostic
+
+Dependency manifests are not tied to JavaScript. A `ManifestReader` describes one kind of manifest:
+
+```ts
+type ManifestReader = {
+  ecosystem: string; // "npm", "crates", "pypi"...
+  matches: (path: string) => boolean;
+  parse: (text: string) => Record<string, string>;
+};
+```
+
+The built-in reader, `packageJson`, reads the `dependencies`, `devDependencies`, `peerDependencies` and `optionalDependencies` of every `package.json` outside `node_modules`, `dist` and similar folders. A source language lists the ecosystems its imports come from in `SourceLanguage.ecosystems`, so the TypeScript language asks for `["npm"]`, and a future Rust language would ask for `["crates"]` with a `Cargo.toml` reader. See [Adding a source language](/guides/source-languages).
+
+```ts
+import { createDependencyIndex, defaultManifestReaders, type ManifestReader } from "@usenarrator/core";
+
+const cargoToml: ManifestReader = {
+  ecosystem: "crates",
+  matches: (path) => path === "Cargo.toml" || path.endsWith("/Cargo.toml"),
+  parse: (text) => parseCargoDependencies(text),
+};
+
+const index = createDependencyIndex({ manifests, readers: [...defaultManifestReaders, cargoToml] });
+```

@@ -1,0 +1,55 @@
+---
+title: "@usenarrator/node"
+sidebarTitle: "Node"
+description: "A ready-made narrator for Node and Bun, and the helpers that read a repository's manifests."
+---
+
+```ts
+import { createNodeNarrator, findRepoRoot, listRepoFiles, loadDependencyIndex } from "@usenarrator/node";
+```
+
+This package wires `@usenarrator/core`, `@usenarrator/lang-ts` with the native oxc parser, and `@usenarrator/locale-en` together for server-side use. It depends on `oxc-parser`, so it isn't meant for browsers. See [Embedding in your app](/guides/embedding) for the browser setup.
+
+## createNodeNarrator
+
+```ts
+function createNodeNarrator(options?: {
+  plugins?: (TsPlugin | TsPlugin[])[];
+  locale?: Locale;
+  dependencies?: false | DependencyIndex;
+}): Narrator;
+```
+
+<ParamField path="plugins" type="(TsPlugin | TsPlugin[])[]">
+  Library and codebase plugins, as for `typescript()`.
+</ParamField>
+<ParamField path="locale" type="Locale">
+  The output language. Defaults to English.
+</ParamField>
+<ParamField path="dependencies" type="false | DependencyIndex">
+  Defaults to `loadDependencyIndex({ root: findRepoRoot(process.cwd()) })`, the manifests of the git checkout around the working directory. Pass your own index for another repository, or `false` to rely on imports alone.
+</ParamField>
+
+## loadDependencyIndex
+
+```ts
+function loadDependencyIndex(options: { root: string; readers?: ManifestReader[] }): DependencyIndex;
+```
+
+A [dependency index](/concepts/dependency-detection) over every manifest in the repository at `root`. Files are listed with `listRepoFiles`, and manifests are read the first time the index is used. File paths passed to `forFile` may be absolute or relative to `root`.
+
+## findRepoRoot
+
+```ts
+function findRepoRoot(dir: string, readers?: ManifestReader[]): string;
+```
+
+The nearest enclosing directory with a `.git` folder. Outside git, the outermost ancestor that holds a manifest, or `dir` itself.
+
+## listRepoFiles
+
+```ts
+function listRepoFiles(root: string): string[];
+```
+
+Every file in the repository, relative to `root`. It uses `git ls-files`, which respects `.gitignore` and includes untracked files. Outside git it falls back to a directory walk four levels deep that skips `node_modules`, `dist`, hidden folders and similar.

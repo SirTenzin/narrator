@@ -9,11 +9,11 @@ The Narrator extension, called **Narrator for GitHub**, replaces the code rows i
   <img src="/images/extension-diff.png" alt="A GitHub pull request diff where the code rows have been replaced by English sentences" />
 </Frame>
 
-Everything runs inside the extension. It fetches the old and new versions of each changed file from GitHub, parses them with the WASM build of the oxc parser, and narrates them in the extension's service worker. Your code is never sent anywhere else.
+Everything runs inside the extension. It fetches the old and new versions of each changed file from GitHub, parses them with the WASM build of the oxc parser, and narrates them inside the extension's own background code. Your code is never sent anywhere else.
 
 ## Install it
 
-The extension is not in any browser's store yet, so you build it from the repository and load it yourself. The same build works in Chromium browsers (Chrome, Arc, Edge, Brave) and in Firefox, and a script wraps it for Safari on macOS.
+The extension is not in any browser's store yet, so you build it from the repository and load it yourself. It works in Chromium browsers (Chrome, Arc, Edge and Brave), in Firefox 140 or newer, and in Safari on macOS.
 
 <Steps>
   <Step title="Build it">
@@ -24,15 +24,15 @@ The extension is not in any browser's store yet, so you build it from the reposi
     bun apps/extension/build.ts
     ```
 
-    This writes a ready-to-load extension to `apps/extension/dist`.
+    This writes two builds. `apps/extension/dist` loads in Chromium browsers and Firefox and is the one to use while developing. `apps/extension/firefox/dist` is the Firefox package for addons.mozilla.org, without the Chrome-only offscreen document.
   </Step>
   <Step title="Load it">
     <Tabs>
-      <Tab title="Chrome and Chromium">
-        Open `chrome://extensions` (or `arc://extensions`), turn on **Developer mode**, click **Load unpacked**, and choose the `apps/extension/dist` folder.
+      <Tab title="Chrome, Arc, Edge, Brave">
+        Open `chrome://extensions` (`arc://extensions`, `edge://extensions` or `brave://extensions`), turn on **Developer mode**, click **Load unpacked**, and choose the `apps/extension/dist` folder.
       </Tab>
       <Tab title="Firefox">
-        Install Mozilla's `web-ext` tool (`npm install -g web-ext`), then run `bun run firefox` from `apps/extension`. It builds the extension and opens a Firefox window with it loaded.
+        Open `about:debugging#/runtime/this-firefox`, click **Load Temporary Add-on**, and choose `apps/extension/firefox/dist/manifest.json`. Firefox removes temporary add-ons when it quits. To start a fresh Firefox with the extension already loaded, install Mozilla's `web-ext` tool (`npm install -g web-ext`) and run `bun run firefox` from `apps/extension`. `bun run lint:firefox` checks the store package with `web-ext lint`.
       </Tab>
       <Tab title="Safari">
         On a Mac with Xcode installed, run `bun run safari` from `apps/extension`. It converts the build into a Safari app at `apps/extension/safari-build/Narrator.app`. The build is unsigned, so turn on **Allow unsigned extensions** in Safari's Develop menu, open the app once, and then enable the extension in Safari's settings.
@@ -48,7 +48,13 @@ After you rebuild in a Chromium browser, press the reload icon on the extension'
 
 ## Turn it on and off
 
-Open GitHub's diff settings menu (the gear icon above the diff) and toggle **Plain English**. The setting is remembered per browser. When it is off, you see GitHub's normal diff.
+Open GitHub's diff settings menu (the gear icon above the diff) and toggle **Plain English**. The same switch is on the extension's options page. The setting is remembered per browser. When it is off, you see GitHub's normal diff.
+
+## Add a GitHub token
+
+Without a token, the extension can only read public repositories, and GitHub allows 60 anonymous API requests an hour. Open the extension's options page (from the extension's details in your browser, or **Options** in its menu) and paste a token under **GitHub token**. A fine-grained token with read-only **Contents** and **Pull requests** access is enough. With a token the extension can read private repositories you have access to, and the limit rises to 5,000 requests an hour.
+
+The token is kept in the browser's extension storage and is only ever sent to `api.github.com` and `raw.githubusercontent.com`.
 
 ## What you'll see
 
@@ -56,8 +62,20 @@ Each changed declaration is shown as a unit with its English, using the same row
 
 If a file's English did not change at all, for example because the edit only touched imports, types, formatting or string contents, the extension says so and shows the code instead.
 
+## How it stays fast
+
+The content script on the GitHub page hands each request to the extension's background script, which does the fetching and narrating. On Chromium, narration runs in a module worker inside an offscreen document, because service workers can't load code on demand. For each pull request or commit, the extension:
+
+1. Asks GitHub for the change and its list of files.
+2. Fetches both versions of each changed TypeScript or JavaScript file from `raw.githubusercontent.com`, which doesn't count against the API limit.
+3. Lists the repository's files with a single git trees API call, picks out the `package.json` files in each changed file's directory and its parents, and fetches only those. See [Dependency detection](/concepts/dependency-detection).
+4. Loads the WASM parser, and then only the plugin chunks for libraries those manifests list. A change to a React app never downloads the Temporal plugin. The SQL parser is only fetched when a changed file contains something that looks like SQL.
+5. Picks each plugin's major version per package, so an Effect 3 package and an Effect 4 package in the same monorepo each get the right reading.
+
+While the background script is running, reports are kept per commit, so returning to a pull request you have already read doesn't fetch it again until it gets new commits.
+
 ## Limits today
 
-- **Public repositories only.** The extension uses GitHub's API without signing in, so it can't read private repositories yet.
-- **Rate limit.** Anonymous GitHub API calls are limited to 60 per hour. A large pull request uses several. When you run out, the extension tells you how long until the limit resets.
-- **Fixed plugins.** The extension ships with a fixed set of plugins: zod, testing, Effect, Better Auth, Hono, Elysia, the AI SDK, Drizzle and decimal.js, plus vocabulary from one example codebase. The SQL plugin is not included yet, and there is no settings page to choose plugins.
+- **No plugin settings.** Plugins are chosen automatically from the repository's manifests, and there is no way yet to add your own plugins or turn one off.
+- **Large pull requests.** Every changed file is fetched and narrated, so very large pull requests take longer and, without a token, can use up the anonymous rate limit.
+- **TypeScript and JavaScript only.** Other languages are shown as GitHub's normal diff.

@@ -3,7 +3,7 @@ title: "Plugin versioning"
 description: "Declare which library versions a plugin reads, and handle breaking majors."
 ---
 
-Libraries change. A method can be renamed, removed, or keep its name and change its meaning. A plugin that narrates the old meaning for new code is worse than no plugin, so Narrator gives plugins two tools: a declared version range, and an option for picking a major version when the meaning of the code depends on it.
+Libraries change. A method can be renamed, removed, or keep its name and change its meaning. A plugin that narrates the old meaning for new code is worse than no plugin, so Narrator gives plugins three tools: a declared version range, the major version each package declares, and an option for pinning a major version by hand.
 
 ## Declare the library you read
 
@@ -20,18 +20,28 @@ export const hono = (): TsPlugin<HonoPhrases> =>
   });
 ```
 
-The Hono and Elysia plugins declare their ranges today. The field is metadata: the engine doesn't read it yet, but tools can, for example to warn when a project's installed version is outside the range, or to pick the right plugin version automatically. Declaring it now costs nothing and makes that possible later.
+Every plugin in the repository declares its range. The field is metadata: the engine doesn't read it, but tools can, for example to warn when a project's installed version is outside the range. Declaring it costs nothing.
 
-## Handle breaking majors with a `version` option
+## Handle breaking majors
 
-When two majors of a library use the same name for different things, the plugin can't tell from the code alone which one it is reading. The convention is a `version` option on the plugin factory:
+When two majors of a library use the same name for different things, the plugin can't tell from the code alone which one it is reading. It can tell from the file's package, though. When the narrator has a [dependency index](/concepts/dependency-detection), `e.libraryMajor("effect")` returns the major version the nearest `package.json` declares, for example `3` for `"^3.10.0"`.
+
+Plugins whose libraries changed meaning also take a `version` option, which wins over the package:
 
 ```ts
 effect({ version: 4 });
 elysia({ version: 2 });
 ```
 
-Leave it out and the plugin runs in **auto** mode. Auto mode reads the names from both majors, and for a name whose meaning changed it uses a phrasing written to be true in either version. Pin a version when you know which one your code uses, so you get the precise reading.
+When neither is known, the plugin runs in **auto** mode. Auto mode reads the names from both majors, and for a name whose meaning changed it uses a phrasing written to be true in either version. So the order is: the pinned `version`, then the package's declared major, then auto.
+
+| Plugin | Majors | What differs |
+| --- | --- | --- |
+| [Effect](/plugins/effect) | 3, 4 | `Schema.Date`, `Effect.catch` and other renamed or repurposed APIs |
+| [Elysia](/plugins/elysia) | 1, 2 | Some route signatures and hook names |
+| [AI SDK](/plugins/ai-sdk) | 6, 7 | Which steps `usage` and `toolCalls` cover on a multi-step result |
+| [TanStack Query](/plugins/tanstack-query) | 4, 5 | `isLoading` and the query callbacks removed in v5 |
+| [Fastify](/plugins/fastify) | 4, 5 | The argument order of `reply.redirect` |
 
 Here is the same Effect schema read with each setting. In Effect 3, `Schema.Date` decodes a date from a string. In Effect 4 it is a date value.
 
@@ -59,7 +69,31 @@ Let meeting be a schema for an object with title (text) and at (a date).
 
 ## Writing a versioned plugin
 
-The Effect plugin keeps its rules in groups and merges them based on the option. You can copy the pattern:
+Resolve the version inside your rules, because the engine only knows the file's package once narration starts:
+
+```ts
+export const myLib = ({ version }: { version?: 1 | 2 } = {}) => {
+  const versionOf = (e: Engine): 1 | 2 | "auto" => {
+    if (version) return version;
+    const major = e.libraryMajor("my-lib");
+    return major === 1 || major === 2 ? major : "auto";
+  };
+  return definePlugin({
+    name: "my-lib",
+    library: { name: "my-lib", versions: ">=1 <3" },
+    phrases: { en },
+    calls: {
+      "*.fetchAll": ({ e, say, obj }) => {
+        if (!obj || !e.usesLibrary("my-lib")) return null;
+        const phrase = versionOf(e) === 1 ? say.firstPage : versionOf(e) === 2 ? say.everyPage : say.somePages;
+        return phrase({ source: e.text(obj) });
+      },
+    },
+  });
+};
+```
+
+The Effect plugin keeps its rules in groups and merges one table per mode up front, then picks a table per file. You can copy the pattern:
 
 ```ts
 type Versioned = { shared?: OpTable; v3?: OpTable; v4?: OpTable; auto?: OpTable };

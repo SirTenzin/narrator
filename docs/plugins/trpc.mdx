@@ -1,0 +1,103 @@
+---
+title: "tRPC"
+description: "Read tRPC routers as the procedures they expose, and clients as the calls they make."
+---
+
+<span className="nr-pill">@usenarrator/plugin-trpc</span>
+
+The [tRPC](https://trpc.io) plugin reads a router as a list of procedures with their dotted paths, so `post.byId` reads as "the post.byId query" with the input it takes and the steps of its resolver. Middleware reads as checks that run before a procedure, and `TRPCError` codes are named together with their HTTP status. On the client, calls read as running a query or a mutation by path.
+
+```ts
+import { trpc } from "@usenarrator/plugin-trpc";
+import { zod } from "@usenarrator/plugin-zod";
+
+typescript({ parser: oxcParser, plugins: [zod(), trpc()] });
+```
+
+Add the [zod plugin](/plugins/zod) as well if your procedures validate input with zod, so `.input(...)` reads as the shape it accepts.
+
+The plugin declares `library: { name: "@trpc/server", versions: ">=10 <12" }` and reads both v10 and v11. It narrates files that import from an `@trpc/*` package, files that import a tRPC setup module (for example a `~/server/trpc` file or names like `publicProcedure`), and files in a package that depends on tRPC (see [Dependency detection](/concepts/dependency-detection)).
+
+## Examples
+
+{/* narrate plugins="zod,trpc" path="router.ts" */}
+```ts A router with procedures
+import { initTRPC, TRPCError } from "@trpc/server";
+import { z } from "zod";
+
+const t = initTRPC.context<Context>().create();
+
+export const appRouter = t.router({
+  greeting: t.procedure.input(z.object({ name: z.string() })).query(({ input }) => `Hello ${input.name}`),
+  post: t.router({
+    byId: t.procedure.input(z.object({ id: z.string() })).query(async ({ ctx, input }) => {
+      const post = await ctx.db.post.findUnique({ where: { id: input.id } });
+      if (!post) throw new TRPCError({ code: "NOT_FOUND", message: "Post not found" });
+      return post;
+    }),
+  }),
+});
+```
+
+```text English
+Let t be a tRPC setup (context: Context).
+
+Let app router be a tRPC router with these procedures:
+  • Answer the greeting query (takes an object with name):
+    Give back "Hello {input's name}".
+  • Answer the post.byId query (takes an object with ID):
+    Find the DB's post unique (where: an object with ID: input's ID), and call the result post.
+    If post is missing, fail with a not found (404) error with the message "Post not found".
+    Give back post.
+```
+
+{/* narrate plugins="zod,trpc" path="trpc.ts" */}
+```ts Middleware
+import { initTRPC, TRPCError } from "@trpc/server";
+
+const t = initTRPC.context<Context>().create();
+
+const isAuthed = t.middleware(({ ctx, next }) => {
+  if (!ctx.session?.user) throw new TRPCError({ code: "UNAUTHORIZED" });
+  return next({ ctx: { session: ctx.session } });
+});
+
+export const protectedProcedure = t.procedure.use(isAuthed);
+```
+
+```text English
+Let t be a tRPC setup (context: Context).
+
+Let is authed be a tRPC middleware:
+  If the session's user is missing, fail with an unauthorized (401) error.
+  Let the procedure run, adding an object with session: the session to the context.
+
+Let protected procedure be a procedure built on the base tRPC procedure (after is authed).
+```
+
+{/* narrate plugins="zod,trpc" path="client.ts" */}
+```ts The vanilla client
+import { createTRPCClient, httpBatchLink } from "@trpc/client";
+
+const client = createTRPCClient<AppRouter>({ links: [httpBatchLink({ url: "/api/trpc" })] });
+const user = await client.user.byId.query({ id: "1" });
+await client.post.create.mutate({ title: "Hello" });
+```
+
+```text English
+Let client be a tRPC client for AppRouter (sending batched HTTP requests to "/api/trpc").
+Let user be the result of the user.byId query with an object with ID: "1".
+Run the post.create mutation with an object with title: "Hello".
+```
+
+## What it covers
+
+- Setup: `initTRPC` with its context, meta and options, and the exported `router`, `procedure` and `middleware` builders.
+- Routers: nested routers with dotted paths, `mergeRouters`, `createCallerFactory`, and procedures built from `input`, `output`, `use`, `meta`, `query`, `mutation` and `subscription`.
+- Middleware that checks the context and calls `next({ ctx })`, and `TRPCError` with its code and status.
+- Adapters such as `fetchRequestHandler`, `createHTTPServer`, `createNextApiHandler` and `createExpressMiddleware`.
+- Clients: `createTRPCClient` and its links, `createTRPCReact` hooks (`useQuery`, `useMutation`, `useUtils` and the cache helpers), `skipToken`, and the TanStack integration's `queryOptions` and `mutationOptions` helpers, which the [TanStack Query plugin](/plugins/tanstack-query) reads as queries.
+
+## Translating
+
+The English phrasebook is exported as `en` and typed as `TrpcPhrases`.

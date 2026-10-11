@@ -1,0 +1,67 @@
+---
+title: "Valibot"
+description: "Read Valibot schemas as the shapes they describe, and validation calls as checks."
+---
+
+<span className="nr-pill">@usenarrator/plugin-valibot</span>
+
+The [Valibot](https://valibot.dev) plugin reads schemas the same way the [zod plugin](/plugins/zod) does, so a codebase that uses both reads consistently. An object schema lists its fields, and a `pipe` stacks its checks and transforms in order ("trimmed, an email, at most 255 long"). Validation calls say what happens when the data doesn't fit.
+
+```ts
+import { valibot } from "@usenarrator/plugin-valibot";
+
+typescript({ parser: oxcParser, plugins: [valibot()] });
+```
+
+The plugin declares `library: { name: "valibot", versions: ">=1 <2" }`. It reads both `import * as v from "valibot"` and named imports, and only claims calls whose function really comes from `valibot`, so same-named functions from other libraries are left alone.
+
+## Examples
+
+{/* narrate plugins="valibot" path="schemas.ts" */}
+```ts Schemas and pipes
+import * as v from "valibot";
+
+const Email = v.pipe(v.string(), v.trim(), v.email(), v.maxLength(255));
+const Age = v.nullable(v.pipe(v.number(), v.integer(), v.minValue(18)));
+const Role = v.optional(v.picklist(["admin", "member"]), "member");
+const Signup = v.object({ email: Email, age: Age, role: Role, tags: v.array(v.string()) });
+```
+
+```text English
+Let email be a schema for text (trimmed, an email, at most 255 long).
+Let age be a schema for a number (whole number, at least 18, can be null).
+Let role be a schema for one of "admin" or "member" (optional, defaults to "member").
+Let signup be a schema for an object with email, age, role, and tags.
+```
+
+{/* narrate plugins="valibot" path="validate.ts" */}
+```ts Validation
+import * as v from "valibot";
+
+export function signup(body: unknown) {
+  const result = v.safeParse(Signup, body);
+  if (!result.success) return { errors: v.flatten(result.issues) };
+  if (v.is(AdminInvite, body)) inviteAdmin();
+  return createUser(v.parse(Signup, body));
+}
+```
+
+```text English
+To signup, given body:
+  Let result be the result of checking body against signup, without failing.
+  If result's success is missing, give back an object with errors: the problems found in result, grouped by field.
+  If body matches admin invite, invite admin.
+  Create user (body, checked against signup), and give back the result.
+```
+
+## What it covers
+
+- Schemas: strings, numbers, booleans, dates, literals, `picklist`, `enum`, `object` and its strict and loose variants, `array`, `tuple`, `record`, `union`, `variant` and object helpers such as `pick`, `omit` and `partial`.
+- Wrappers: `optional`, `nullable`, `nullish` and defaults.
+- Pipes: checks such as `email`, `minLength`, `maxValue` and `regex`, transforms such as `trim`, custom messages, and checks forwarded to a field.
+- Validation: `parse`, `safeParse`, `is`, `assert`, `parser` and their async variants.
+- `describeSchema`, so plugins that describe schemas, such as tRPC for procedure inputs, can read Valibot schemas too.
+
+## Translating
+
+The English phrasebook is exported as `en` and typed as `ValibotPhrases`.

@@ -81,6 +81,22 @@ When the engine loads a plugin, it picks the plugin's phrasebook for the active 
 
 This lets a locale package translate third-party plugins without waiting for each plugin to add the language, and lets a plugin ship its own translations once they exist.
 
+Every plugin exports its English phrasebook as `en`, typed with its own phrasebook type, such as `DecimalPhrases` or `ReactPhrases`. Spread it to start a translation, as the Spanish example does.
+
+### Typed overrides
+
+`locale.plugins` is type-checked for plugins that register their phrasebook type with the `PluginPhrases` interface from `@usenarrator/core`. A plugin does that with declaration merging:
+
+```ts
+declare module "@usenarrator/core" {
+  interface PluginPhrases {
+    decimal: DecimalPhrases;
+  }
+}
+```
+
+Once the plugin's package is imported, `plugins: { decimal: ... }` in a `Locale` must match `DecimalPhrases`, so a missing phrase or a wrong argument name is a compile error rather than an English fallback at runtime. Plugins that don't register a type are still accepted under their name, without checking. Today zod, Testing, decimal.js, Drizzle, Effect, Better Auth, Hono, Elysia, the AI SDK and SQL register their types.
+
 A plugin phrasebook can also carry `glossary`, `constants` and `errorLabels`. The engine merges these over the plugin's own fields, so a translation can say "cliente" for `cus` or give an error class a Spanish name.
 
 ## Write a full locale

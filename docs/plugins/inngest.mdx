@@ -1,0 +1,85 @@
+---
+title: "Inngest"
+description: "Read Inngest functions as what triggers them, the limits on their runs, and their durable steps."
+---
+
+<span className="nr-pill">@usenarrator/plugin-inngest</span>
+
+The [Inngest](https://www.inngest.com) plugin reads a function as an event handler with a schedule. It names what triggers the function (an event, a cron pattern in words, or both), spells out flow control such as concurrency, throttling and debouncing, and then lists each durable step with its ID so you can match the English to what the Inngest dashboard shows.
+
+```ts
+import { inngest } from "@usenarrator/plugin-inngest";
+
+typescript({ parser: oxcParser, plugins: [inngest()] });
+```
+
+The plugin declares `library: { name: "inngest", versions: ">=3 <5" }` and reads both v3, where triggers are the second argument to `createFunction`, and v4, where they live in the options. It only narrates files that import from `inngest` or belong to a package that depends on it (see [Dependency detection](/concepts/dependency-detection)), so `res.send` and other libraries' `serve` functions are left alone.
+
+## Examples
+
+{/* narrate plugins="inngest" path="functions.ts" */}
+```ts A function with durable steps
+import { Inngest } from "inngest";
+
+export const inngest = new Inngest({ id: "my-app" });
+
+export const onboarding = inngest.createFunction(
+  { id: "user-onboarding", concurrency: { limit: 1, key: "event.data.userId" }, retries: 3 },
+  { event: "app/user.created" },
+  async ({ event, step }) => {
+    await step.run("send-welcome", () => sendWelcomeEmail(event.data.email));
+    await step.sleep("wait-a-day", "1d");
+    const activated = await step.waitForEvent("wait-for-activation", {
+      event: "app/user.activated",
+      match: "data.userId",
+      timeout: "3d",
+    });
+    if (!activated) await step.run("send-reminder", () => sendReminder(event.data.email));
+  },
+);
+```
+
+```text English
+Set up the Inngest client for the app "my-app" as inngest.
+
+Define the Inngest function "user-onboarding" as onboarding, run whenever app/user.created is sent (at most 1 run at a time per event.data.userId; retried up to 3 times):
+  Step "send-welcome": send welcome email (event's data's email).
+  Wait 1 day (step "wait-a-day").
+  Wait for app/user.activated matching data.userId, up to 3 days (step "wait-for-activation"), and call it activated (nothing if it never arrives).
+  If activated is missing, step "send-reminder": send reminder (event's data's email).
+```
+
+{/* narrate plugins="inngest" path="digest.ts" */}
+```ts A scheduled function (v4)
+import { Inngest, cron } from "inngest";
+
+const inngest = new Inngest({ id: "my-app" });
+
+export const digest = inngest.createFunction(
+  { id: "daily-digest", triggers: [cron("TZ=Europe/Paris 0 9 * * 1-5"), { event: "app/digest.requested" }] },
+  async ({ step }) => {
+    const users = await step.run("load-users", () => db.users.findSubscribed());
+    await step.sendEvent("fan-out", users.map((u) => ({ name: "app/digest.send", data: { userId: u.id } })));
+  },
+);
+```
+
+```text English
+Set up the Inngest client for the app "my-app" as inngest.
+
+Define the Inngest function "daily-digest" as digest, run every weekday at 09:00 Europe/Paris time (cron TZ=Europe/Paris 0 9 * * 1-5) or whenever app/digest.requested is sent:
+  Step "load-users": find DB's users subscribed, and call the result users.
+  Send users, with each u turned into an object with name: "app/digest.send" and data: an object with user ID: each u's ID (step "fan-out").
+```
+
+## What it covers
+
+- Clients and functions: `new Inngest`, `createFunction` with v3 and v4 triggers, event types, `cancelOn` and `onFailure`.
+- Flow control: `concurrency`, `throttle`, `rateLimit`, `debounce`, `priority`, `batchEvents`, `idempotency`, `singleton`, `timeouts` and `retries`, each as a plain limit on when runs start.
+- Steps: `step.run`, `step.sleep`, `step.sleepUntil`, `step.waitForEvent` with its match and timeout, `step.sendEvent` and `step.invoke`, with their step IDs.
+- Events and serving: `inngest.send` and `serve` for each framework adapter.
+- Durations such as `"1h30m"` and cron patterns read as words.
+
+## Translating
+
+The English phrasebook is exported as `en` and typed as `InngestPhrases`. Its `time` section has the same shape as the other job plugins' (`TimePhrases`).

@@ -1,0 +1,155 @@
+---
+title: "Next.js"
+description: "Read Next.js apps by route: pages, layouts, route handlers, the proxy, server actions and caching."
+---
+
+<span className="nr-pill">@usenarrator/plugin-nextjs</span>
+
+The [Next.js](https://nextjs.org) plugin reads a file by where it lives. `app/blog/[slug]/page.tsx` is "the page at /blog/:slug", a `route.ts` file answers requests to its route, and `proxy.ts` or `middleware.ts` runs before matching requests reach the app. Inside those files it explains the request APIs, server actions, caching and navigation.
+
+```ts
+import { nextjs } from "@usenarrator/plugin-nextjs";
+
+typescript({ parser: oxcParser, plugins: [...nextjs()] });
+```
+
+`nextjs()` returns two plugins: the Next.js rules and a [React plugin](/plugins/react) that also knows `next/link`, `next/image`, `next/script` and `next/form`. Spread it into your plugin list, or pass the array as it is, since `plugins` accepts nested arrays. Don't add `react()` as well.
+
+The plugin declares `library: { name: "next", versions: ">=13.4 <17" }`. Pages and layouts are recognized from their path alone. Everything else, such as request APIs, caching and navigation, is only narrated in files that import from `next` or belong to a package that depends on it (see [Dependency detection](/concepts/dependency-detection)).
+
+## Routes come from file paths
+
+Routes are read from the path the host passes to `narrate`, which is `e.path` inside the engine. The CLI and the browser extension pass repository-relative paths, so this works without any setup. Route groups, parallel routes and intercepting segments are dropped from the route, and dynamic segments use the matcher notation from Next.js.
+
+| File | Reads as |
+| --- | --- |
+| `app/page.tsx` | the page at / |
+| `src/app/(marketing)/blog/[slug]/page.tsx` | the page at /blog/:slug |
+| `app/docs/[...slug]/page.tsx` | the page at /docs/:slug+ |
+| `app/shop/[[...slug]]/page.tsx` | the page at /shop/:slug* |
+| `app/api/users/[id]/route.ts` | Answer GET /api/users/:id, once per exported method |
+| `pages/api/hello.ts` | Answer requests to /api/hello |
+| `app/layout.tsx` | the root layout around every page |
+
+The same mapping is exported as `fileInfo(path)`, which returns the router, the kind of file and the route, or `null` for files that aren't Next.js conventions.
+
+## Examples
+
+{/* narrate plugins="nextjs" path="app/blog/[slug]/page.tsx" */}
+```tsx A dynamic page
+import { notFound } from "next/navigation";
+import Link from "next/link";
+import Image from "next/image";
+
+export default async function Page({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  const post = await getPost(slug);
+  if (!post) notFound();
+  return (
+    <article>
+      <h1>{post.title}</h1>
+      <Image src={post.cover} alt={post.title} width={800} height={400} />
+      <Link href="/blog">Back to blog</Link>
+    </article>
+  );
+}
+```
+
+```text English
+The page at /blog/:slug, given params:
+  From the route parameters, take slug.
+  Get post (slug).
+  If post is missing, show the not-found page.
+  Show an article containing:
+    • a heading showing post's title
+    • an image of post's title
+    • a link to /blog "Back to blog"
+```
+
+{/* narrate plugins="nextjs" path="app/api/users/[id]/route.ts" */}
+```ts A route handler
+import { NextResponse, type NextRequest } from "next/server";
+import { cookies } from "next/headers";
+
+export async function GET(request: NextRequest, { params }) {
+  const { id } = await params;
+  const token = (await cookies()).get("token")?.value;
+  if (!token) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  return NextResponse.json(await getUser(id));
+}
+```
+
+```text English
+Answer GET /api/users/:id:
+  From the route parameters, take ID.
+  Let token be the value of the token cookie.
+  If token is missing, reply with an object with error: "Unauthorized" as JSON (status 401 Unauthorized).
+  Reply with get user (ID) as JSON.
+```
+
+{/* narrate plugins="nextjs" path="app/actions.ts" */}
+```ts A server action
+"use server";
+import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
+
+export async function createPost(formData: FormData) {
+  const title = formData.get("title");
+  await db.post.create({ data: { title } });
+  revalidatePath("/posts");
+  redirect("/posts");
+}
+```
+
+```text English
+Everything this file exports is a server action the browser can call.
+
+To create post (async), given form data (FormData):
+  Let title be form data's entry for "title".
+  Create DB's post (data: an object with title).
+  Refresh the cached data for /posts.
+  Redirect to /posts.
+```
+
+{/* narrate plugins="nextjs" path="proxy.ts" */}
+```ts The proxy (middleware)
+import { NextResponse, type NextRequest } from "next/server";
+
+export function proxy(request: NextRequest) {
+  if (!request.cookies.has("session")) {
+    return NextResponse.redirect(new URL("/login", request.url));
+  }
+  return NextResponse.next();
+}
+
+export const config = { matcher: ["/dashboard/:path*"] };
+```
+
+```text English
+Before each matching request reaches the app (the proxy):
+  If the session cookie is not set, redirect to /login.
+  Let the request continue.
+
+Run the proxy only for /dashboard/:path*.
+```
+
+## What it covers
+
+- File conventions for the App Router and the Pages Router: pages, layouts, the root layout, loading and error screens, `not-found`, route handlers, API routes, `proxy.ts` and `middleware.ts`.
+- Page data: `params` and `searchParams`, `generateStaticParams`, `generateMetadata`, `metadata`, and segment config such as `revalidate`, `dynamic` and `runtime`.
+- Route handlers and the request APIs: `NextResponse`, `cookies()`, `headers()`, `nextUrl.searchParams`, redirects and rewrites, and the proxy's `matcher`.
+- Server actions (`"use server"`), `"use cache"`, `cacheTag`, `cacheLife`, `revalidatePath`, `revalidateTag` (including the Next.js 16 cache profile form) and `updateTag`.
+- Navigation: `notFound`, `redirect`, `useRouter`, `usePathname`, `useSearchParams`, `next/dynamic` and the `Link`, `Image`, `Script` and `Form` elements.
+
+## Options
+
+| Option | What it does |
+| --- | --- |
+| `pathOf` | Returns the path used to work out a file's route. Defaults to `e.path`. Use it when your host narrates files under paths that aren't relative to the app, for example by stripping a prefix. |
+| `react` | Options for the bundled React plugin, such as extra `elements`. |
+
+## Translating
+
+The English phrasebook is exported as `en` and typed as `NextPhrases`. The bundled React plugin keeps its own phrasebook, `ReactPhrases`.

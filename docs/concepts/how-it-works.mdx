@@ -9,7 +9,9 @@ Narrator reads code the way a careful colleague would read it out loud. It parse
 flowchart TB
   src["Source file"] --> parser["Parser (oxc, native or WASM)"]
   parser --> engine["Engine walks the syntax tree"]
-  plugins["Plugins: std, zod, drizzle, hono..."] --> engine
+  manifests["package.json manifests"] --> deps["Dependency index"]
+  deps --> engine
+  plugins["Plugins: std, react, drizzle, hono..."] --> engine
   engine --> phrases["Phrasebook: locale and plugin phrases"]
   phrases --> lines["Lines with depth, kind, offsets and markup"]
   lines --> text["Text, HTML or ANSI"]
@@ -18,7 +20,7 @@ flowchart TB
   classDef accent fill:#f5f5f5,stroke:#a3a3a3,color:#0a0a0a
   classDef plain fill:#ffffff,stroke:#e5e5e5,color:#0a0a0a
   class engine,lines accent
-  class src,parser,plugins,phrases,text,units,diff plain
+  class src,parser,manifests,deps,plugins,phrases,text,units,diff plain
 ```
 
 ## The pieces
@@ -31,10 +33,13 @@ flowchart TB
     The TypeScript language does not parse code itself. You hand it a parser: `oxcParser` uses the native oxc binding on Node and Bun, and `oxcWasmParser` wraps the WASM build for browsers. Both produce the same ESTree-shaped tree, so narration is identical. See [Embedding in your app](/guides/embedding).
   </Accordion>
   <Accordion title="Engine" icon="cpu">
-    The engine walks the tree. For each call it looks for a plugin rule keyed by the callee, such as `*.filter` or `z.object`. If no rule claims the call, it falls back to generic phrasing built from the identifier names. See the [Engine API](/reference/engine).
+    The engine walks the tree. For each call it looks for a plugin rule keyed by the callee, such as `*.filter` or `z.object`, and it does the same for property reads, tagged templates and JSX. If no rule claims a node, it falls back to generic phrasing built from the identifier names. See the [Engine API](/reference/engine).
   </Accordion>
   <Accordion title="Plugins" icon="puzzle">
     A plugin is a bundle of rules, vocabulary and phrases for one library or codebase. The built-in `std` plugin covers JavaScript itself: arrays, strings, Math, JSON, Promise, Map, Set and the console. Later plugins win when two rules match the same call. See [Plugins](/plugins/overview).
+  </Accordion>
+  <Accordion title="Dependencies" icon="package">
+    Before narrating a file, the engine learns what its package depends on from the nearest `package.json`. Plugins combine that with the file's imports to decide whether they apply, and which major version of their library to read. See [Dependency detection](/concepts/dependency-detection).
   </Accordion>
   <Accordion title="Locale and phrasebooks" icon="languages">
     A locale supplies grammar (lists, articles, plurals, possessives) and every core phrase. Each plugin ships its own phrasebook per locale, and a locale can override any plugin's phrases. See [Translating Narrator](/guides/translating).
