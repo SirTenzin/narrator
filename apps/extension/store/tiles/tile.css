@@ -1,0 +1,78 @@
+* {
+	box-sizing: border-box;
+	margin: 0;
+}
+html,
+body {
+	width: 100%;
+	height: 100%;
+}
+body {
+	font-family: "Inter", sans-serif;
+	color: #fff;
+	background: radial-gradient(circle at 85% 20%, rgba(141, 168, 240, 0.45), transparent 55%), linear-gradient(135deg, #3155c4 0%, #22409f 100%);
+	overflow: hidden;
+	display: flex;
+	align-items: center;
+}
+.mark {
+	flex: none;
+	filter: drop-shadow(0 8px 24px rgba(10, 10, 30, 0.35));
+}
+.name {
+	font-weight: 700;
+	letter-spacing: -0.02em;
+	line-height: 1.05;
+}
+.name span {
+	display: block;
+	font-weight: 500;
+	opacity: 0.85;
+}
+.tagline {
+	font-weight: 500;
+	opacity: 0.9;
+}
+.card {
+	background: #fff;
+	color: #1f2328;
+	border-radius: 14px;
+	box-shadow: 0 24px 60px rgba(10, 20, 60, 0.35);
+	overflow: hidden;
+	font-family: "GeistMono NF", "Fira Code", monospace;
+}
+.row {
+	display: flex;
+	gap: 14px;
+	padding: 10px 22px;
+}
+.row b {
+	width: 14px;
+	flex: none;
+	font-weight: 400;
+}
+.del {
+	background: #ffebe9;
+	color: #82071e;
+}
+.del b {
+	color: #cf222e;
+}
+.add {
+	background: #dafbe1;
+	color: #116329;
+}
+.add b {
+	color: #1a7f37;
+}
+.head {
+	background: #ddf4ff;
+	color: #1f2328;
+	font-family: "Inter", sans-serif;
+	font-weight: 600;
+	padding: 10px 22px;
+}
+.code {
+	text-decoration: line-through;
+	text-decoration-color: rgba(130, 7, 30, 0.35);
+}

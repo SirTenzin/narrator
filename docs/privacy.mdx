@@ -1,0 +1,43 @@
+---
+title: "Privacy policy"
+description: "What the Narrator for GitHub browser extension does with your data: it collects nothing and only talks to GitHub."
+---
+
+Last updated: 11 October 2026
+
+Narrator for GitHub is a browser extension that shows the code changes in GitHub pull requests and commits as plain English. This policy explains what the extension does with your data. The short version is that it collects nothing, and the only server it talks to is GitHub.
+
+## What the extension collects
+
+Nothing. The extension has no server of its own, no analytics, no crash reporting, no advertising and no tracking. The people who make Narrator never receive any data from it.
+
+## What happens in your browser
+
+When you open a pull request's changed files or a commit on github.com, the extension reads the address of that page to work out which pull request or commit it is. It then asks GitHub for that change: the list of changed files, the old and new version of each changed TypeScript or JavaScript file, and the `package.json` files that say which libraries the code uses. It turns that code into English inside your browser and shows it in GitHub's diff view.
+
+All of these requests go to `api.github.com` and `raw.githubusercontent.com` and nowhere else. They are the same kind of requests GitHub's own website makes when you browse a repository.
+
+## What the extension stores
+
+The extension keeps two settings in your browser's extension storage:
+
+- whether Plain English is turned on, and
+- a GitHub token, only if you choose to add one on the options page.
+
+The token is used to read private repositories you already have access to and to raise GitHub's rate limit. It is only ever sent to `api.github.com` and `raw.githubusercontent.com`, over HTTPS, as part of the requests described above. You can remove it at any time with the **Remove** button on the options page, and uninstalling the extension deletes it.
+
+While your browser is open, the extension also remembers the English it generated (in memory) and the `package.json` files it fetched (in the extension's session storage), so returning to a pull request doesn't fetch everything again. Both are cleared when the browser closes, and the English is often cleared sooner, when the browser stops the extension's background process.
+
+## Sharing and selling
+
+The extension does not sell, share or transfer any data to anyone. Data is used only to show you the English for the change you are viewing.
+
+## GitHub
+
+Requests to GitHub are covered by GitHub's own privacy statement: https://docs.github.com/site-policy/privacy-policies/github-general-privacy-statement
+
+## Changes and contact
+
+If this policy changes, the new version will be published at the same address with a new date, and any change in what the extension does with data will be described in the store listing before it ships.
+
+Questions are welcome as an issue at https://github.com/SirTenzin/narrator/issues.

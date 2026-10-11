@@ -1,10 +1,11 @@
 {
 	"manifest_version": 3,
 	"name": "Narrator for GitHub",
-	"version": "0.3.0",
-	"description": "Read pull request and commit diffs as plain English, generated deterministically from the code's syntax tree.",
+	"version": "1.0.0",
+	"description": "Read GitHub pull requests and commits as plain English, generated deterministically from the code. No AI, no servers but GitHub.",
+	"homepage_url": "https://github.com/SirTenzin/narrator",
 	"permissions": ["storage", "offscreen"],
-	"host_permissions": ["https://github.com/*", "https://api.github.com/*", "https://raw.githubusercontent.com/*"],
+	"host_permissions": ["https://api.github.com/*", "https://raw.githubusercontent.com/*"],
 	"background": {
 		"service_worker": "background.js",
 		"scripts": ["background.js"],
@@ -20,9 +21,11 @@
 	"content_security_policy": {
 		"extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
 	},
-	"web_accessible_resources": [],
 	"icons": {
-		"128": "icon128.png"
+		"16": "icons/icon16.png",
+		"32": "icons/icon32.png",
+		"48": "icons/icon48.png",
+		"128": "icons/icon128.png"
 	},
 	"browser_specific_settings": {
 		"gecko": {

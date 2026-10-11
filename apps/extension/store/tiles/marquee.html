@@ -1,0 +1,26 @@
+<!doctype html>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="tile.css" />
+<style>
+	body { padding: 0 80px; gap: 56px; }
+	.brand { flex: 1; display: flex; flex-direction: column; gap: 34px; }
+	.mark { width: 132px; height: 132px; }
+	.name { font-size: 74px; }
+	.name span { font-size: 40px; margin-top: 10px; }
+	.tagline { font-size: 28px; }
+	.card { width: 720px; font-size: 19px; line-height: 1.45; }
+</style>
+<body>
+	<div class="brand">
+		<img class="mark" src="mark.svg" alt="" />
+		<div class="name">Narrator<span>for GitHub</span></div>
+		<div class="tagline">Read pull requests in plain English.</div>
+	</div>
+	<div class="card">
+		<div class="head">To API track middleware</div>
+		<div class="row del"><b>-</b><span class="code">const sampleRate = apiRequestSampleRate(cli);</span></div>
+		<div class="row add"><b>+</b><span>Let sample rate be an API request sample rate (CLI).</span></div>
+		<div class="row del"><b>-</b><span class="code">if (sampleRate === undefined) return;</span></div>
+		<div class="row add"><b>+</b><span>If sample rate is missing, stop here.</span></div>
+	</div>
+</body>

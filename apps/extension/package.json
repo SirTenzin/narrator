@@ -1,6 +1,6 @@
 {
 	"name": "@usenarrator/extension",
-	"version": "0.0.0",
+	"version": "1.0.0",
 	"private": true,
 	"type": "module",
 	"dependencies": {
@@ -39,6 +39,13 @@
 		"build": "bun build.ts",
 		"firefox": "bun build.ts && web-ext run -s dist",
 		"lint:firefox": "bun build.ts && web-ext lint -s firefox/dist",
-		"safari": "./safari.sh"
+		"safari": "./safari.sh",
+		"package:chrome": "bun store/package.ts chrome",
+		"package:edge": "bun store/package.ts edge",
+		"package:firefox": "bun store/package.ts firefox",
+		"icons": "bun store/icons.ts",
+		"package:safari": "bun store/package.ts safari",
+		"store:screenshots": "bun store/screenshots.ts",
+		"store:tiles": "bun store/tiles.ts"
 	}
 }
