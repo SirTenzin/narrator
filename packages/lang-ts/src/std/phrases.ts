@@ -81,7 +81,7 @@ export type StdPhrases = {
 		plusStart: P<"start" | "total">;
 		firstItem: string;
 		step: P<"value">;
-		/** `acc` is the running total's name, or "" when the lambda has none. */
+		/** `acc` is the name of the result built so far, or "" when the lambda has none. */
 		block: P<"list" | "start" | "item" | "acc">;
 	};
 	sort: {
@@ -107,7 +107,8 @@ export type StdPhrases = {
 	at: { first: P<"list">; last: P<"list"> };
 	/** `rest` is already a rendered list. */
 	concat: P<"list" | "rest">;
-	push: { everything: P<"source" | "list">; add: P<"values" | "list">; addThese: P<"list"> };
+	/** `addBlock`: a single value shown as a block underneath (e.g. "an object with:"). */
+	push: { everything: P<"source" | "list">; add: P<"values" | "list">; addBlock: P<"value" | "list">; addThese: P<"list"> };
 	unshift: P<"values" | "list">;
 	pop: P<"list">;
 	shift: P<"list">;
@@ -192,9 +193,31 @@ export type StdPhrases = {
 	/** A pause used as a value, e.g. inside `Promise.race`. */
 	pause: P<"ms">;
 	timeoutSignal: P<"ms">;
+	throwIfAborted: P<"signal">;
 	clearTimer: P<"timer">;
 	setInterval: (p: { ms: string; stmt: boolean }) => string;
 	event: { preventDefault: P<"event">; stopPropagation: P<"event"> };
+	/** Node's path, fs and os helpers. `parts` are the rendered path segments. */
+	node: {
+		path: (p: { parts: string[] }) => string;
+		fullPath: (p: { parts: string[] }) => string;
+		folderOf: P<"path">;
+		fileNameOf: P<"path">;
+		extensionOf: P<"path">;
+		tmpdir: string;
+		homedir: string;
+		readFile: P<"path">;
+		writeFile: P<"path" | "data">;
+		appendFile: P<"path" | "data">;
+		mkdir: P<"path">;
+		mkdtemp: P<"prefix">;
+		remove: P<"path">;
+		readdir: P<"path">;
+		stat: P<"path">;
+		rename: P<"from" | "to">;
+		copy: P<"from" | "to">;
+		exists: Neg<"path">;
+	};
 	deepCopy: P<"value">;
 	/** `stmt`: scheduled as a step; otherwise the timer is kept as a value. */
 	setTimeout: (p: { ms: string; stmt: boolean }) => string;
@@ -235,6 +258,8 @@ export type StdPhrases = {
 		checkPasses: (p: { fn: string; some: boolean }) => string;
 		checkPassesBlock: (p: { some: boolean }) => string;
 		dedupe: string;
+		sort: string;
+		sortBy: Record<"smallestFirst" | "largestFirst" | "alphabetical" | "reverseAlphabetical", P<"key">>;
 		joinWith: P<"sep">;
 		joinCommas: string;
 		reverse: string;

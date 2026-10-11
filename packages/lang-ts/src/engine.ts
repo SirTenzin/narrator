@@ -411,6 +411,8 @@ export class Engine {
 			case "UnaryExpression":
 				if (n.operator === "!") return this.wrap(this.cond(n.argument, true), (t) => p.whether({ condition: t }));
 				if (n.operator === "typeof") return this.wrap(this.noun(n.argument), (t) => p.typeOf({ value: t }));
+				if (n.operator === "-" && unwrap(n.argument)?.type === "Literal" && typeof unwrap(n.argument).value === "number")
+					return D(mk("l", `-${plain(this.literal(unwrap(n.argument)))}`));
 				if (n.operator === "-") return this.wrap(this.noun(n.argument), (t) => p.negative({ value: t }));
 				if (n.operator === "void") return D(p.nothing);
 				if (n.operator === "+") return this.wrap(this.noun(n.argument), (t) => p.asNumber({ value: t }));

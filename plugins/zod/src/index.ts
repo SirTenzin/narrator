@@ -120,8 +120,11 @@ const parseRule =
 	(safe: boolean): CallRule<ZodPhrases> =>
 	({ obj, args, e, say, stmt }) => {
 		if (!obj || args.length < 1 || !isSchema(e, obj)) return null;
-		const value = e.noun(args[0]);
-		const schema = e.noun(obj);
+		// zod/mini's `z.parse(schema, value)` takes the schema as its first argument.
+		const mini = unwrap(obj).type === "Identifier" && unwrap(obj).name === "z";
+		if (mini && args.length < 2) return null;
+		const value = e.noun(mini ? args[1] : args[0]);
+		const schema = e.noun(mini ? args[0] : obj);
 		const phrase = safe ? say.safeParse : stmt ? say.parseStep : say.parse;
 		const x = e.say.expressions;
 		const block = value.kids.length > 0 && [x.object.withBlock, x.array.listOfBlock].includes(plain(value.t).replace(/:$/, ""));

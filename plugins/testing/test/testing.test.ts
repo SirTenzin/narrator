@@ -76,6 +76,11 @@ test("mocks and spies", () => {
 	expect(text).toBe("Let spy be a spy on service's get full, resolving to row.\nMake fetcher return 1 (once).\nPut back what spy replaced.");
 });
 
+test("bun's mock() reads as a mock function, with its implementation when it has one", () => {
+	const text = narrateWithStats(`import { mock } from "bun:test";\nconst a = mock(() => {});\nconst b = mock(() => 3);`, { plugins: [testing()] }).text;
+	expect(text).toBe("Let a be a mock function.\n\nLet b be a mock function that runs this:\n  Give back 3.");
+});
+
 test("a partial translation reports what it is missing", () => {
 	const gaps = phrasebookGaps(testingEn, { check: () => "", matchers: { toBe: () => "" }, blocks: { test: () => "" } });
 	expect(gaps.missing).toContain("matchers.toEqual");

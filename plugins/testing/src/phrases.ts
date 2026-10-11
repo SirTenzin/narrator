@@ -71,6 +71,8 @@ export type TestingPhrases = {
 	mocks: {
 		spyOn: (p: { target: string }) => string;
 		mockFunction: string;
+		/** A mock function with an implementation, shown as a block. */
+		mockRunning: string;
 		/** `once`: only for the next call. `stmt`: run as a step rather than read as a value. The implementation follows as a block. */
 		implementation: (p: { mock: string; once: boolean; stmt: boolean }) => string;
 		returns: (p: { mock: string; value: string; once: boolean; stmt: boolean }) => string;

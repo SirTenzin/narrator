@@ -30,6 +30,7 @@ test("parse and safeParse read as validation against the schema", () => {
 		"Let user be a schema for an object with a.\nLet r be the outcome of validating x against user.",
 	);
 	reads(`const q = qs.parse(str);`, "Parse qs (string), and call the result q.");
+	reads(`const r = z.safeParse(UserSchema, input);`, "Let r be the outcome of validating input against user schema.");
 });
 
 test("a partial translation reports what it is missing", () => {

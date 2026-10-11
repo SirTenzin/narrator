@@ -49,6 +49,36 @@ describe("std", () => {
 
 	test("push with no arguments is left to the method reading", () => reads(`scenario.push();`, "Push scenario."));
 
+	test("a sort inside a chain is a step; a block value pushed onto a list says where first", () => {
+		reads(
+			`const v = xs.filter((x) => x.ok).sort((a, b) => a.at - b.at);`,
+			"Let v be xs, after these steps:\n  1. Keep only those where x's ok is set\n  2. Sort them by at (smallest first)",
+		);
+		reads(
+			`out.push({ id: a, name: b, kind: "k", reason: "a long reason that pushes this past the inline limit" });`,
+			'Add to out an object with:\n  • ID: a\n  • name: b\n  • kind: "k"\n  • reason: "a long reason that pushes this past the inline limit"',
+		);
+	});
+
+	test("Node path, fs and os helpers", () => {
+		reads(
+			`import { join } from "node:path";\nimport * as fs from "node:fs";\nconst p = join(dir, "a.db");\nif (!fs.existsSync(p)) fs.mkdirSync(dir);\nconst raw = fs.readFileSync(p, "utf8");\nfs.rmSync(dir, { recursive: true });`,
+			'Let p be the path dir / "a.db".\nIf p does not exist, create the folder dir.\nLet raw be the contents of the file at p.\nDelete dir.',
+		);
+		reads(`const s = ["a", "b"].join(", ");`, 'Let s be a list of "a" and "b" joined with ", ".');
+	});
+
+	test("logging: a lone value or a styled string is the message", () => {
+		reads(`console.log(usage);`, "Log usage.");
+		reads(`console.log(chalk.green(\`done \${n}\`));`, 'Log "done {n}".');
+		reads(`console.error(err);`, "Log an error (with error).");
+	});
+
+	test("negative numbers and aborted signals", () => {
+		reads(`if (i === -1) stop();`, "If i is -1, stop.");
+		reads(`signal.throwIfAborted();`, "Stop with an error if signal has been cancelled.");
+	});
+
 	test("a destructuring find reads as 'whose'", () =>
 		reads(`const first = rows.find(({ id }) => id === target);`, "Let first be the one in rows whose ID is target."));
 

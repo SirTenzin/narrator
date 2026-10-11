@@ -154,7 +154,7 @@ export const arrayRules: Calls = {
 		const items = args.map((a: N) => e.noun(a));
 		const joined = e.g.list(items.map((i: Doc) => i.t));
 		if (items.some((i: Doc) => i.kids.length) || plain(joined).length > 80) {
-			if (items.length === 1) return block(say.push.add({ values: items[0]!.t.replace(/:$/, ""), list: list.t }), items[0]!.kids);
+			if (items.length === 1) return block(say.push.addBlock({ value: items[0]!.t.replace(/:$/, ""), list: list.t }), items[0]!.kids);
 			return block(
 				say.push.addThese({ list: list.t }),
 				items.flatMap((i: Doc) => e.bullet(i)),
@@ -261,37 +261,47 @@ export function isIn({ e, say, obj, args, neg }: CondArgs): Doc {
 
 const SELF = "value";
 
+type SortOrder = "smallestFirst" | "largestFirst" | "alphabetical" | "reverseAlphabetical";
+
+/** A comparator read as an order over a key: `(a, b) => a.x - b.x` -> smallest first by `x`. */
+export function sortSpec({ e, say, fn }: { e: Engine; say: StdPhrases; fn: N }): { order: SortOrder; key: string } | null {
+	const ex = e.lambdaExpr(fn);
+	const a = e.paramName(fn.params[0]);
+	const b = e.paramName(fn.params[1]);
+	if (!ex || !a || !b) return null;
+	const u = unwrap(ex);
+	const keyOf = (side: N, who: string) => {
+		const s = unwrap(side);
+		if (s.type === "Identifier" && s.name === who) return SELF;
+		if (s.type === "MemberExpression" && !s.computed && unwrap(s.object).name === who) return s.property.name as string;
+		return null;
+	};
+	const spec = (order: SortOrder, k: string) => ({ order, key: k === SELF ? mk("v", say.sort.value, SELF) : e.prop(k) });
+	if (u.type === "BinaryExpression" && u.operator === "-") {
+		const ka = keyOf(u.left, a);
+		if (ka && ka === keyOf(u.right, b)) return spec("smallestFirst", ka);
+		const ra = keyOf(u.left, b);
+		if (ra && ra === keyOf(u.right, a)) return spec("largestFirst", ra);
+	}
+	if (u.type === "CallExpression" && unwrap(u.callee).property?.name === "localeCompare") {
+		const k1 = keyOf(unwrap(u.callee).object, a);
+		if (k1 && k1 === keyOf(u.arguments[0], b)) return spec("alphabetical", k1);
+		const r1 = keyOf(unwrap(u.callee).object, b);
+		if (r1) return spec("reverseAlphabetical", r1);
+	}
+	return null;
+}
+
 function sortRule({ e, say, obj, args }: { e: Engine; say: StdPhrases; obj: N; args: N[] }): Doc {
 	const list = e.noun(obj);
 	const fn = args[0] && unwrap(args[0]);
 	if (!fn) return D(say.sort.sorted({ list: list.t }), list.kids);
 	if (!isFn(fn)) return D(say.sort.using({ list: list.t, fn: e.text(fn) }), list.kids);
+	const spec = sortSpec({ e, say, fn });
+	if (spec) return D(say.sort[spec.order]({ list: list.t, key: spec.key }), list.kids);
 	const ex = e.lambdaExpr(fn);
 	const a = e.paramName(fn.params[0]);
 	const b = e.paramName(fn.params[1]);
-	if (ex && a && b) {
-		const u = unwrap(ex);
-		const keyOf = (side: N, who: string) => {
-			const s = unwrap(side);
-			if (s.type === "Identifier" && s.name === who) return SELF;
-			if (s.type === "MemberExpression" && !s.computed && unwrap(s.object).name === who) return s.property.name as string;
-			return null;
-		};
-		const sorted = (phrase: StdPhrases["sort"]["smallestFirst"], k: string) =>
-			D(phrase({ list: list.t, key: k === SELF ? mk("v", say.sort.value, SELF) : e.prop(k) }), list.kids);
-		if (u.type === "BinaryExpression" && u.operator === "-") {
-			const ka = keyOf(u.left, a);
-			if (ka && ka === keyOf(u.right, b)) return sorted(say.sort.smallestFirst, ka);
-			const ra = keyOf(u.left, b);
-			if (ra && ra === keyOf(u.right, a)) return sorted(say.sort.largestFirst, ra);
-		}
-		if (u.type === "CallExpression" && unwrap(u.callee).property?.name === "localeCompare") {
-			const k1 = keyOf(unwrap(u.callee).object, a);
-			if (k1 && k1 === keyOf(u.arguments[0], b)) return sorted(say.sort.alphabetical, k1);
-			const r1 = keyOf(unwrap(u.callee).object, b);
-			if (r1) return sorted(say.sort.reverseAlphabetical, r1);
-		}
-	}
 	return block(say.sort.byRule({ list: list.t }), [
 		...list.kids,
 		...(ex ? e.bullet(D(say.sort.compare({ a: `${a}`, b: `${b}`, expr: e.text(ex) }))) : e.body(fn.body, 0)),

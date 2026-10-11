@@ -108,8 +108,9 @@ export const valueRules: Calls = {
 		if (!fn || !isFn(fn)) return null;
 		return block(say.setTimeout({ ms: args[1] ? e.text(args[1]) : "0", stmt }), lambdaBlock(e, fn).kids);
 	},
-	"*.log": ({ obj, args, e, say }) => logRule({ e, obj, args, phrase: say.log.log }),
-	"*.info": ({ obj, args, e, say }) => logRule({ e, obj, args, phrase: say.log.log }),
+	"*.throwIfAborted": ({ obj, args, e, say }) => (args.length ? null : D(say.throwIfAborted({ signal: e.text(obj) }))),
+	"*.log": ({ obj, args, e, say }) => logRule({ e, obj, args, phrase: say.log.log, plainLog: true }),
+	"*.info": ({ obj, args, e, say }) => logRule({ e, obj, args, phrase: say.log.log, plainLog: true }),
 	"*.debug": ({ obj, args, e, say }) => logRule({ e, obj, args, phrase: say.log.debug }),
 	"*.warn": ({ obj, args, e, say }) => logRule({ e, obj, args, phrase: say.log.warn }),
 	"*.error": ({ obj, args, e, say }) => logRule({ e, obj, args, phrase: say.log.error }),
@@ -128,14 +129,30 @@ function sleepMs(e: Engine, arg: N): N | null {
 	return resolves ? call.arguments[1] : null;
 }
 
-function logRule({ e, obj, args, phrase }: { e: Engine; obj: N; args: N[]; phrase: StdPhrases["log"]["log"] }): Doc | null {
+/** `plainLog`: a lone argument of any kind is the logged message ("log usage"), not a detail. */
+function logRule({
+	e,
+	obj,
+	args,
+	phrase,
+	plainLog = false,
+}: {
+	e: Engine;
+	obj: N;
+	args: N[];
+	phrase: StdPhrases["log"]["log"];
+	plainLog?: boolean;
+}): Doc | null {
 	const o = unwrap(obj);
 	const name = o.type === "Identifier" ? o.name : o.type === "MemberExpression" && !o.computed ? o.property.name : "";
 	if (!/log|console/i.test(name)) return null;
-	const msgIdx = args.findIndex((a) => {
+	const isText = (a: N): boolean => {
 		const u = unwrap(a);
-		return (u.type === "Literal" && typeof u.value === "string") || u.type === "TemplateLiteral";
-	});
+		if ((u.type === "Literal" && typeof u.value === "string") || u.type === "TemplateLiteral") return true;
+		const key = u.type === "CallExpression" ? e.ruleKeyOf(unwrap(u.callee)) : null;
+		return !!key && /^chalk(\.|$)/.test(key) && u.arguments.length === 1 && isText(u.arguments[0]);
+	};
+	const msgIdx = plainLog && args.length === 1 ? 0 : args.findIndex(isText);
 	const others = args.filter((_, i) => i !== msgIdx);
 	return D(
 		phrase({

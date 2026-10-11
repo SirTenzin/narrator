@@ -104,6 +104,7 @@ export const en: TestingPhrases = {
 	mocks: {
 		spyOn: ({ target }) => `a spy on ${target}`,
 		mockFunction: "a mock function",
+		mockRunning: "a mock function that runs this",
 		implementation: ({ mock, once, stmt }) => `${stmt ? `make ${mock} run` : `${mock}, which runs`} this${once ? " (once)" : ""}`,
 		returns: ({ mock, value, once, stmt }) => `${stmt ? `make ${mock} return` : `${mock}, returning`} ${value}${once ? " (once)" : ""}`,
 		resolves: ({ mock, value, once, stmt }) => `${stmt ? `make ${mock} resolve to` : `${mock}, resolving to`} ${value}${once ? " (once)" : ""}`,

@@ -1,15 +1,27 @@
 import { D } from "@usenarrator/core";
 import type { Engine, N } from "../engine";
-import { definePlugin } from "../plugin";
+import { type CallRule, definePlugin } from "../plugin";
 import { arrayRules } from "./arrayRules";
 import { conditionRules } from "./conditionRules";
 import { en } from "./en";
+import { nodeConditions, nodeRules } from "./nodeRules";
 import type { StdPhrases } from "./phrases";
 import { withPipelines } from "./pipeline";
 import { valueRules } from "./valueRules";
 
 export type { StdPhrases } from "./phrases";
 export { en as stdEn };
+
+/** Merges rule tables; where both claim a key, the first table's rule gets the first try. */
+const firstOf = (a: Record<string, CallRule<StdPhrases>>, b: Record<string, CallRule<StdPhrases>>) => {
+	const out = { ...b, ...a };
+	for (const k of Object.keys(a)) {
+		const later = b[k];
+		const first = a[k]!;
+		if (later) out[k] = (ctx) => first(ctx) ?? later(ctx);
+	}
+	return out;
+};
 
 const styleOnly = ({ args, e }: { args: N[]; e: Engine }) => (args.length === 1 ? e.noun(args[0]) : null);
 
@@ -64,12 +76,11 @@ export const std = definePlugin<StdPhrases>({
 	},
 	errors: /Error$/,
 	calls: {
-		...withPipelines(arrayRules),
-		...valueRules,
+		...firstOf(nodeRules, { ...withPipelines(arrayRules), ...valueRules }),
 		"chalk.*": styleOnly,
 		chalk: styleOnly,
 		cn: ({ args, say }) => (args.length ? D(say.someCssClasses) : null),
 		clsx: ({ say }) => D(say.someCssClasses),
 	},
-	conditions: conditionRules,
+	conditions: { ...conditionRules, ...nodeConditions, ...Object.fromEntries(Object.entries(nodeConditions).map(([k, r]) => [`*.${k}`, r])) },
 });

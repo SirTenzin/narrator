@@ -6,6 +6,14 @@ import type { TestingPhrases } from "./phrases";
 export type { TestingPhrases } from "./phrases";
 export { en as testingEn };
 
+/** A callback's body as statements: an expression body runs as a step when it's a call, and is given back otherwise. */
+const fnBody = (fn: N): N => {
+	if (fn.body.type === "BlockStatement") return fn.body;
+	const wrapper =
+		unwrap(fn.body).type === "CallExpression" ? { type: "ExpressionStatement", expression: fn.body } : { type: "ReturnStatement", argument: fn.body };
+	return { ...wrapper, start: fn.body.start, end: fn.body.end };
+};
+
 const isFn = (n: N) => n && (unwrap(n).type === "ArrowFunctionExpression" || unwrap(n).type === "FunctionExpression");
 
 type Matcher = keyof TestingPhrases["matchers"];
@@ -108,8 +116,7 @@ function testBlock({ e, fn, heading }: { e: Engine; fn: N; heading: () => string
 	const f = fn && unwrap(fn);
 	if (!f || !isFn(f)) return null;
 	const title = heading();
-	const body = f.body.type === "BlockStatement" ? f.body : { type: "ExpressionStatement", expression: f.body, start: f.body.start, end: f.body.end };
-	const lines = e.body(body, 0);
+	const lines = e.body(fnBody(f), 0);
 	return lines.length ? D(`${title}:`, lines) : D(title);
 }
 
@@ -218,8 +225,7 @@ const mockRule =
 		if (kind === "implementation") {
 			const fn = args[0] && unwrap(args[0]);
 			if (!fn || !isFn(fn)) return null;
-			const body = fn.body.type === "BlockStatement" ? fn.body : { type: "ExpressionStatement", expression: fn.body, start: fn.body.start, end: fn.body.end };
-			return D(`${k.implementation({ mock: m.t, once, stmt })}:`, [...m.kids, ...e.body(body, 0)]);
+			return D(`${k.implementation({ mock: m.t, once, stmt })}:`, [...m.kids, ...e.body(fnBody(fn), 0)]);
 		}
 		const v = args[0] ? e.noun(args[0]) : D(e.say.expressions.nothing);
 		return D(k[kind]({ mock: m.t, value: v.t, once, stmt }), [...m.kids, ...v.kids]);
@@ -238,7 +244,14 @@ const mockRules: Record<string, CallRule<TestingPhrases>> = {
 	"jest.spyOn": spyOnRule,
 	"vi.fn": ({ args, say }) => (args.length ? null : D(say.mocks.mockFunction)),
 	"jest.fn": ({ args, say }) => (args.length ? null : D(say.mocks.mockFunction)),
-	mock: ({ args, e, say }) => (isTestImport(e, "mock") && !args.length ? D(say.mocks.mockFunction) : null),
+	mock: ({ args, e, say }) => {
+		if (!isTestImport(e, "mock") || args.length > 1) return null;
+		const fn = args[0] && unwrap(args[0]);
+		if (!fn) return D(say.mocks.mockFunction);
+		if (!isFn(fn)) return null;
+		const lines = e.body(fnBody(fn), 0);
+		return lines.length ? D(`${say.mocks.mockRunning}:`, lines) : D(say.mocks.mockFunction);
+	},
 	"*.mockImplementation": mockRule("implementation"),
 	"*.mockImplementationOnce": mockRule("implementation", true),
 	"*.mockReturnValue": mockRule("returns"),
