@@ -1,0 +1,18 @@
+{
+	"name": "@usenarrator/plugin-temporal",
+	"version": "0.0.0",
+	"private": true,
+	"description": "TS plugin: Temporal TypeScript SDK (workflows, activities, signals/queries/updates, child workflows, workers, client, schedules).",
+	"type": "module",
+	"sideEffects": false,
+	"exports": {
+		".": "./src/index.ts"
+	},
+	"dependencies": {
+		"@usenarrator/core": "workspace:*",
+		"@usenarrator/lang-ts": "workspace:*"
+	},
+	"devDependencies": {
+		"@usenarrator/testkit": "workspace:*"
+	}
+}

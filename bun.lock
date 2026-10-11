@@ -242,6 +242,17 @@
         "pgsql-ast-parser",
       ],
     },
+    "plugins/temporal": {
+      "name": "@usenarrator/plugin-temporal",
+      "version": "0.0.0",
+      "dependencies": {
+        "@usenarrator/core": "workspace:*",
+        "@usenarrator/lang-ts": "workspace:*",
+      },
+      "devDependencies": {
+        "@usenarrator/testkit": "workspace:*",
+      },
+    },
     "plugins/testing": {
       "name": "@usenarrator/plugin-testing",
       "version": "0.0.0",
@@ -380,6 +391,8 @@
     "@usenarrator/plugin-inngest": ["@usenarrator/plugin-inngest@workspace:plugins/inngest"],
 
     "@usenarrator/plugin-sql": ["@usenarrator/plugin-sql@workspace:plugins/sql"],
+
+    "@usenarrator/plugin-temporal": ["@usenarrator/plugin-temporal@workspace:plugins/temporal"],
 
     "@usenarrator/plugin-testing": ["@usenarrator/plugin-testing@workspace:plugins/testing"],
 
