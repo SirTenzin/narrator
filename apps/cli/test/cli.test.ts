@@ -133,3 +133,19 @@ test("diff narrates a git range as English line changes", async () => {
 		process.chdir(cwd);
 	}
 });
+
+test("directories and globs skip git-ignored files, honouring negations", async () => {
+	const dir = project({
+		".gitignore": "generated/*\n!generated/keep.ts\nlocal.ts\n",
+		"src/a.ts": "const a = 1;\n",
+		"generated/client.ts": "const b = 2;\n",
+		"generated/keep.ts": "const c = 3;\n",
+		"local.ts": "const d = 4;\n",
+	});
+	execFileSync("git", ["init", "-q"], { cwd: dir });
+	const out = await cli([dir, "--json"]);
+	const paths = (JSON.parse(out) as { path: string }[]).map((f) => f.path.split("/").slice(-2).join("/")).sort();
+	expect(paths).toEqual(["generated/keep.ts", "src/a.ts"]);
+	const named = await cli([join(dir, "local.ts"), "--plain"]);
+	expect(named).toContain("Let d be 4.");
+});

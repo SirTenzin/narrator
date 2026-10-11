@@ -340,9 +340,11 @@ html.dark .nr-fn {
 	border-radius: 6px !important;
 }
 
-#topbar-cta-button svg {
+#topbar-cta-button svg,
+#topbar-cta-button svg path {
 	color: var(--nr-panel) !important;
-	fill: currentColor;
+	stroke: var(--nr-panel) !important;
+	opacity: 1 !important;
 	background: transparent !important;
 }
 
@@ -388,7 +390,12 @@ html[data-current-path="/"] .prose > p {
 	max-width: 44rem;
 }
 
+/* github-dark-default paints the code block navy (#0d1117); keep every layer neutral. */
 html.dark pre.shiki,
-html.dark .code-block pre {
-	background-color: #0f0f0f !important;
+html.dark .code-block pre,
+html.dark [data-component-part="code-block-root"],
+html.dark [data-component-part="code-group-tab-bar"],
+html.dark .code-block {
+	background-color: var(--nr-subtle) !important;
+	--shiki-dark-bg: var(--nr-subtle) !important;
 }

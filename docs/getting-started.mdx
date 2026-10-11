@@ -25,16 +25,16 @@ The examples are ES modules. In a new npm project, run `npm pkg set type=module`
     npx @usenarrator/cli src/billing.ts
     ```
 
-    Give it files, directories or globs. It prints the English for each TypeScript or JavaScript file it finds. Inside directories and globs it skips files people don't write by hand: dependencies, build output such as `dist` and `.next`, vendored code such as `.yarn`, minified files, and anything `.gitattributes` marks `linguist-generated` or `linguist-vendored`. A file you name directly is always narrated. With no arguments it reads code from standard input.
+    Give it files, directories or globs. It prints the English for each TypeScript or JavaScript file it finds. Inside directories and globs it skips anything your `.gitignore` excludes (exceptions such as `!keep.ts` are respected), plus files people don't write by hand: dependencies, build output such as `dist` and `.next`, vendored code such as `.yarn`, minified files, and anything `.gitattributes` marks `linguist-generated` or `linguist-vendored`. A file you name directly is always narrated. With no arguments it reads code from standard input.
 
     ```bash
     narrator src/billing.ts            # one file
     narrator src/                      # every TS/JS file under src
     narrator "src/**/*.test.ts"        # a glob
-    echo 'if (xs.includes(b)) go()' | narrator --plain
+    echo 'if (basket.includes(apple)) biteTheApple()' | narrator --plain
     ```
 
-    The last command prints `If b is in xs, run go.`
+    The last command prints `If apple is in basket, bite the apple.`
 
     By default, the CLI reads the `package.json` files in your repository and loads only the plugins for libraries you depend on, so a Hono app gets the Hono plugin without any configuration. See [Dependency detection](/concepts/dependency-detection).
 
