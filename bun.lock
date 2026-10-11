@@ -190,6 +190,28 @@
         "@usenarrator/testkit": "workspace:*",
       },
     },
+    "plugins/express": {
+      "name": "@usenarrator/plugin-express",
+      "version": "0.0.0",
+      "dependencies": {
+        "@usenarrator/core": "workspace:*",
+        "@usenarrator/lang-ts": "workspace:*",
+      },
+      "devDependencies": {
+        "@usenarrator/testkit": "workspace:*",
+      },
+    },
+    "plugins/fastify": {
+      "name": "@usenarrator/plugin-fastify",
+      "version": "0.0.0",
+      "dependencies": {
+        "@usenarrator/core": "workspace:*",
+        "@usenarrator/lang-ts": "workspace:*",
+      },
+      "devDependencies": {
+        "@usenarrator/testkit": "workspace:*",
+      },
+    },
     "plugins/hono": {
       "name": "@usenarrator/plugin-hono",
       "version": "0.0.0",
@@ -220,8 +242,30 @@
         "pgsql-ast-parser",
       ],
     },
+    "plugins/tanstack-query": {
+      "name": "@usenarrator/plugin-tanstack-query",
+      "version": "0.0.0",
+      "dependencies": {
+        "@usenarrator/core": "workspace:*",
+        "@usenarrator/lang-ts": "workspace:*",
+      },
+      "devDependencies": {
+        "@usenarrator/testkit": "workspace:*",
+      },
+    },
     "plugins/testing": {
       "name": "@usenarrator/plugin-testing",
+      "version": "0.0.0",
+      "dependencies": {
+        "@usenarrator/core": "workspace:*",
+        "@usenarrator/lang-ts": "workspace:*",
+      },
+      "devDependencies": {
+        "@usenarrator/testkit": "workspace:*",
+      },
+    },
+    "plugins/trpc": {
+      "name": "@usenarrator/plugin-trpc",
       "version": "0.0.0",
       "dependencies": {
         "@usenarrator/core": "workspace:*",
@@ -340,11 +384,19 @@
 
     "@usenarrator/plugin-elysia": ["@usenarrator/plugin-elysia@workspace:plugins/elysia"],
 
+    "@usenarrator/plugin-express": ["@usenarrator/plugin-express@workspace:plugins/express"],
+
+    "@usenarrator/plugin-fastify": ["@usenarrator/plugin-fastify@workspace:plugins/fastify"],
+
     "@usenarrator/plugin-hono": ["@usenarrator/plugin-hono@workspace:plugins/hono"],
 
     "@usenarrator/plugin-sql": ["@usenarrator/plugin-sql@workspace:plugins/sql"],
 
+    "@usenarrator/plugin-tanstack-query": ["@usenarrator/plugin-tanstack-query@workspace:plugins/tanstack-query"],
+
     "@usenarrator/plugin-testing": ["@usenarrator/plugin-testing@workspace:plugins/testing"],
+
+    "@usenarrator/plugin-trpc": ["@usenarrator/plugin-trpc@workspace:plugins/trpc"],
 
     "@usenarrator/plugin-zod": ["@usenarrator/plugin-zod@workspace:plugins/zod"],
 
