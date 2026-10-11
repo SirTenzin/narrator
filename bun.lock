@@ -220,6 +220,17 @@
         "pgsql-ast-parser",
       ],
     },
+    "plugins/stripe": {
+      "name": "@usenarrator/plugin-stripe",
+      "version": "0.0.0",
+      "dependencies": {
+        "@usenarrator/core": "workspace:*",
+        "@usenarrator/lang-ts": "workspace:*",
+      },
+      "devDependencies": {
+        "@usenarrator/testkit": "workspace:*",
+      },
+    },
     "plugins/testing": {
       "name": "@usenarrator/plugin-testing",
       "version": "0.0.0",
@@ -343,6 +354,8 @@
     "@usenarrator/plugin-hono": ["@usenarrator/plugin-hono@workspace:plugins/hono"],
 
     "@usenarrator/plugin-sql": ["@usenarrator/plugin-sql@workspace:plugins/sql"],
+
+    "@usenarrator/plugin-stripe": ["@usenarrator/plugin-stripe@workspace:plugins/stripe"],
 
     "@usenarrator/plugin-testing": ["@usenarrator/plugin-testing@workspace:plugins/testing"],
 
