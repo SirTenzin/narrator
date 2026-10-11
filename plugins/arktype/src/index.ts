@@ -64,26 +64,78 @@ function defShape(e: Engine, say: Say, n: N): Shape {
 
 const describeDef = (e: Engine, say: Say, n: N) => say.withModifiers(defShape(e, say, n));
 
-/** `["string", "=", "x"]`, `["string", "|", "number"]`, `["string", "?"]`, or a real tuple. */
+/** Tuple expressions: `["string", "=", "x"]`, `["string", "|", "number"]`, `["number", "%", 2]`, `["instanceof", Date]`, or a real tuple. */
 function tupleShape(e: Engine, say: Say, els: N[]): Shape {
+	const m = say.modifiers;
+	const head = literalString(els[0]);
+	if (els.length === 2 && head === "instanceof") return { type: say.instance({ name: e.text(els[1]) }), modifiers: [] };
+	if (els.length === 2 && head === "===") return { type: say.literal({ value: e.text(els[1]) }), modifiers: [] };
 	const op = literalString(els[1]);
-	if (els.length === 3 && op === "=") {
-		const inner = defShape(e, say, els[0]);
-		return { type: inner.type, modifiers: [...inner.modifiers, say.modifiers.default({ value: e.text(els[2]) })] };
+	const inner = () => defShape(e, say, els[0]);
+	const add = (x: string) => {
+		const s = inner();
+		return { type: s.type, modifiers: [...s.modifiers, x] };
+	};
+	const operand = () => describeDef(e, say, els[2]);
+	if (els.length === 2 && op === "?") return add(m.optional);
+	if (els.length === 2 && op === "[]") return { type: say.array({ item: describeDef(e, say, els[0]) }), modifiers: [] };
+	if (els.length === 3 && op !== null) {
+		if (op === "=") return add(m.default({ value: e.text(els[2]) }));
+		if (op === "|") return { type: say.union({ options: e.g.list([describeDef(e, say, els[0]), operand()], "or") }), modifiers: [] };
+		if (op === "&") return { type: say.intersection({ types: e.g.list([describeDef(e, say, els[0]), operand()]) }), modifiers: [] };
+		if (op === "=>") return add(m.pipe);
+		if (op === ":") return add(m.narrow);
+		if (op === "%") return add(m.divisibleBy({ value: e.text(els[2]) }));
+		if (op === "@") return add(m.description({ text: e.text(els[2]) }));
+		const bound = BOUND_OPS.get(op);
+		if (bound) return add((m[lengthy(els[0]) ? bound[1] : bound[0]] as (p: { value: string }) => string)({ value: e.text(els[2]) }));
 	}
-	if (els.length === 2 && op === "?") {
-		const inner = defShape(e, say, els[0]);
-		return { type: inner.type, modifiers: [...inner.modifiers, say.modifiers.optional] };
-	}
-	if (els.length === 3 && op === "|")
-		return { type: say.union({ options: e.g.list([describeDef(e, say, els[0]), describeDef(e, say, els[2])], "or") }), modifiers: [] };
-	if (els.length === 3 && (op === "=>" || op === ":")) {
-		const inner = defShape(e, say, els[0]);
-		return { type: inner.type, modifiers: [...inner.modifiers, op === "=>" ? say.modifiers.pipe : say.modifiers.narrow] };
-	}
-	if (els.length === 2 && literalString(els[1]) === "[]") return { type: say.array({ item: describeDef(e, say, els[0]) }), modifiers: [] };
 	return { type: say.tuple({ items: e.g.list(els.map((x) => describeDef(e, say, x))) }), modifiers: [] };
 }
+
+type BoundMod =
+	| "atLeast"
+	| "atMost"
+	| "moreThan"
+	| "lessThan"
+	| "exactly"
+	| "lengthAtLeast"
+	| "lengthAtMost"
+	| "lengthMoreThan"
+	| "lengthLessThan"
+	| "lengthExactly";
+const BOUND_OPS = new Map<string, [BoundMod, BoundMod]>([
+	[">=", ["atLeast", "lengthAtLeast"]],
+	["<=", ["atMost", "lengthAtMost"]],
+	[">", ["moreThan", "lengthMoreThan"]],
+	["<", ["lessThan", "lengthLessThan"]],
+	["==", ["exactly", "lengthExactly"]],
+]);
+
+/** Bounds on text and lists are lengths. */
+const lengthy = (n: N) => {
+	const s = literalString(n);
+	return s !== null && (s.startsWith("string") || s.endsWith("[]"));
+};
+
+/** Bound methods (`.atLeast(1)`, `.atMostLength(50)`, `.divisibleBy(2)`) by name. */
+const BOUND_METHODS = new Map<string, BoundMod | "divisibleBy" | "matching">([
+	["atLeast", "atLeast"],
+	["atMost", "atMost"],
+	["moreThan", "moreThan"],
+	["lessThan", "lessThan"],
+	["atOrAfter", "atLeast"],
+	["atOrBefore", "atMost"],
+	["laterThan", "moreThan"],
+	["earlierThan", "lessThan"],
+	["atLeastLength", "lengthAtLeast"],
+	["atMostLength", "lengthAtMost"],
+	["moreThanLength", "lengthMoreThan"],
+	["lessThanLength", "lengthLessThan"],
+	["exactlyLength", "lengthExactly"],
+	["divisibleBy", "divisibleBy"],
+	["matching", "matching"],
+]);
 
 /** `{ name: "string", "age?": "number" }` -> "an object with name and age". */
 function objectText(e: Engine, say: Say, o: N): string {
@@ -203,13 +255,28 @@ function applyMethod(e: Engine, say: Say, s: Shape, step: { m: string; args: N[]
 			return add(m.description({ text: e.text(step.args[0]) }));
 		case "brand":
 			return add(m.brand({ name: e.text(step.args[0]) }));
+		case "partial":
+		case "required":
+			return { type: say[step.m]({ type: whole }), modifiers: [] };
+		case "pick":
+		case "omit":
+			return {
+				type: say[step.m]({ type: whole, keys: e.g.list(step.args.map((a) => (literalString(a) !== null ? e.prop(literalString(a)!) : e.text(a)))) }),
+				modifiers: [],
+			};
+		case "keyof":
+			return { type: say.keyof({ type: whole }), modifiers: [] };
 		case "onUndeclaredKey":
 		case "onDeepUndeclaredKey": {
 			const mode = literalString(step.args[0]);
 			return mode === "reject" ? add(say.rejectsOthers) : mode === "delete" ? add(say.dropsOthers) : s;
 		}
-		default:
-			return s;
+		default: {
+			const bound = BOUND_METHODS.get(step.m);
+			if (!bound) return s;
+			const value = e.text(step.args[0]);
+			return add(bound === "matching" ? m.matching({ pattern: value }) : (m[bound] as (p: { value: string }) => string)({ value }));
+		}
 	}
 }
 
@@ -298,7 +365,11 @@ export const arktype = (): TsPlugin<Say> => {
 			e.imports.get(callee.name)?.name === "scope";
 		const defs = scope ? unwrap(o.arguments[0]) : null;
 		if (defs?.type !== "ObjectExpression") return null;
-		const names = defs.properties.map((p: N) => (p.key?.name ? mk("v", e.lex.humanize(p.key.name), p.key.name) : e.text(p)));
+		const names = defs.properties.map((p: N) => {
+			if (p.type === "SpreadElement") return e.say.expressions.everythingIn({ value: e.text(p.argument) });
+			const key = p.key?.type === "Identifier" ? p.key.name : String(p.key?.value ?? e.code(p.key));
+			return mk("v", e.lex.humanize(key.replace(/^#/, "")), key);
+		});
 		return D(say.scope({ names: e.g.list(names) }));
 	};
 	return definePlugin<Say>({

@@ -24,6 +24,11 @@ export type ArkTypePhrases = {
 	rejectsOthers: string;
 	dropsOthers: string;
 	merged: P<"type" | "extra">;
+	partial: P<"type">;
+	required: P<"type">;
+	pick: P<"type" | "keys">;
+	omit: P<"type" | "keys">;
+	keyof: P<"type">;
 	/** A name the definition refers to, like a scope alias. */
 	alias: P<"name">;
 	withModifiers: (p: { type: string; modifiers: string[] }) => string;

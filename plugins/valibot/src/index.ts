@@ -41,6 +41,9 @@ const elements = (n: N): N[] | null => (unwrap(n)?.type === "ArrayExpression" ? 
 const BASES = new Set(["string", "number", "bigint", "boolean", "date", "any", "unknown", "nan", "symbol", "file", "blob", "never"]);
 const BASE_ALIASES = new Map<string, keyof Say["base"]>([
 	["null_", "null"],
+	["null", "null"],
+	["undefined", "undefined"],
+	["void", "void"],
 	["undefined_", "undefined"],
 	["void_", "void"],
 ]);

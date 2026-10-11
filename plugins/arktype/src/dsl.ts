@@ -18,6 +18,7 @@ const KEYWORDS = new Map<string, [Base, Mod | null, Base?]>([
 	["undefined", ["undefined", null]],
 	["unknown", ["unknown", null]],
 	["any", ["unknown", null]],
+	["unknown.any", ["unknown", null]],
 	["never", ["never", null]],
 	["object", ["object", null]],
 	["Date", ["date", null]],
@@ -128,6 +129,12 @@ export function parseDef(e: Engine, say: Say, def: string): Shape {
 	if (s.startsWith("(") && s.endsWith(")")) return parseDef(e, say, s.slice(1, -1));
 	if (s.endsWith("[]")) return plain(say.array({ item: say.withModifiers(parseDef(e, say, s.slice(0, -2))) }));
 	if (LITERAL.test(s)) return plain(say.literal({ value: literalText(s) }));
+	if (/^d(['"]).*\1$/.test(s)) return plain(say.literal({ value: mk("l", s.slice(1)) }));
+	const brand = s.match(/^([\w.$]+(?:\[\])?)#(\w+)$/);
+	if (brand) {
+		const inner = parseDef(e, say, brand[1]!);
+		return { type: inner.type, modifiers: [...inner.modifiers, say.modifiers.brand({ name: mk("l", `"${brand[2]}"`) })] };
+	}
 	if (s.startsWith("/") && s.lastIndexOf("/") > 0) return { type: say.base.string, modifiers: [say.modifiers.matching({ pattern: mk("c", s) })] };
 	const range = s.match(/^(\S+)\s*(<=|<|>=|>|==)\s*([\w.$]+)\s*(<=|<|>=|>|==)\s*(\S+)$/);
 	if (range) {

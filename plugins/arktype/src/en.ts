@@ -31,6 +31,11 @@ export const en: ArkTypePhrases = {
 	rejectsOthers: "no other fields allowed",
 	dropsOthers: "other fields removed",
 	merged: ({ type, extra }) => `${type} plus ${extra}`,
+	partial: ({ type }) => `${type}, with every field optional`,
+	required: ({ type }) => `${type}, with every field required`,
+	pick: ({ type, keys }) => `${type}, keeping only ${keys}`,
+	omit: ({ type, keys }) => `${type}, without ${keys}`,
+	keyof: ({ type }) => `one of the keys of ${type}`,
 	alias: ({ name }) => name,
 	withModifiers: ({ type, modifiers }) => `${type}${modifiers.length ? ` (${modifiers.join(", ")})` : ""}`,
 	modifiers: {
