@@ -201,6 +201,7 @@
       "peerDependencies": {
         "@usenarrator/core": "workspace:^",
         "@usenarrator/lang-ts": "workspace:^",
+        "@usenarrator/plugin-sql": "workspace:^",
       },
     },
     "plugins/effect": {

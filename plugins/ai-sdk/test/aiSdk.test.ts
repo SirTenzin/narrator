@@ -1,4 +1,7 @@
 import { describe, expect, test } from "bun:test";
+import { createNarrator, renderText } from "@usenarrator/core";
+import { type TsPlugin, typescript } from "@usenarrator/lang-ts";
+import { oxcParser } from "@usenarrator/lang-ts/oxc";
 import { en as english } from "@usenarrator/locale-en";
 import { zod } from "@usenarrator/plugin-zod";
 import { narrate, narrateWithStats, phrasebookGaps } from "@usenarrator/testkit";
@@ -390,5 +393,27 @@ describe("phrasebook", () => {
 
 	test("the plugin declares the library it reads", () => {
 		expect(aiSdk().library).toEqual({ name: "ai", versions: ">=6 <8" });
+	});
+});
+
+/** Narrates `code` as a file of a package declaring `dependencies`, the way a host with package.json access would. */
+function inPackage({ code, plugins, dependencies }: { code: string; plugins: TsPlugin[]; dependencies: Record<string, string> }) {
+	const narrator = createNarrator({ languages: [typescript({ parser: oxcParser, plugins, dependencies: () => dependencies })], locale: english });
+	return renderText(narrator.narrate(code, "snippet.ts").lines);
+}
+
+describe("results and packages", () => {
+	test("fields of a model call's result read as what they hold", () => {
+		const text = read(`${AI}const result = await generateText({ model: openai("gpt-5"), prompt });\nlog(result.usage, result.text);`, { version: 6 });
+		expect(text).toContain("Log (result's token usage from the final step and result's text).");
+	});
+
+	test("the package's AI SDK major sets the version", () => {
+		const code =
+			'import { generateText } from "ai";\nimport { openai } from "@ai-sdk/openai";\nconst { text, usage } = await generateText({ model: openai("gpt-5"), prompt });';
+		const plugins = [zod(), aiSdk()];
+		expect(inPackage({ code, plugins, dependencies: { ai: "^6.0.0" } })).toBe(read(code, { version: 6 }));
+		expect(inPackage({ code, plugins, dependencies: { ai: "^7.0.0" } })).toBe(read(code, { version: 7 }));
+		expect(read(code, { version: 6 })).not.toBe(read(code, { version: 7 }));
 	});
 });

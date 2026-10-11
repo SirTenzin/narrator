@@ -261,6 +261,7 @@ export const en: AiSdkPhrases = {
 		},
 		scoped: ({ thing, scope }) => (scope ? `${thing} ${scopes[scope]}` : thing),
 		renamed: ({ thing, name }) => `${thing} (as ${name})`,
+		of: ({ thing, owner }) => `${owner} ${thing}`,
 	},
 	streams: {
 		text: ({ item, source }) => `For each piece of text (${item}) as it streams in${from(source)}`,

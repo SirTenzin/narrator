@@ -129,7 +129,10 @@ function selectFrom(outer: Ctx, s: SelectFromStatement): Narrated {
 	const rendered = star ? [] : columnList(c, cols);
 	const src = from[0]?.name;
 	let head: string;
-	if (!src) head = sel.bare({ columns: e.g.list(rendered) });
+	if (!src)
+		head = sel.bare({
+			columns: e.g.list(cols.map((col) => (col.alias ? sel.alias({ value: value(c, col.expr), name: code(col.alias.name) }) : value(c, col.expr)))),
+		});
 	else if (star) head = sel.rows({ source: src });
 	else if (fitsInline(rendered) && !cols.some((col) => col.alias)) head = sel.columns({ columns: e.g.list(rendered), source: src });
 	else {

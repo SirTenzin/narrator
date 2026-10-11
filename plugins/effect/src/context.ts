@@ -7,7 +7,8 @@ export type Mode = "noun" | "act";
 
 /** Per-file facts the yield reader needs (v3 fibers, refs and deferreds are themselves yieldable). */
 export type FileState = {
-	src: string;
+	/** The file these facts were read from. */
+	program: N;
 	fibers: Set<string>;
 	refs: Set<string>;
 	deferreds: Set<string>;
@@ -86,35 +87,19 @@ export function numbered(c: Ctx, docs: Doc[]): Line[] {
 	]);
 }
 
-const IMPORT = /\bimport\s+(?:type\s+)?([\w$*{}\s,]+?)\s+from\s+["']([^"']+)["']/g;
 export const isEffectModule = (m: string) => /^(effect|@effect\/[\w-]+)(\/|$)/.test(m);
-
-/** Local names bound by an import clause: `A`, `* as A`, `{ a, b as c, type d }`. */
-function importedNames(clause: string): string[] {
-	return clause
-		.replace(/[{}]/g, ",")
-		.split(",")
-		.map((part) => part.trim().replace(/^type\s+/, ""))
-		.filter(Boolean)
-		.map((part) =>
-			part
-				.split(/\s+as\s+/)
-				.at(-1)!
-				.trim(),
-		);
-}
 
 /** What a file imports: names bound from Effect modules, names bound from anything else, and every module specifier. */
 export type FileImports = { importsEffect: boolean; effectNames: Set<string>; foreignNames: Set<string>; modules: Set<string> };
 
-export function readImports(src: string): FileImports {
+/** Reads the engine's per-file imports; a file counts as Effect code when it imports Effect or its package depends on it. */
+export function fileImports(e: Engine): FileImports {
 	const out: FileImports = { importsEffect: false, effectNames: new Set(), foreignNames: new Set(), modules: new Set() };
-	for (const [, clause, from] of src.matchAll(IMPORT)) {
-		out.modules.add(from!);
-		const names = isEffectModule(from!) ? out.effectNames : out.foreignNames;
-		for (const n of importedNames(clause!)) names.add(n);
+	for (const [local, { from }] of e.imports) {
+		out.modules.add(from);
+		(isEffectModule(from) ? out.effectNames : out.foreignNames).add(local);
 	}
-	out.importsEffect = [...out.modules].some(isEffectModule);
+	out.importsEffect = e.usesLibrary("effect") || [...out.modules, ...Object.keys(e.dependencies)].some(isEffectModule);
 	return out;
 }
 
@@ -122,14 +107,14 @@ export function readImports(src: string): FileImports {
 export const ownsIn = (imports: FileImports, name: string) => imports.importsEffect && (imports.effectNames.has(name) || !imports.foreignNames.has(name));
 
 export function resetState(c: Ctx) {
-	if (c.state.src === c.e.src) return;
+	if (c.state.program === c.e.program) return;
 	const s = c.state;
-	s.src = c.e.src;
+	s.program = c.e.program;
 	s.fibers.clear();
 	s.refs.clear();
 	s.deferreds.clear();
 	s.queues.clear();
-	Object.assign(s, readImports(c.e.src));
+	Object.assign(s, fileImports(c.e));
 }
 
 /** A schema argument as a type phrase via whichever plugin describes schemas; a bare `User` reads "a user". */

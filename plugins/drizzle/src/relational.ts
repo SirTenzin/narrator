@@ -1,7 +1,7 @@
 import { D, type Doc, plain, vlen } from "@usenarrator/core";
 import { type N, unwrap } from "@usenarrator/lang-ts";
 import { compareOp } from "./operators";
-import { type Ctx, condition, entryDoc, fnResult, isDb, isFn, items, keyName, listDoc, literalString, val } from "./shared";
+import { type Ctx, condition, entryDoc, fnResult, isDb, isFn, isOne, items, keyName, listDoc, literalString, val } from "./shared";
 
 /** `db.query.users` -> "users", or null when the receiver isn't a relational query table. */
 function relationalTable(c: Ctx, obj: N | null): string | null {
@@ -70,8 +70,8 @@ function optionKids(c: Ctx, opts: N): Kid[] {
 		} else if (k === "columns" && v.type === "ObjectExpression") add(columnsDoc(c, v));
 		else if (k === "with" && v.type === "ObjectExpression") for (const rel of v.properties) add(withDoc(c, rel));
 		else if (k === "orderBy") add(D(say.query.sortedBy({ columns: orderList(c, v) })));
-		else if (k === "limit") add(D(say.query.atMost({ count: val(c, v).t })));
-		else if (k === "offset") add(D(say.query.skipping({ count: val(c, v).t })));
+		else if (k === "limit") add(D(say.query.atMost({ count: val(c, v).t, one: isOne(v) })));
+		else if (k === "offset") add(D(say.query.skipping({ count: val(c, v).t, one: isOne(v) })));
 		else if (k === "extras" && v.type === "ObjectExpression")
 			for (const x of v.properties) {
 				const xk = keyName(x);

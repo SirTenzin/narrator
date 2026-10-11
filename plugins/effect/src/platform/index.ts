@@ -1,6 +1,6 @@
 import { D, type Doc, type Line, mk } from "@usenarrator/core";
 import { type CallRule, definePlugin, type Engine, type N, type StmtRule, type TsPlugin, unwrap } from "@usenarrator/lang-ts";
-import { calleeKey, type FileImports, isFn, isObj, objProp, readImports, schemaPhrase, strLit } from "../context";
+import { calleeKey, type FileImports, fileImports, isFn, isObj, objProp, schemaPhrase, strLit } from "../context";
 import { en } from "./en";
 import type { PlatformPhrases } from "./phrases";
 
@@ -368,16 +368,13 @@ const classRule =
 
 /** Effect's HTTP modules: `HttpClient`, `HttpRouter`, `HttpServerResponse` and `HttpApi*`, from `@effect/platform` (v3) or `effect/http` + `effect/http-api` (v4). */
 export const effectPlatform = (): TsPlugin<PlatformPhrases> => {
-	let src = "\0";
-	let imp = readImports("");
-	let clients = new Set<string>();
+	let file: { program: N; imp: FileImports; clients: Set<string> } | null = null;
 	const ctx = (e: Engine, say: PlatformPhrases): Ctx => {
-		if (e.src !== src) {
-			src = e.src;
-			imp = readImports(src);
-			clients = new Set([...src.matchAll(CLIENT)].map((m) => m[1]!));
-		}
-		return { e, say, imp, clients };
+		const f =
+			file && file.program === e.program
+				? file
+				: (file = { program: e.program, imp: fileImports(e), clients: new Set([...e.src.matchAll(CLIENT)].map((m) => m[1]!)) });
+		return { e, say, imp: f.imp, clients: f.clients };
 	};
 	const calls: Record<string, CallRule<PlatformPhrases>> = {};
 	const bind =

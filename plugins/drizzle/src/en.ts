@@ -6,6 +6,7 @@ const inParens = (items: string[]) => (items.length ? ` (${items.join(", ")})` :
 const named = (name: string) => (name ? ` ${name}` : "");
 
 export const en: DrizzlePhrases = {
+	database: ({ source, schema }) => `a Drizzle database${source ? ` over ${source}` : ""}${schema ? `, with the tables in ${schema}` : ""}`,
 	compare: {
 		equal: ({ left, right, neg }) => `${left} ${neg ? "is not" : "is"} ${right}`,
 		moreThan: ({ left, right }) => `${left} is more than ${right}`,
@@ -82,14 +83,25 @@ export const en: DrizzlePhrases = {
 		insertInto: ({ table }) => `insert into ${table}`,
 		update: ({ table }) => `update ${table}`,
 		deleteFrom: ({ table }) => `delete from ${table}`,
+		noun: {
+			everyRow: ({ table }) => `every row of ${table}`,
+			rows: ({ table }) => `the rows of ${table}`,
+			select: ({ selection }) => `${selection} from the DB`,
+			selectAll: "rows from the DB",
+			insertInto: ({ table, returning }) => (returning ? `the rows inserted into ${table}` : `the result of inserting into ${table}`),
+			update: ({ table, returning }) => (returning ? `the rows updated in ${table}` : `the result of updating ${table}`),
+			deleteFrom: ({ table, returning }) => (returning ? `the rows deleted from ${table}` : `the result of deleting from ${table}`),
+		},
+		theseFields: "these fields",
+		returningFields: ({ fields }) => `giving back ${fields}`,
 		values: ({ values }) => `the values: ${values}`,
 		setting: ({ changes }) => `setting ${changes}`,
 		where: ({ condition }) => `where ${condition}`,
 		joined: ({ table, condition }) => `joined with ${table} on ${condition}`,
 		crossJoined: ({ table }) => `paired with every row of ${table}`,
 		sortedBy: ({ columns }) => `sorted by ${columns}`,
-		atMost: ({ count }) => `at most ${count} row(s)`,
-		skipping: ({ count }) => `skipping the first ${count}`,
+		atMost: ({ count, one }) => (one ? "at most 1 row" : `at most ${count} rows`),
+		skipping: ({ count, one }) => (one ? "skipping the first row" : `skipping the first ${count} rows`),
 		returning: "giving back the affected rows",
 		returningIds: "giving back the new rows' IDs",
 		ignoreConflicts: "ignoring rows that already exist",

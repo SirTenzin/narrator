@@ -7,7 +7,7 @@ import { en } from "./en";
 import type { ElysiaPhrases } from "./phrases";
 import { PLUGIN_NAMES, pluginDoc } from "./plugins";
 import { typeText } from "./schema";
-import { type Ctx, newState, REPLY_CALLS, refresh, type Version } from "./shared";
+import { type Ctx, isContextCall, newState, REPLY_CALLS, refresh, type Version } from "./shared";
 
 export { en } from "./en";
 export type { BaseType, ElysiaPhrases, HookScope, LifecycleEvent, RequestPart, StringFormat } from "./phrases";
@@ -67,10 +67,15 @@ const TYPEBOX_BUILDERS = [
 
 /** Elysia (elysiajs.com) 1.x and the 2.0 beta: apps, routes, hooks, lifecycle, TypeBox schemas, official plugins, and the Eden treaty client. */
 export const elysia = ({ version }: ElysiaOptions = {}): TsPlugin<ElysiaPhrases> => {
-	const v: Version = version ?? "auto";
 	const state = newState();
+	/** A pinned version wins; otherwise the file's package decides, and both readings apply when it's unknown. */
+	const versionOf = (e: Engine): Version => {
+		if (version) return version;
+		const major = e.libraryMajor("elysia");
+		return major === 1 || major === 2 ? major : "auto";
+	};
 	const ctx = (e: Engine, say: ElysiaPhrases): Ctx => {
-		const c = { e, say, version: v, state };
+		const c = { e, say, version: versionOf(e), state };
 		refresh(c);
 		return c;
 	};
@@ -93,10 +98,16 @@ export const elysia = ({ version }: ElysiaOptions = {}): TsPlugin<ElysiaPhrases>
 		return t ? D(say.schema.of({ type: t })) : null;
 	};
 	for (const b of TYPEBOX_BUILDERS) calls[`*.${b}`] = schemaRule;
-	calls.status = ({ args, e, say }) => statusCall(ctx(e, say), args);
-	if (v !== 2) calls.error = ({ args, e, say }) => statusCall(ctx(e, say), args);
-	if (v !== 1) calls.problem = ({ args, e, say }) => problemCall(ctx(e, say), args);
-	calls.redirect = ({ args, e, say }) => redirectCall(ctx(e, say), args);
+	const contextCall =
+		(name: string, render: (c: Ctx, args: N[]) => Doc | null, skip?: Version): Rule =>
+		({ args, e, say }) => {
+			const c = ctx(e, say);
+			return c.version !== skip && isContextCall(c, name) ? render(c, args) : null;
+		};
+	calls.status = contextCall("status", statusCall);
+	calls.error = contextCall("error", statusCall, 2);
+	calls.problem = contextCall("problem", problemCall, 1);
+	calls.redirect = contextCall("redirect", redirectCall);
 	calls["*.sign"] = ({ obj, args, e, say }) => jwtCall(ctx(e, say), { obj, args, verify: false });
 	calls["*.verify"] = ({ obj, args, e, say }) => jwtCall(ctx(e, say), { obj, args, verify: true });
 	for (const name of ["treaty", "edenTreaty"]) calls[name] = ({ node, e, say }) => clientDoc(ctx(e, say), node);

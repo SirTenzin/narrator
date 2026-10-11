@@ -1,6 +1,6 @@
 import { D, type Doc, mk } from "@usenarrator/core";
 import { type CallRule, definePlugin, type Engine, type N, type TsPlugin, unwrap } from "@usenarrator/lang-ts";
-import { type FileImports, isObj, objProp, readImports, schemaPhrase } from "../context";
+import { type FileImports, fileImports, isObj, objProp, schemaPhrase } from "../context";
 
 type P<K extends string> = (p: { [k in K]: string }) => string;
 
@@ -67,15 +67,15 @@ const sqlSchema =
 
 /** Effect SQL (`@effect/sql` in v3, `effect/sql` in v4): `sql` tagged queries, transactions, `SqlSchema` and `SqlResolver`. */
 export const effectSql = (): TsPlugin<EffectSqlPhrases> => {
-	let src = "\0";
-	let ctxCache: Omit<Ctx, "e" | "say"> = { imp: readImports(""), clients: new Set() };
+	let file: { program: N; usesSql: boolean; imp: FileImports; clients: Set<string> } | null = null;
 	const ctx = (e: Engine, say: EffectSqlPhrases): Ctx | null => {
-		if (e.src !== src) {
-			src = e.src;
-			ctxCache = { imp: readImports(src), clients: new Set([...src.matchAll(CLIENT)].map((m) => m[1]!)) };
+		let f = file;
+		if (!f || f.program !== e.program) {
+			const imp = fileImports(e);
+			const usesSql = [...imp.modules, ...Object.keys(e.dependencies)].some((m) => SQL_MODULE.test(m));
+			f = file = { program: e.program, usesSql, imp, clients: new Set([...e.src.matchAll(CLIENT)].map((m) => m[1]!)) };
 		}
-		const usesSql = [...ctxCache.imp.modules].some((m) => SQL_MODULE.test(m));
-		return usesSql ? { e, say, ...ctxCache } : null;
+		return f.usesSql ? { e, say, imp: f.imp, clients: f.clients } : null;
 	};
 	const rule =
 		(f: (c: Ctx, args: N[], x: { obj: N | null; stmt: boolean; node: N }) => Doc | string | null): CallRule<EffectSqlPhrases> =>
@@ -85,7 +85,7 @@ export const effectSql = (): TsPlugin<EffectSqlPhrases> => {
 		};
 	const onClient = (c: Ctx, obj: N | null) => unwrap(obj)?.type === "Identifier" && c.clients.has(unwrap(obj).name);
 	const calls: Record<string, CallRule<EffectSqlPhrases>> = {
-		"sql``": rule((c, [quasi]) => (quasi ? D(c.say.query({ sql: sqlText(c.e, quasi) })) : null)),
+		"sql``": rule((c, [quasi]) => (quasi && !c.imp.foreignNames.has("sql") ? D(c.say.query({ sql: sqlText(c.e, quasi) })) : null)),
 		"*.withTransaction": rule((c, [eff], { obj, stmt }) =>
 			onClient(c, obj) && eff ? D(c.say.transaction[stmt ? "act" : "noun"]({ effect: c.e.noun(eff).t })) : null,
 		),

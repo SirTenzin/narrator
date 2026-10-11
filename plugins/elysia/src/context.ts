@@ -2,7 +2,7 @@ import { D, type Doc, mk } from "@usenarrator/core";
 import type { N } from "@usenarrator/lang-ts";
 import { unwrap } from "@usenarrator/lang-ts";
 import { statusName } from "./hooks";
-import { type Ctx, findProp, importsElysia, isPluginModule, literal, objectArg } from "./shared";
+import { type Ctx, findProp, importsElysia, literal, objectArg, usesPlugin } from "./shared";
 
 /** Elysia's `StatusMap` names (`status("Not Found")`) by code; these are source values, not prose. */
 const STATUS_CODES: Record<string, number> = {
@@ -88,7 +88,7 @@ export function redirectCall(c: Ctx, args: N[]): Doc | null {
 /** `jwt.sign(payload)` / `jwt.verify(token)` on the JWT plugin's context name. */
 export function jwtCall(c: Ctx, { obj, args, verify }: { obj: N | null; args: N[]; verify: boolean }): Doc | null {
 	const o = unwrap(obj);
-	if (o?.type !== "Identifier" || !c.state.jwtNames.has(o.name) || ![...c.state.imports.values()].some((m) => isPluginModule(m, "jwt"))) return null;
+	if (o?.type !== "Identifier" || !c.state.jwtNames.has(o.name) || !usesPlugin(c, "jwt")) return null;
 	const v = c.e.noun(args[0]);
 	return D(verify ? c.say.responses.jwtVerify({ token: v.t }) : c.say.responses.jwtSign({ payload: v.t }), v.kids);
 }

@@ -9,7 +9,8 @@ type Import = { name: string; from: string };
 
 /** Per-file facts: what the file imports from the AI SDK and which locals hold its objects. */
 export type FileState = {
-	src: string;
+	/** The file these facts were read from. */
+	program: N;
 	imports: Map<string, Import>;
 	/** Locals made by `createOpenAI(...)` and friends -> the provider's import name. */
 	providers: Map<string, string>;
@@ -23,12 +24,14 @@ export type FileState = {
 	hookFns: Map<string, string>;
 	/** Locals holding a whole `useChat()` result. */
 	chats: Set<string>;
+	/** Locals holding a model call's or agent run's result (`const result = await generateText(...)`). */
+	results: Set<string>;
 };
 
 export type Ctx = { e: Engine; say: AiSdkPhrases; version: Version; state: FileState };
 
 export const newState = (): FileState => ({
-	src: "\0",
+	program: null,
 	imports: new Map(),
 	providers: new Map(),
 	registries: new Set(),
@@ -37,10 +40,8 @@ export const newState = (): FileState => ({
 	streamParts: new Map(),
 	hookFns: new Map(),
 	chats: new Set(),
+	results: new Set(),
 });
-
-const IMPORT = /import\s+(?:type\s+)?(?:[\w$]+\s*,\s*)?\{([^}]*)\}\s*from\s*["']([^"']+)["']/g;
-const BINDING = /\b(?:const|let|var)\s+([\w$]+)(?:\s*:[^=]+)?\s*=\s*(?:await\s+)?(new\s+)?([\w$]+)(?:\.([\w$]+))?\s*[(<]/g;
 
 /** Packages whose imports count as the AI SDK. */
 export const isSdkSource = (from: string) =>
@@ -48,29 +49,36 @@ export const isSdkSource = (from: string) =>
 
 export function resetState(c: Ctx) {
 	const s = c.state;
-	if (s.src === c.e.src) return;
-	Object.assign(s, newState(), { src: c.e.src });
-	for (const m of c.e.src.matchAll(IMPORT)) {
-		if (!isSdkSource(m[2]!)) continue;
-		for (const spec of m[1]!.split(",")) {
-			const parts = spec
-				.trim()
-				.replace(/^type\s+/, "")
-				.split(/\s+as\s+/);
-			const name = parts[0];
-			if (name && !spec.trim().startsWith("type ")) s.imports.set(parts[1] ?? name, { name, from: m[2]! });
-		}
+	if (s.program === c.e.program) return;
+	Object.assign(s, newState(), { program: c.e.program });
+	for (const [local, imp] of c.e.imports) if (isSdkSource(imp.from)) s.imports.set(local, imp);
+	visit(c.e.program, (n) => {
+		if (n.type !== "VariableDeclarator" || n.id.type !== "Identifier" || !n.init) return;
+		const init = unwrap(n.init.type === "AwaitExpression" ? n.init.argument : n.init);
+		if (init?.type !== "CallExpression" && init?.type !== "NewExpression") return;
+		const callee = unwrap(init.callee);
+		const head = callee?.type === "Identifier" ? callee.name : callee?.type === "MemberExpression" ? identName(callee.object) : null;
+		const method = callee?.type === "MemberExpression" && !callee.computed ? callee.property.name : null;
+		const local = n.id.name;
+		const imp = head ? s.imports.get(head) : undefined;
+		if (init.type === "NewExpression") {
+			if (imp && !method && AGENT_CLASSES.has(imp.name)) s.agents.add(local);
+		} else if (!method && imp && /^create/.test(imp.name) && imp.from !== "ai") s.providers.set(local, providerKey(imp));
+		else if (!method && imp?.name === "createProviderRegistry") s.registries.add(local);
+		else if (!method && imp && (imp.name === "streamText" || imp.name === "streamObject")) s.streams.add(local);
+		else if (method === "stream" && head && s.agents.has(head)) s.streams.add(local);
+		else if (!method && imp?.name === "useChat") s.chats.add(local);
+	});
+}
+
+function visit(n: N, f: (n: N) => void) {
+	if (!n || typeof n !== "object") return;
+	if (Array.isArray(n)) {
+		for (const x of n) visit(x, f);
+		return;
 	}
-	for (const m of c.e.src.matchAll(BINDING)) {
-		const [, local, isNew, head, method] = m;
-		const imp = s.imports.get(head!);
-		if (isNew && imp && AGENT_CLASSES.has(imp.name)) s.agents.add(local!);
-		else if (!method && imp && /^create/.test(imp.name) && imp.from !== "ai") s.providers.set(local!, providerKey(imp));
-		else if (!method && imp?.name === "createProviderRegistry") s.registries.add(local!);
-		else if (!method && imp && (imp.name === "streamText" || imp.name === "streamObject")) s.streams.add(local!);
-		else if (method === "stream" && s.agents.has(head!)) s.streams.add(local!);
-		else if (!method && imp?.name === "useChat") s.chats.add(local!);
-	}
+	if (typeof n.type === "string") f(n);
+	for (const k in n) if (k !== "parent" && n[k] && typeof n[k] === "object") visit(n[k], f);
 }
 
 export const AGENT_CLASSES = new Set(["ToolLoopAgent", "Experimental_Agent"]);

@@ -1,12 +1,13 @@
-import type { Doc } from "@usenarrator/core";
-import { type CallRule, type CondRule, definePlugin, type N, type TsPlugin } from "@usenarrator/lang-ts";
+import { D, type Doc } from "@usenarrator/core";
+import { type CallRule, type CondRule, definePlugin, type N, type TsPlugin, unwrap } from "@usenarrator/lang-ts";
+import { describeSql, fromTemplate } from "@usenarrator/plugin-sql";
 import { en } from "./en";
 import { operatorCalls, operatorConds, sqlMethod } from "./operators";
 import type { DrizzlePhrases } from "./phrases";
 import { QUERY_METHODS, queryDoc } from "./query";
 import { findDoc } from "./relational";
 import { columnDoc, constraintDoc, defineRelationsDoc, enumDoc, relationsDoc, rlsTableDoc, tableDoc } from "./schema";
-import { type Ctx, sqlFragment } from "./shared";
+import { type Ctx, isDb, isDrizzleModule, isDrizzleSql, isSqlTemplate, sqlFragment, sqlStatement } from "./shared";
 import { batchDoc, countDoc, rollbackDoc, transactionDoc } from "./transaction";
 
 export type { ColumnType, DrizzlePhrases, ReferentialAction } from "./phrases";
@@ -32,7 +33,7 @@ const first =
 		return null;
 	};
 
-const query = (c: Ctx, { node }: Site) => queryDoc(c, node);
+const query = (c: Ctx, { node, stmt }: Site) => queryDoc(c, node, stmt ? "action" : "value");
 const sqlMethodOf = (c: Ctx, { node, obj, args }: Site) => sqlMethod(c, node, obj, args);
 const constraint = (c: Ctx, { node }: Site) => constraintDoc(c, node);
 
@@ -59,6 +60,7 @@ const CONSTRAINT_STEPS = ["on", "onOnly", "using", "concurrently", "nullsNotDist
 
 const calls: Record<string, Call> = {
 	...Object.fromEntries(Object.entries(operatorCalls).map(([k, f]) => [k, rule((c, s) => f(c, s.args, s.node))])),
+	...Object.fromEntries(Object.entries(operatorCalls).map(([k, f]) => [`*.${k}`, rule((c, s) => (isOperatorsParam(s.obj) ? f(c, s.args, s.node) : null))])),
 	...Object.fromEntries(COLUMN_MODIFIERS.map((m) => [`*.${m}`, rule(columnDoc)])),
 	...Object.fromEntries(CONSTRAINT_STEPS.map((m) => [`*.${m}`, rule(constraint)])),
 	...Object.fromEntries(QUERY_METHODS.map((m) => [`*.${m}`, rule(first(sqlMethodOf, query, constraint))])),
@@ -83,17 +85,63 @@ const calls: Record<string, Call> = {
 	check: rule(constraint),
 };
 
-/** Drizzle ORM: query builders, relational queries, SQL operators and `sql` fragments, transactions, and schema definitions. */
-const sqlTemplate: CallRule<DrizzlePhrases> = ({ node, e, say }) => sqlFragment({ e, say }, node);
+/** The operators argument of a relational `where(fields, operators)` callback, by its documented names. */
+const isOperatorsParam = (n: N | null) => {
+	const u = unwrap(n);
+	return u?.type === "Identifier" && (u.name === "operators" || u.name === "ops");
+};
 
+/** A `sql` template imported from Drizzle: a full statement reads clause by clause (via plugin-sql), anything else as a fragment. */
+const sqlTemplate: CallRule<DrizzlePhrases> = ({ node, e, say, stmt }) =>
+	isDrizzleSql(e, node.tag) ? (sqlStatement(e, node, stmt ? "action" : "text") ?? sqlFragment({ e, say }, node)) : null;
+
+/** `db.execute(sql\`select ...\`)` (and SQLite's `db.all` / `get` / `run` / `values`): the statement it runs. */
+const runSql =
+	(strict: boolean) =>
+	({ e }: Ctx, { args: [q], obj, stmt }: Site): Doc | null => {
+		if (!q || !obj || !isDb(e, obj) || !isSqlTemplate(q) || (strict && !isDrizzleSql(e, unwrap(q).tag))) return null;
+		const mode = stmt ? "action" : "value";
+		return sqlStatement(e, q, mode) ?? describeSql({ e, sql: fromTemplate({ e, quasi: unwrap(q).quasi, isSqlTag: isSqlTemplate }), mode });
+	};
+
+/** `drizzle(client, { schema })` / `drizzle({ client })` from `drizzle-orm/<driver>`. */
+const database: Call = ({ args: [first, second], e, say }) => {
+	if (!isDrizzleModule(e.imports.get("drizzle")?.from)) return null;
+	// `drizzle(client, options)`, or `drizzle(options)` whose `client` / `connection` is the source.
+	const configOnly = !second && unwrap(first)?.type === "ObjectExpression";
+	const opts = configOnly ? first : second;
+	const prop = (k: string) => (unwrap(opts)?.type === "ObjectExpression" ? unwrap(opts).properties.find((p: N) => p.key?.name === k)?.value : null);
+	const source = configOnly ? (prop("client") ?? prop("connection")) : first;
+	const schema = prop("schema");
+	return D(say.database({ source: source ? e.text(source) : "", schema: schema ? e.text(schema) : "" }));
+};
+
+/** Drizzle ORM: query builders, relational queries, SQL operators and `sql` fragments, transactions, and schema definitions. */
 export const drizzle = (): TsPlugin<DrizzlePhrases> =>
 	definePlugin({
 		name: "drizzle",
+		library: { name: "drizzle-orm", versions: ">=0.29 <2" },
 		phrases: { en },
-		calls: { ...calls, "sql``": sqlTemplate, "*.sql``": sqlTemplate },
-		conditions: Object.fromEntries(
-			Object.entries(operatorConds).map(([k, op]) => [k, (({ args, e, neg, say }) => op({ e, say }, args, neg)) as CondRule<DrizzlePhrases>]),
-		),
+		calls: {
+			...calls,
+			"*.execute": rule(first(runSql(false), sqlMethodOf, query, constraint)),
+			"*.values": rule(first(runSql(true), sqlMethodOf, query, constraint)),
+			...Object.fromEntries(["all", "get", "run"].map((m) => [`*.${m}`, rule(runSql(true))])),
+			drizzle: database,
+			"sql``": sqlTemplate,
+			"*.sql``": sqlTemplate,
+		},
+		conditions: {
+			...Object.fromEntries(
+				Object.entries(operatorConds).map(([k, op]) => [k, (({ args, e, neg, say }) => op({ e, say }, args, neg)) as CondRule<DrizzlePhrases>]),
+			),
+			...Object.fromEntries(
+				Object.entries(operatorConds).map(([k, op]) => [
+					`*.${k}`,
+					(({ args, obj, e, neg, say }) => (isOperatorsParam(obj) ? op({ e, say }, args, neg) : null)) as CondRule<DrizzlePhrases>,
+				]),
+			),
+		},
 	});
 
 declare module "@usenarrator/core" {
