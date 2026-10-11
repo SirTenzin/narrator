@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>Narrator for GitHub options</title>
+		<link rel="stylesheet" href="options.css" />
+	</head>
+	<body>
+		<main class="box">
+			<header class="box-header">
+				<img src="icon128.png" alt="" width="24" height="24" />
+				<h1>Narrator for GitHub</h1>
+			</header>
+			<section class="box-row">
+				<label class="toggle">
+					<input id="enabled" type="checkbox" />
+					<span>
+						<strong>Plain English diffs</strong>
+						<span class="note">Show pull request and commit diffs as plain English. The same switch sits in GitHub's diff settings menu.</span>
+					</span>
+				</label>
+			</section>
+			<section class="box-row">
+				<label for="token"><strong>GitHub token</strong></label>
+				<p class="note">
+					Needed for private repositories, and raises GitHub's limit from 60 to 5,000 requests an hour. A fine-grained token with read-only
+					<em>Contents</em> and <em>Pull requests</em> access is enough. It stays in this browser and is only sent to GitHub.
+				</p>
+				<div class="row">
+					<input id="token" class="input" type="password" autocomplete="off" spellcheck="false" placeholder="github_pat_…" />
+					<button id="save" class="btn btn-primary" type="button">Save</button>
+					<button id="clear" class="btn" type="button">Remove</button>
+				</div>
+				<p id="status" class="note" role="status"></p>
+			</section>
+		</main>
+		<script type="module" src="options.js"></script>
+	</body>
+</html>

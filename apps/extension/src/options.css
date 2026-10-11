@@ -1,0 +1,145 @@
+:root {
+	color-scheme: light dark;
+	--fg: #1f2328;
+	--muted: #59636e;
+	--bg: #ffffff;
+	--canvas: #f6f8fa;
+	--border: #d1d9e0;
+	--accent: #0969da;
+	--success: #1a7f37;
+	--danger: #d1242f;
+	--btn-bg: #f6f8fa;
+	--btn-hover: #eff2f5;
+	--primary: #1f883d;
+	--primary-hover: #1c8139;
+}
+@media (prefers-color-scheme: dark) {
+	:root {
+		--fg: #f0f6fc;
+		--muted: #9198a1;
+		--bg: #0d1117;
+		--canvas: #151b23;
+		--border: #3d444d;
+		--accent: #4493f8;
+		--success: #3fb950;
+		--danger: #f85149;
+		--btn-bg: #212830;
+		--btn-hover: #262c36;
+		--primary: #238636;
+		--primary-hover: #29903b;
+	}
+}
+* {
+	box-sizing: border-box;
+}
+body {
+	margin: 0;
+	padding: 24px;
+	min-width: 420px;
+	background: var(--bg);
+	color: var(--fg);
+	font:
+		14px / 1.5 -apple-system,
+		BlinkMacSystemFont,
+		"Segoe UI",
+		"Noto Sans",
+		Helvetica,
+		Arial,
+		sans-serif;
+}
+.box {
+	max-width: 640px;
+	margin: 0 auto;
+	border: 1px solid var(--border);
+	border-radius: 6px;
+}
+.box-header {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 16px;
+	background: var(--canvas);
+	border-bottom: 1px solid var(--border);
+	border-radius: 6px 6px 0 0;
+}
+h1 {
+	margin: 0;
+	font-size: 16px;
+	font-weight: 600;
+}
+.box-row {
+	padding: 16px;
+}
+.box-row + .box-row {
+	border-top: 1px solid var(--border);
+}
+.toggle {
+	display: flex;
+	gap: 8px;
+	align-items: flex-start;
+	cursor: pointer;
+}
+.toggle input {
+	margin-top: 4px;
+}
+.toggle > span {
+	display: flex;
+	flex-direction: column;
+}
+.note {
+	margin: 4px 0 0;
+	color: var(--muted);
+	font-size: 12px;
+}
+.note.ok {
+	color: var(--success);
+}
+.note.err {
+	color: var(--danger);
+}
+.row {
+	display: flex;
+	gap: 8px;
+	margin-top: 8px;
+}
+.input {
+	flex: 1;
+	min-width: 0;
+	padding: 5px 12px;
+	font:
+		14px / 20px ui-monospace,
+		SFMono-Regular,
+		"SF Mono",
+		Menlo,
+		Consolas,
+		monospace;
+	color: var(--fg);
+	background: var(--bg);
+	border: 1px solid var(--border);
+	border-radius: 6px;
+}
+.input:focus {
+	outline: 2px solid var(--accent);
+	outline-offset: -1px;
+}
+.btn {
+	padding: 5px 16px;
+	font: 500 14px / 20px inherit;
+	font-family: inherit;
+	color: var(--fg);
+	background: var(--btn-bg);
+	border: 1px solid var(--border);
+	border-radius: 6px;
+	cursor: pointer;
+}
+.btn:hover {
+	background: var(--btn-hover);
+}
+.btn-primary {
+	color: #fff;
+	background: var(--primary);
+	border-color: rgba(31, 35, 40, 0.15);
+}
+.btn-primary:hover {
+	background: var(--primary-hover);
+}
