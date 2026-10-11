@@ -28,6 +28,7 @@ export const en: SqlPhrases = {
 		severalAction: ({ count }) => `run ${count} SQL statements`,
 		severalValue: ({ count }) => `the result of running ${count} SQL statements`,
 		fragment: ({ value }) => `the SQL expression ${value}`,
+		firstRow: ({ value }) => `the first of ${value}`,
 		other: ({ kind }) => `run a SQL ${kind} statement`,
 		unbound: ({ name }) => `the value for ${name}`,
 	},

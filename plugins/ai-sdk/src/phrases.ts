@@ -214,6 +214,8 @@ export type AiSdkPhrases = {
 		scoped: (p: { thing: string; scope: StepScope }) => string;
 		/** `{ text: answer }`. */
 		renamed: (p: { thing: string; name: string }) => string;
+		/** `result.usage` on a model call's result; `owner` is the result's possessive ("result's"). */
+		of: (p: { thing: string; owner: string }) => string;
 	};
 	/** `for await (const x of result.textStream)` loop heads; `source` is null for a destructured stream. */
 	streams: {

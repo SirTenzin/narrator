@@ -27,6 +27,8 @@ export type SqlPhrases = {
 		severalValue: F<"count">;
 		/** A template that's an expression, not a statement: kysely's `sql\`now()\``. */
 		fragment: F<"value">;
+		/** D1's `.first()`: only the first row of a query's result. */
+		firstRow: F<"value">;
 		/** A statement kind this plugin has no words for, named by its SQL keywords. */
 		other: F<"kind">;
 		/** A placeholder no JS value is bound to: `$1`, `?`, `:id`. */

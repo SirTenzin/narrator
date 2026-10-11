@@ -57,6 +57,7 @@ export function declaration(c: Ctx, node: N, d: number): boolean {
 	const name = sdkName(c, call);
 	const run = agentRunOf(c, call);
 	if (!(name && MODEL_CALL_NAMES.has(name)) && !run) return false;
+	if (id.type === "Identifier") c.state.results.add(id.name);
 	if ((name && STREAM_CALLS.has(name)) || run === "stream") {
 		if (id.type === "Identifier") c.state.streams.add(id.name);
 		else

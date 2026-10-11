@@ -206,3 +206,20 @@ describe("guards and phrasebooks", () => {
 		for (const book of [platformEn, sqlEn, testingEn]) expect(phrasebookGaps(book, book)).toEqual({ missing: [], extra: [] });
 	});
 });
+
+describe("@effect/vitest edge cases", () => {
+	test("a test whose body is a bare effect value doesn't crash", () => {
+		const text = read('import { it } from "@effect/vitest";\nimport { Effect } from "effect";\nit.effect("does nothing", () => Effect.void);');
+		expect(text).toBe('Test "does nothing", run as an effect:\n  • an effect that does nothing');
+	});
+
+	test("plain vitest's it and assert are not @effect/vitest's", () => {
+		const code = 'import { it, assert } from "vitest";\nimport { Effect } from "effect";\nit.effect("x", () => Effect.void);\nassert.strictEqual(a, b);';
+		expect(read(code)).not.toContain("run as an effect");
+	});
+
+	test("an Effect sql template is left to other plugins when sql comes from elsewhere", () => {
+		const code = 'import { SqlClient } from "@effect/sql";\nimport { sql } from "drizzle-orm";\nconst q = sql`select 1`;';
+		expect(narrate(code, { plugins })).toBe(narrate(code));
+	});
+});

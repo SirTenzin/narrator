@@ -440,3 +440,11 @@ describe("drizzle(...) and the sql tag", () => {
 		expect(say('import { sql } from "drizzle-orm";\nconst f = sql`now()`;')).toBe("Let f be the raw SQL now().");
 	});
 });
+
+describe("relational where callbacks", () => {
+	test("operators.eq(...) in a where(fields, operators) callback reads like eq(...)", () => {
+		const text = say("const task = await db.query.tasks.findFirst({ where(fields, operators) { return operators.eq(fields.id, id); } });");
+		expect(text).toBe("Let task be the first row of tasks where fields' ID is ID.");
+		expect(narrate("const x = cmp.eq(a, b);", { plugins: [drizzle()] })).toBe(narrate("const x = cmp.eq(a, b);"));
+	});
+});

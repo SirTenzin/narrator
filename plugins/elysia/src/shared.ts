@@ -6,7 +6,8 @@ export type Version = 1 | 2 | "auto";
 
 /** What the current file tells us about Elysia: imports, app and client variables. */
 export type FileState = {
-	src: string;
+	/** The file these facts were read from. */
+	program: N;
 	/** Local name -> module it's imported from. */
 	imports: Map<string, string>;
 	/** Variables holding an Elysia app (`const app = new Elysia()`, `(app: Elysia) =>`, group callbacks). */
@@ -19,46 +20,36 @@ export type FileState = {
 
 export type Ctx = { e: Engine; say: ElysiaPhrases; version: Version; state: FileState };
 
-export const newState = (): FileState => ({ src: "\0", imports: new Map(), apps: new Set(), clients: new Set(), jwtNames: new Set() });
-
-const IMPORT = /import\s+(?:type\s+)?([\w$\s{},*]+?)\s+from\s+["']([^"']+)["']/g;
-
-function importsOf(src: string): Map<string, string> {
-	const out = new Map<string, string>();
-	for (const [, clause, mod] of src.matchAll(IMPORT)) {
-		const named = /\{([^}]*)\}/.exec(clause!)?.[1] ?? "";
-		for (const part of named.split(",")) {
-			const local = part
-				.trim()
-				.replace(/^type\s+/, "")
-				.split(/\s+as\s+/)
-				.at(-1)
-				?.trim();
-			if (local) out.set(local, mod!);
-		}
-		const rest = clause!.replace(/\{[^}]*\}/, "").replace(/\*\s+as\s+/, "");
-		for (const name of rest.split(",").map((s) => s.trim())) if (/^[\w$]+$/.test(name)) out.set(name, mod!);
-	}
-	return out;
-}
+export const newState = (): FileState => ({ program: null, imports: new Map(), apps: new Set(), clients: new Set(), jwtNames: new Set() });
 
 /** Re-reads the file-level facts when the engine moves to a new source. */
 export function refresh(c: Ctx) {
 	const s = c.state;
-	if (s.src === c.e.src) return;
-	s.src = c.e.src;
-	s.imports = importsOf(s.src);
+	if (s.program === c.e.program) return;
+	s.program = c.e.program;
+	s.imports = new Map([...c.e.imports].map(([local, { from }]) => [local, from]));
+	const src = c.e.src;
 	s.apps = new Set([
-		...[...s.src.matchAll(/\b(?:const|let|var)\s+([\w$]+)\s*(?::[^=]*)?=\s*new\s+Elysia\b/g)].map((m) => m[1]!),
-		...[...s.src.matchAll(/([\w$]+)\??\s*:\s*Elysia\b/g)].map((m) => m[1]!),
+		...[...src.matchAll(/\b(?:const|let|var)\s+([\w$]+)\s*(?::[^=]*)?=\s*new\s+Elysia\b/g)].map((m) => m[1]!),
+		...[...src.matchAll(/([\w$]+)\??\s*:\s*Elysia\b/g)].map((m) => m[1]!),
 	]);
-	s.clients = new Set([...s.src.matchAll(/\b(?:const|let|var)\s+([\w$]+)\s*(?::[^=]*)?=\s*(?:treaty|edenTreaty)\s*[<(]/g)].map((m) => m[1]!));
-	s.jwtNames = new Set(["jwt", ...[...s.src.matchAll(/\bjwt\s*\(\s*\{[^}]*?\bname\s*:\s*["']([\w$]+)["']/g)].map((m) => m[1]!)]);
+	s.clients = new Set([...src.matchAll(/\b(?:const|let|var)\s+([\w$]+)\s*(?::[^=]*)?=\s*(?:treaty|edenTreaty)\s*[<(]/g)].map((m) => m[1]!));
+	s.jwtNames = new Set(["jwt", ...[...src.matchAll(/\bjwt\s*\(\s*\{[^}]*?\bname\s*:\s*["']([\w$]+)["']/g)].map((m) => m[1]!)]);
 }
 
 export const isElysiaModule = (m: string | undefined) => !!m && /^elysia(\/.*)?$/.test(m);
 export const isPluginModule = (m: string | undefined, name: string) => !!m && new RegExp(`^@elysiajs?/${name}$`).test(m);
-export const importsElysia = (c: Ctx) => [...c.state.imports.values()].some(isElysiaModule);
+/** The file imports Elysia, or its package depends on it. */
+export const importsElysia = (c: Ctx) => c.e.usesLibrary("elysia") || [...c.state.imports.values()].some(isElysiaModule);
+
+/** An official plugin (`@elysiajs/jwt`) the file imports or its package depends on. */
+export const usesPlugin = (c: Ctx, name: string) => [...c.state.imports.values(), ...Object.keys(c.e.dependencies)].some((m) => isPluginModule(m, name));
+
+/** A bare handler-context call (`status(404)`) that isn't a local function or another library's import. */
+export const isContextCall = (c: Ctx, name: string) => {
+	const from = c.state.imports.get(name);
+	return !c.e.localFns.has(name) && (!from || isElysiaModule(from));
+};
 
 /** `t` from Elysia, or `Type` / `t` from TypeBox. */
 export const isTypeBox = (c: Ctx, name: string) => {

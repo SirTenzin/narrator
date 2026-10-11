@@ -1,4 +1,8 @@
 import { describe, expect, test } from "bun:test";
+import { createNarrator, renderText } from "@usenarrator/core";
+import { type TsPlugin, typescript } from "@usenarrator/lang-ts";
+import { oxcParser } from "@usenarrator/lang-ts/oxc";
+import { en as english } from "@usenarrator/locale-en";
 import { narrate, narrateWithStats, phrasebookGaps } from "@usenarrator/testkit";
 import { type ElysiaPhrases, elysia, en } from "../src";
 
@@ -416,5 +420,25 @@ describe("phrasebook", () => {
 	test("English is complete against its own type", () => {
 		const ref: ElysiaPhrases = en;
 		expect(phrasebookGaps(ref, en)).toEqual({ missing: [], extra: [] });
+	});
+});
+
+/** Narrates `code` as a file of a package declaring `dependencies`, the way a host with package.json access would. */
+function inPackage({ code, plugins, dependencies }: { code: string; plugins: TsPlugin[]; dependencies: Record<string, string> }) {
+	const narrator = createNarrator({ languages: [typescript({ parser: oxcParser, plugins, dependencies: () => dependencies })], locale: english });
+	return renderText(narrator.narrate(code, "snippet.ts").lines);
+}
+
+describe("files that use Elysia without importing it", () => {
+	test("handler-context calls in an Elysia package read as replies", () => {
+		const code =
+			'export const getUser = ({ params, status }) => {\n  const user = find(params.id);\n  if (!user) return status(404, "missing");\n  return user;\n};';
+		expect(inPackage({ code, plugins: [elysia()], dependencies: {} })).toBe(narrate(code));
+		expect(inPackage({ code, plugins: [elysia()], dependencies: { elysia: "^1.3.0" } })).toContain('reply with a 404 (Not Found) response with "missing"');
+	});
+
+	test("a local function named like a context helper is left alone", () => {
+		const code = 'function status(code, msg) { return { code, msg }; }\nexport const f = () => status(404, "x");';
+		expect(inPackage({ code, plugins: [elysia()], dependencies: { elysia: "^1.3.0" } })).toBe(narrate(code));
 	});
 });

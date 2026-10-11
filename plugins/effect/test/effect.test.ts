@@ -1,4 +1,7 @@
 import { describe, expect, test } from "bun:test";
+import { createNarrator, renderText } from "@usenarrator/core";
+import { type TsPlugin, typescript } from "@usenarrator/lang-ts";
+import { oxcParser } from "@usenarrator/lang-ts/oxc";
 import { en as english } from "@usenarrator/locale-en";
 import { narrate, narrateWithStats, phrasebookGaps } from "@usenarrator/testkit";
 import { type EffectPhrases, effect, en } from "../src";
@@ -422,5 +425,28 @@ describe("phrasebook", () => {
 
 	test("English is the complete reference phrasebook", () => {
 		expect(phrasebookGaps(en, en)).toEqual({ missing: [], extra: [] });
+	});
+});
+
+/** Narrates `code` as a file of a package declaring `dependencies`, the way a host with package.json access would. */
+function inPackage({ code, plugins, dependencies }: { code: string; plugins: TsPlugin[]; dependencies: Record<string, string> }) {
+	const narrator = createNarrator({ languages: [typescript({ parser: oxcParser, plugins, dependencies: () => dependencies })], locale: english });
+	return renderText(narrator.narrate(code, "snippet.ts").lines);
+}
+
+describe("files that use Effect without importing it", () => {
+	test("a package depending on Effect is read as Effect code", () => {
+		const code = 'const program = Effect.gen(function* () {\n  const db = yield* Database\n  yield* Effect.log("ready")\n})';
+		expect(inPackage({ code, plugins: [effect()], dependencies: {} })).toBe(narrate(code));
+		expect(inPackage({ code, plugins: [effect()], dependencies: { effect: "^3.17.0" } })).toBe(read(code));
+	});
+
+	test("the package's Effect major picks the version-specific meaning", () => {
+		const code = "const When = Schema.Struct({ at: Schema.Date })";
+		expect(inPackage({ code: IMPORT + code, plugins: [effect()], dependencies: { effect: "^3.17.0" } })).toContain("at (a date written as text)");
+		expect(inPackage({ code: IMPORT + code, plugins: [effect()], dependencies: { effect: "4.0.0-beta.12" } })).toContain("at (a date)");
+		expect(inPackage({ code: IMPORT + code, plugins: [effect({ version: 3 })], dependencies: { effect: "4.0.0-beta.12" } })).toContain(
+			"at (a date written as text)",
+		);
 	});
 });

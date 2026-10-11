@@ -453,3 +453,20 @@ describe("guards", () => {
 		expect(narrate(code, { plugins: [...plugins, drizzle()] })).toBe(narrate(code, { plugins }));
 	});
 });
+
+describe("driver result shapes", () => {
+	test("D1: prepare, bind, then first/all/run", () => {
+		expect(say('const row = await env.DB.prepare("select * from users where id = ?").bind(id).first();')).toBe(
+			lines("Let row be the first of the rows of users:", "  • where id is ID", "  • SQL: select * from users where id = ?"),
+		);
+		expect(say('const stmt = env.DB.prepare("delete from sessions where id = ?").bind(id);')).toContain(
+			"Let stmt be a prepared SQL statement to delete rows from sessions:",
+		);
+	});
+
+	test("the .rows of a query result is the query's rows", () => {
+		expect(say('const users = (await pool.query("select * from users where org_id = $1", [orgId])).rows;')).toBe(
+			lines("Let users be the rows of users:", "  • where org_id is org ID", "  • SQL: select * from users where org_id = $1"),
+		);
+	});
+});

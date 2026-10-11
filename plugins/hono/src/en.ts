@@ -45,10 +45,16 @@ export const en: HonoPhrases = {
 		arrayBuffer: "the request body as bytes",
 		blob: "the request body as a blob",
 		valid: ({ target }) => `the validated ${target}`,
+		url: "the request URL",
+		method: "the request method",
+		path: "the request path",
+		routePath: "the matched route pattern",
+		raw: "the raw request",
 	},
 	response: {
 		reply: ({ response }) => `reply with ${response}`,
 		json: ({ data }) => `${data} as JSON`,
+		jsonFrom: ({ data, details }) => `JSON${details ? ` (${details})` : ""} built from ${data}`,
 		text: ({ text }) => `the text ${text}`,
 		html: ({ html }) => `${html} as HTML`,
 		body: ({ body }) => `the raw body ${body}`,
@@ -98,6 +104,7 @@ export const en: HonoPhrases = {
 		get: ({ name }) => `the ${name} context variable`,
 		waitUntil: ({ task }) => `let ${task} finish in the background`,
 		env: "the environment variables",
+		variables: "the context variables",
 	},
 	middleware: {
 		names: {

@@ -1,4 +1,4 @@
-import type { Doc } from "@usenarrator/core";
+import { D, type Doc } from "@usenarrator/core";
 import { type CallRule, definePlugin, type Engine, type MemberRule, type N, type StmtRule, type TsPlugin, unwrap } from "@usenarrator/lang-ts";
 import { narrateSql, registerParser, type SqlMode } from "./describe";
 import { en } from "./en";
@@ -68,7 +68,7 @@ const HANDLES = ["prisma", "db", "tx", "trx", "client", "database", "pool", "con
 const TEMPLATE_KEYS = ["sql``", "*.sql``", "Bun.sql``", "Prisma.sql``", "sql.unsafe``", "sql.fragment``", "*.$queryRaw``", "*.$executeRaw``"].concat(
 	HANDLES.flatMap((h) => [`${h}.$queryRaw\`\``, `${h}.$executeRaw\`\``, `${h}.sql\`\``]),
 );
-const RUN_METHODS = ["get", "all", "run", "values", "iterate"];
+const RUN_METHODS = ["get", "all", "run", "values", "iterate", "first", "raw"];
 
 /** SQL in TS/JS (tagged templates, driver calls, prepared statements, SQL constants) narrated clause by clause, with the full SQL kept. */
 export const sql = ({ parser }: SqlOptions = {}): TsPlugin<P> => {
@@ -147,20 +147,34 @@ export const sql = ({ parser }: SqlOptions = {}): TsPlugin<P> => {
 		return text ? narrate({ e, say, text, mode: stmt ? "action" : "value" }) : null;
 	};
 
-	/** `db.prepare(text).get(a)` and `stmt.all(a)` where `stmt` was prepared in this file. */
+	/** The SQL text a prepared-statement expression holds: `db.prepare(text)`, or a `stmt` prepared in this file. */
+	const preparedSource = (e: Engine, target: N): N | undefined => {
+		if (target?.type === "CallExpression" && unwrap(target.callee).type === "MemberExpression") {
+			const callee = unwrap(target.callee);
+			if (["prepare", "query"].includes(callee.property?.name) && isDb(e, callee.object)) return target.arguments[0];
+		} else if (target?.type === "Identifier") return state(e).prepared.get(target.name);
+		return undefined;
+	};
+
+	/** `db.prepare(text).get(a)`, `stmt.all(a)`, and D1's `db.prepare(text).bind(a).first()`. */
 	const runRule: CallRule<P> = (ctx) => {
 		const { args, obj, e, stmt, say } = ctx;
 		const target = unwrap(obj);
-		let source: N | undefined;
-		if (target?.type === "CallExpression" && unwrap(target.callee).type === "MemberExpression") {
-			const callee = unwrap(target.callee);
-			if (["prepare", "query"].includes(callee.property?.name) && isDb(e, callee.object)) source = target.arguments[0];
-		} else if (target?.type === "Identifier") source = state(e).prepared.get(target.name);
+		const bound = target?.type === "CallExpression" && unwrap(target.callee).property?.name === "bind" && !args.length ? target : null;
+		const source = preparedSource(e, bound ? unwrap(unwrap(bound.callee).object) : target);
 		if (source) {
-			const text = sqlOf(e, source, restBinding(e, args));
-			if (text) return narrate({ e, say, text, mode: stmt ? "action" : "value" });
+			const text = sqlOf(e, source, restBinding(e, bound ? bound.arguments : args));
+			const d = text && narrate({ e, say, text, mode: stmt ? "action" : "value" });
+			if (d) return !stmt && ctx.node.callee.property?.name === "first" ? D(say.run.firstRow({ value: d.t }), d.kids) : d;
 		}
 		return ctx.node.callee.property?.name === "run" ? restRule(ctx) : null;
+	};
+
+	/** D1's `db.prepare(text).bind(a)` on its own: a statement ready to run. */
+	const bindRule: CallRule<P> = ({ args, obj, e, say }) => {
+		const source = preparedSource(e, unwrap(obj));
+		const text = source ? sqlOf(e, source, restBinding(e, args)) : null;
+		return text ? narrate({ e, say, text, mode: "prepared" }) : null;
 	};
 
 	/** Remembers SQL constants and prepared statements; narrates `const Q = "select ..."` itself. Bare `await sql\`...\`` reads as an action. */
@@ -214,6 +228,7 @@ export const sql = ({ parser }: SqlOptions = {}): TsPlugin<P> => {
 			"*.$executeRawUnsafe": restRule,
 			"*.exec": restRule,
 			...Object.fromEntries(RUN_METHODS.map((m) => [`*.${m}`, runRule])),
+			"*.bind": bindRule,
 		},
 		members: { "*.rows": rowsOf },
 		statements: [statements],

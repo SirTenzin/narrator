@@ -121,11 +121,19 @@ export type HonoPhrases = {
 		blob: string;
 		/** `c.req.valid("json")`. */
 		valid: Phrase<"target">;
+		/** `c.req.url`, `c.req.method`, ... read as properties. */
+		url: string;
+		method: string;
+		path: string;
+		routePath: string;
+		raw: string;
 	};
 	response: {
 		/** A handler's `return c.json(…)` and friends. */
 		reply: Phrase<"response">;
 		json: Phrase<"data">;
+		/** `c.json({ … })` whose data is listed as bullets; `details` is the joined status and headers, or null. */
+		jsonFrom: (p: { data: string; details: string | null }) => string;
 		text: Phrase<"text">;
 		html: Phrase<"html">;
 		body: Phrase<"body">;
@@ -152,6 +160,8 @@ export type HonoPhrases = {
 		waitUntil: Phrase<"task">;
 		/** `env(c)` from `hono/adapter`. */
 		env: string;
+		/** `c.var`. */
+		variables: string;
 	};
 	middleware: {
 		names: Record<Builtin, string>;

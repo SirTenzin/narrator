@@ -1,4 +1,7 @@
 import { describe, expect, test } from "bun:test";
+import { createNarrator, renderText } from "@usenarrator/core";
+import { type TsPlugin, typescript } from "@usenarrator/lang-ts";
+import { oxcParser } from "@usenarrator/lang-ts/oxc";
 import { en as english } from "@usenarrator/locale-en";
 import { narrate, narrateWithStats, phrasebookGaps } from "@usenarrator/testkit";
 import { en, type HonoPhrases, hono } from "../src";
@@ -466,5 +469,45 @@ describe("phrasebook", () => {
 
 	test("the plugin declares the Hono versions it reads", () => {
 		expect(hono().library).toEqual({ name: "hono", versions: ">=4 <6" });
+	});
+});
+
+/** Narrates `code` as a file of a package declaring `dependencies`, the way a host with package.json access would. */
+function inPackage({ code, plugins, dependencies }: { code: string; plugins: TsPlugin[]; dependencies: Record<string, string> }) {
+	const narrator = createNarrator({ languages: [typescript({ parser: oxcParser, plugins, dependencies: () => dependencies })], locale: english });
+	return renderText(narrator.narrate(code, "snippet.ts").lines);
+}
+
+describe("files that use Hono without importing it", () => {
+	test("a handler in a Hono package reads its context", () => {
+		const code = 'export const list = async (c) => {\n  const rows = await load(c.req.query("page"));\n  return c.json(rows);\n};';
+		expect(inPackage({ code, plugins, dependencies: {} })).toBe(narrate(code));
+		expect(inPackage({ code, plugins, dependencies: { hono: "^4.6.0" } })).toBe(
+			["To list (async), given c:", "  Load (the page query parameter), and call the result rows.", "  Reply with rows as JSON."].join("\n"),
+		);
+	});
+});
+
+describe("request properties and replies", () => {
+	test("c.req.url, method, path and raw read as request facts", () => {
+		const text = read(
+			`${HONO}const app = new Hono();\napp.use(async (c, next) => {\n  log(c.req.method, c.req.path, c.req.url);\n  await audit(c.req.raw);\n  await next();\n});`,
+		);
+		expect(text).toContain("Log (the request method, the request path, and the request URL).");
+		expect(text).toContain("Run audit (the raw request).");
+	});
+
+	test("a bulleted JSON body keeps its status ahead of the bullets", () => {
+		const text = read(
+			`${HONO}const app = new Hono();\napp.get("/x", (c) => c.json({ ok: false, error: { code: "bad", message: m, issues: [{ path: p, reason: r }] } }, 422));`,
+		);
+		expect(text).toContain("  Reply with JSON (status 422 Unprocessable Content) built from an object with:\n    • ok: false");
+	});
+
+	test("status constants from stoker read as codes", () => {
+		const text = read(
+			`${HONO}import * as HttpStatusCodes from "stoker/http-status-codes";\nconst app = new Hono();\napp.get("/x", (c) => c.json(rows, HttpStatusCodes.NOT_FOUND));`,
+		);
+		expect(text).toContain("rows as JSON (status 404 Not Found)");
 	});
 });

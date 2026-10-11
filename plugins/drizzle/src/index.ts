@@ -60,6 +60,7 @@ const CONSTRAINT_STEPS = ["on", "onOnly", "using", "concurrently", "nullsNotDist
 
 const calls: Record<string, Call> = {
 	...Object.fromEntries(Object.entries(operatorCalls).map(([k, f]) => [k, rule((c, s) => f(c, s.args, s.node))])),
+	...Object.fromEntries(Object.entries(operatorCalls).map(([k, f]) => [`*.${k}`, rule((c, s) => (isOperatorsParam(s.obj) ? f(c, s.args, s.node) : null))])),
 	...Object.fromEntries(COLUMN_MODIFIERS.map((m) => [`*.${m}`, rule(columnDoc)])),
 	...Object.fromEntries(CONSTRAINT_STEPS.map((m) => [`*.${m}`, rule(constraint)])),
 	...Object.fromEntries(QUERY_METHODS.map((m) => [`*.${m}`, rule(first(sqlMethodOf, query, constraint))])),
@@ -84,6 +85,12 @@ const calls: Record<string, Call> = {
 	check: rule(constraint),
 };
 
+/** The operators argument of a relational `where(fields, operators)` callback, by its documented names. */
+const isOperatorsParam = (n: N | null) => {
+	const u = unwrap(n);
+	return u?.type === "Identifier" && (u.name === "operators" || u.name === "ops");
+};
+
 /** A `sql` template imported from Drizzle: a full statement reads clause by clause (via plugin-sql), anything else as a fragment. */
 const sqlTemplate: CallRule<DrizzlePhrases> = ({ node, e, say, stmt }) =>
 	isDrizzleSql(e, node.tag) ? (sqlStatement(e, node, stmt ? "action" : "text") ?? sqlFragment({ e, say }, node)) : null;
@@ -100,9 +107,11 @@ const runSql =
 /** `drizzle(client, { schema })` / `drizzle({ client })` from `drizzle-orm/<driver>`. */
 const database: Call = ({ args: [first, second], e, say }) => {
 	if (!isDrizzleModule(e.imports.get("drizzle")?.from)) return null;
-	const opts = unwrap(first)?.type === "ObjectExpression" ? first : second;
+	// `drizzle(client, options)`, or `drizzle(options)` whose `client` / `connection` is the source.
+	const configOnly = !second && unwrap(first)?.type === "ObjectExpression";
+	const opts = configOnly ? first : second;
 	const prop = (k: string) => (unwrap(opts)?.type === "ObjectExpression" ? unwrap(opts).properties.find((p: N) => p.key?.name === k)?.value : null);
-	const source = opts === first ? (prop("client") ?? prop("connection")) : first;
+	const source = configOnly ? (prop("client") ?? prop("connection")) : first;
 	const schema = prop("schema");
 	return D(say.database({ source: source ? e.text(source) : "", schema: schema ? e.text(schema) : "" }));
 };
@@ -122,7 +131,15 @@ export const drizzle = (): TsPlugin<DrizzlePhrases> =>
 			"sql``": sqlTemplate,
 			"*.sql``": sqlTemplate,
 		},
-		conditions: Object.fromEntries(
-			Object.entries(operatorConds).map(([k, op]) => [k, (({ args, e, neg, say }) => op({ e, say }, args, neg)) as CondRule<DrizzlePhrases>]),
-		),
+		conditions: {
+			...Object.fromEntries(
+				Object.entries(operatorConds).map(([k, op]) => [k, (({ args, e, neg, say }) => op({ e, say }, args, neg)) as CondRule<DrizzlePhrases>]),
+			),
+			...Object.fromEntries(
+				Object.entries(operatorConds).map(([k, op]) => [
+					`*.${k}`,
+					(({ args, obj, e, neg, say }) => (isOperatorsParam(obj) ? op({ e, say }, args, neg) : null)) as CondRule<DrizzlePhrases>,
+				]),
+			),
+		},
 	});
