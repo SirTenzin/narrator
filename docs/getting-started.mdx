@@ -11,7 +11,9 @@ This page takes you from nothing to narrating your own code and your own diffs, 
 | Node 22.18 or newer, or Node 23.6 or newer | The packages, the CLI, and the `.ts` examples as written, since Node strips the types itself. |
 | [Bun](https://bun.sh) 1.1 or newer | Everything, including the `.ts` examples. |
 
-The CLI needs Node 22.12 or newer because it uses Node's built-in glob support.
+The CLI needs Node 22.17 or newer because it uses Node's built-in glob support, which became stable in that release.
+
+The examples are ES modules. In a new npm project, run `npm pkg set type=module` first, because `npm init` marks projects as CommonJS. Otherwise name the files `.mts` (or `.mjs` without types).
 
 <Steps>
   <Step title="Try the CLI">

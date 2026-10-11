@@ -71,6 +71,13 @@ describe("one bad file never takes down the call", () => {
 	});
 });
 
+test("a file renamed from a type no language reads counts as added, not as a crash", () => {
+	const [file] = narrator.diffFiles([
+		{ path: "types.ts", oldPath: "types.d.ts", status: "renamed", oldSrc: "declare const a: number;\n", newSrc: "const a = 1;\n" },
+	]);
+	expect(file).toMatchObject({ problems: [], adds: 1, units: [{ status: "added" }] });
+});
+
 describe("syntax errors", () => {
 	test("are reported with their line, and the narration keeps what was read", () => {
 		const result = narrator.narrate("const a = 1;\nconst b = ;\n", "a.ts");

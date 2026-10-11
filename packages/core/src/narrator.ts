@@ -36,6 +36,9 @@ export function createNarrator({
 		const ecosystems = language.ecosystems ?? [];
 		return language.create(locale, { dependencies: (p) => Object.assign({}, ...ecosystems.map((eco) => dependencies.forFile(p, eco))) });
 	};
+	// A file renamed from a type we can't read (say `.d.ts` to `.ts`) reads as newly added.
+	const narratable = (files: ChangedFile[]) =>
+		files.filter((f) => languageFor(f.path)).map((f) => (f.oldPath && !languageFor(f.oldPath) ? { ...f, oldSrc: "" } : f));
 	return {
 		locale,
 		canNarrate: (path) => !!languageFor(path),
@@ -57,12 +60,11 @@ export function createNarrator({
 		fileNarrator,
 		diff: (files, opts) =>
 			buildDiffReport({
-				files: files.filter((f) => languageFor(f.path)),
+				files: narratable(files),
 				narratorFor: fileNarrator,
 				resolve: opts?.resolve ?? (() => null),
 				includeGenerated: opts?.includeGenerated,
 			}),
-		diffFiles: (files, opts) =>
-			diffFiles({ files: files.filter((f) => languageFor(f.path)), narratorFor: fileNarrator, includeGenerated: opts?.includeGenerated }),
+		diffFiles: (files, opts) => diffFiles({ files: narratable(files), narratorFor: fileNarrator, includeGenerated: opts?.includeGenerated }),
 	};
 }
