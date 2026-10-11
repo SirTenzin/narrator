@@ -1,0 +1,36 @@
+{
+	"name": "@usenarrator/node",
+	"version": "0.1.0",
+	"description": "Node/Bun convenience: a TS/JS narrator with the native parser and the repo's dependency manifests wired in.",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/SirTenzin/narrator.git",
+		"directory": "packages/node"
+	},
+	"homepage": "https://github.com/SirTenzin/narrator#readme",
+	"type": "module",
+	"sideEffects": false,
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js",
+			"default": "./dist/index.js"
+		},
+		"./package.json": "./package.json"
+	},
+	"files": [
+		"dist"
+	],
+	"publishConfig": {
+		"access": "public"
+	},
+	"dependencies": {
+		"@usenarrator/core": "workspace:^",
+		"@usenarrator/lang-ts": "workspace:^",
+		"@usenarrator/locale-en": "workspace:^",
+		"oxc-parser": "^0.153.0"
+	}
+}

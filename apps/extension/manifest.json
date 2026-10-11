@@ -3,7 +3,7 @@
 	"name": "Narrator for GitHub",
 	"version": "0.3.0",
 	"description": "Read pull request and commit diffs as plain English, generated deterministically from the code's syntax tree.",
-	"permissions": ["storage"],
+	"permissions": ["storage", "offscreen"],
 	"host_permissions": ["https://github.com/*", "https://api.github.com/*", "https://raw.githubusercontent.com/*"],
 	"background": {
 		"service_worker": "background.js",
@@ -31,6 +31,13 @@
 			"data_collection_permissions": {
 				"required": ["none"]
 			}
+		},
+		"gecko_android": {
+			"strict_min_version": "142.0"
 		}
+	},
+	"options_ui": {
+		"page": "options.html",
+		"open_in_tab": true
 	}
 }

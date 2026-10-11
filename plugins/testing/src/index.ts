@@ -4,7 +4,7 @@ import { en } from "./en";
 import type { TestingPhrases } from "./phrases";
 
 export type { TestingPhrases } from "./phrases";
-export { en as testingEn };
+export { en, en as testingEn };
 
 /** A callback's body as statements: an expression body runs as a step when it's a call, and is given back otherwise. */
 const fnBody = (fn: N): N => {
@@ -314,3 +314,9 @@ const testRules: Record<string, CallRule<TestingPhrases>> = {
 
 /** bun:test, vitest and jest: `describe`/`test`/`it` blocks and `expect(...)` matchers. */
 export const testing = (): TsPlugin<TestingPhrases> => definePlugin({ name: "testing", phrases: { en }, calls: testRules });
+
+declare module "@usenarrator/core" {
+	interface PluginPhrases {
+		testing: TestingPhrases;
+	}
+}

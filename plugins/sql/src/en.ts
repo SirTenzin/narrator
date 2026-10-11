@@ -28,6 +28,7 @@ export const en: SqlPhrases = {
 		severalAction: ({ count }) => `run ${count} SQL statements`,
 		severalValue: ({ count }) => `the result of running ${count} SQL statements`,
 		fragment: ({ value }) => `the SQL expression ${value}`,
+		firstRow: ({ value }) => `the first of ${value}`,
 		other: ({ kind }) => `run a SQL ${kind} statement`,
 		unbound: ({ name }) => `the value for ${name}`,
 	},
@@ -64,7 +65,7 @@ export const en: SqlPhrases = {
 		nullsFirst: ({ key }) => `${key}, empty ones first`,
 		nullsLast: ({ key }) => `${key}, empty ones last`,
 		limit: ({ count }) => `at most ${count} ${plain(count) === "1" ? "row" : "rows"}`,
-		offset: ({ count }) => `skipping the first ${count}`,
+		offset: ({ count }) => (plain(count) === "1" ? "skipping the first row" : `skipping the first ${count} rows`),
 		lock: {
 			update: "locking the rows so other transactions can't change them until this one ends",
 			noKeyUpdate: "locking the rows against changes (except to their keys) until this transaction ends",

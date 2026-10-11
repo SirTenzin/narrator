@@ -1,17 +1,17 @@
-import type { Doc } from "@usenarrator/core";
+import { D, type Doc } from "@usenarrator/core";
 import { type CallRule, definePlugin, type Engine, type N, type StmtRule, type TsPlugin, unwrap } from "@usenarrator/lang-ts";
-import { narrateSql, type SqlMode } from "./describe";
+import { narrateSql, registerParser, type SqlMode } from "./describe";
 import { en } from "./en";
 import { memoized, type ParserSource, resolveParser, type SqlParser } from "./parser";
 import type { SqlPhrases } from "./phrases";
 import { arrayBinding, type Binding, fromString, fromTemplate, looksLikeSql, noParams, restBinding, type SqlText, stringValue } from "./source";
 
-export { describeSql, type SqlMode } from "./describe";
+export { describeSql, type SqlMode, tryDescribeSql } from "./describe";
 export { en } from "./en";
 export type { ParserSource, SqlParser } from "./parser";
 export type { DropKind, JoinKind, LockKind, RefAction, SqlPhrases } from "./phrases";
 export type { Binding, Param, SqlText } from "./source";
-export { arrayBinding, fromString, fromTemplate, restBinding } from "./source";
+export { arrayBinding, fromString, fromTemplate, looksLikeSql, restBinding } from "./source";
 
 export type SqlOptions = {
 	/** Without a parser the plugin still claims SQL call sites but shows the SQL as-is. Pass a getter to load it lazily. */
@@ -48,11 +48,26 @@ function tagKind(tag: N): "sql" | "prisma" | "slonik" | null {
 	return null;
 }
 
+/** `(await pool.query(sql)).rows` / `(await db.execute(sql\`...\`)).rows`: the rows the query reads are the query's value. */
+function queryRows(e: Engine, obj: N): Doc | null {
+	const o = unwrap(obj);
+	const call = unwrap(o?.type === "AwaitExpression" ? o.argument : o);
+	const callee = call?.type === "CallExpression" ? unwrap(call.callee) : null;
+	if (callee?.type !== "MemberExpression" || !["query", "execute"].includes(callee.property?.name) || !isDb(e, callee.object)) return null;
+	return e.applyRulesQuiet(call) ? e.noun(call) : null;
+}
+
 const isSqlTag = (n: N) => unwrap(n)?.type === "TaggedTemplateExpression" && tagKind(unwrap(n).tag) !== null;
 
-/** Drizzle's `sql` template is Drizzle's to describe when the Drizzle plugin is loaded. */
-const DRIZZLE_SQL = /import\s*(?:type\s*)?\{[^}]*\bsql\b[^}]*\}\s*from\s*["']drizzle-orm(?:\/[\w-]+)?["']/;
-const BUN_SQLITE = /from\s*["']bun:sqlite["']/;
+const isDrizzleModule = (m: string | undefined) => !!m && (m === "drizzle-orm" || m.startsWith("drizzle-orm/"));
+
+/** A `sql` tag imported from Drizzle (`import { sql }` or `import * as orm` then `orm.sql`). */
+function isDrizzleTag(e: Engine, tag: N): boolean {
+	const t = unwrap(tag);
+	if (t.type === "Identifier") return isDrizzleModule(e.imports.get(t.name)?.from);
+	const obj = t.type === "MemberExpression" && !t.computed ? unwrap(t.object) : null;
+	return obj?.type === "Identifier" && isDrizzleModule(e.imports.get(obj.name)?.from);
+}
 
 /** Identifiers declared in this file whose value is SQL text or a prepared statement. */
 type FileState = { src: string; texts: Map<string, N>; prepared: Map<string, N> };
@@ -62,7 +77,7 @@ const HANDLES = ["prisma", "db", "tx", "trx", "client", "database", "pool", "con
 const TEMPLATE_KEYS = ["sql``", "*.sql``", "Bun.sql``", "Prisma.sql``", "sql.unsafe``", "sql.fragment``", "*.$queryRaw``", "*.$executeRaw``"].concat(
 	HANDLES.flatMap((h) => [`${h}.$queryRaw\`\``, `${h}.$executeRaw\`\``, `${h}.sql\`\``]),
 );
-const RUN_METHODS = ["get", "all", "run", "values", "iterate"];
+const RUN_METHODS = ["get", "all", "run", "values", "iterate", "first", "raw"];
 
 /** SQL in TS/JS (tagged templates, driver calls, prepared statements, SQL constants) narrated clause by clause, with the full SQL kept. */
 export const sql = ({ parser }: SqlOptions = {}): TsPlugin<P> => {
@@ -107,7 +122,8 @@ export const sql = ({ parser }: SqlOptions = {}): TsPlugin<P> => {
 		return null;
 	};
 
-	const drizzles = (e: Engine, node: N) => tagKind(node.tag) === "sql" && DRIZZLE_SQL.test(e.src) && e.dialects.some((d) => d.name === "drizzle");
+	/** Drizzle's `sql` template is Drizzle's to describe when the Drizzle plugin is loaded. */
+	const drizzles = (e: Engine, node: N) => tagKind(node.tag) === "sql" && isDrizzleTag(e, node.tag) && e.dialects.some((d) => d.name === "drizzle");
 
 	const templateText = (e: Engine, node: N): SqlText => fromTemplate({ e, quasi: unwrap(node).quasi, isSqlTag });
 
@@ -129,7 +145,7 @@ export const sql = ({ parser }: SqlOptions = {}): TsPlugin<P> => {
 			const text = sqlOf(e, args[0], arrayBinding(e, args[1]));
 			if (!text) return null;
 			const method = unwrap(node.callee).property.name;
-			const prepare = prepares || (method === "query" && BUN_SQLITE.test(e.src));
+			const prepare = prepares || (method === "query" && e.usesLibrary("bun:sqlite"));
 			return narrate({ e, say, text, mode: prepare ? "prepared" : stmt ? "action" : "value" });
 		};
 
@@ -140,20 +156,46 @@ export const sql = ({ parser }: SqlOptions = {}): TsPlugin<P> => {
 		return text ? narrate({ e, say, text, mode: stmt ? "action" : "value" }) : null;
 	};
 
-	/** `db.prepare(text).get(a)` and `stmt.all(a)` where `stmt` was prepared in this file. */
+	/** The SQL text a prepared-statement expression holds: `db.prepare(text)`, or a `stmt` prepared in this file. */
+	const preparedSource = (e: Engine, target: N): N | undefined => {
+		if (target?.type === "CallExpression" && unwrap(target.callee).type === "MemberExpression") {
+			const callee = unwrap(target.callee);
+			if (["prepare", "query"].includes(callee.property?.name) && isDb(e, callee.object)) return target.arguments[0];
+		} else if (target?.type === "Identifier") return state(e).prepared.get(target.name);
+		return undefined;
+	};
+
+	/** `db.prepare(text).get(a)`, `stmt.all(a)`, and D1's `db.prepare(text).bind(a).first()`. */
 	const runRule: CallRule<P> = (ctx) => {
 		const { args, obj, e, stmt, say } = ctx;
 		const target = unwrap(obj);
-		let source: N | undefined;
-		if (target?.type === "CallExpression" && unwrap(target.callee).type === "MemberExpression") {
-			const callee = unwrap(target.callee);
-			if (["prepare", "query"].includes(callee.property?.name) && isDb(e, callee.object)) source = target.arguments[0];
-		} else if (target?.type === "Identifier") source = state(e).prepared.get(target.name);
+		const bound = target?.type === "CallExpression" && unwrap(target.callee).property?.name === "bind" && !args.length ? target : null;
+		const source = preparedSource(e, bound ? unwrap(unwrap(bound.callee).object) : target);
 		if (source) {
-			const text = sqlOf(e, source, restBinding(e, args));
-			if (text) return narrate({ e, say, text, mode: stmt ? "action" : "value" });
+			const text = sqlOf(e, source, restBinding(e, bound ? bound.arguments : args));
+			const d = text && narrate({ e, say, text, mode: stmt ? "action" : "value" });
+			if (d) return !stmt && ctx.node.callee.property?.name === "first" ? D(say.run.firstRow({ value: d.t }), d.kids) : d;
 		}
 		return ctx.node.callee.property?.name === "run" ? restRule(ctx) : null;
+	};
+
+	/** D1's `db.prepare(text).bind(a)` on its own: a statement ready to run. */
+	const bindRule: CallRule<P> = ({ args, obj, e, say }) => {
+		const source = preparedSource(e, unwrap(obj));
+		const text = source ? sqlOf(e, source, restBinding(e, args)) : null;
+		return text ? narrate({ e, say, text, mode: "prepared" }) : null;
+	};
+
+	/** `const { rows } = await pool.query(...)` reads as "Let rows be <the query>", like `.rows` does. */
+	const rowsDestructure = ({ node, e, d }: { node: N; e: Engine; d: number }): boolean => {
+		const only = node.declarations.length === 1 ? node.declarations[0] : null;
+		const props = only?.id.type === "ObjectPattern" ? only.id.properties : [];
+		const p = props.length === 1 && props[0].type === "Property" && !props[0].computed ? props[0] : null;
+		if (!p || (p.key.name ?? p.key.value) !== "rows" || p.value.type !== "Identifier") return false;
+		const doc = queryRows(e, only.init);
+		if (!doc) return false;
+		e.emitDoc(d, { t: e.say.declarations.let({ name: e.ref(p.value.name), value: doc.t }), kids: doc.kids }, node);
+		return true;
 	};
 
 	/** Remembers SQL constants and prepared statements; narrates `const Q = "select ..."` itself. Bare `await sql\`...\`` reads as an action. */
@@ -167,6 +209,7 @@ export const sql = ({ parser }: SqlOptions = {}): TsPlugin<P> => {
 			return true;
 		}
 		if (node.type !== "VariableDeclaration") return false;
+		if (rowsDestructure({ node, e, d })) return true;
 		for (const v of node.declarations) {
 			if (v.id.type !== "Identifier" || !v.init) continue;
 			const init = unwrap(v.init);
@@ -185,7 +228,7 @@ export const sql = ({ parser }: SqlOptions = {}): TsPlugin<P> => {
 		return true;
 	};
 
-	return definePlugin({
+	const plugin = definePlugin({
 		name: "sql",
 		phrases: { en },
 		calls: {
@@ -198,7 +241,17 @@ export const sql = ({ parser }: SqlOptions = {}): TsPlugin<P> => {
 			"*.$executeRawUnsafe": restRule,
 			"*.exec": restRule,
 			...Object.fromEntries(RUN_METHODS.map((m) => [`*.${m}`, runRule])),
+			"*.bind": bindRule,
 		},
+		members: { "*.rows": ({ obj, e }) => queryRows(e, obj) },
 		statements: [statements],
 	});
+	registerParser(plugin, currentParser);
+	return plugin;
 };
+
+declare module "@usenarrator/core" {
+	interface PluginPhrases {
+		sql: SqlPhrases;
+	}
+}

@@ -15,7 +15,7 @@ typescript({ parser: oxcParser, plugins: [effect()] });
 ```
 
 <Note>
-  The plugin only narrates Effect APIs in files that import from `effect`. That keeps unrelated code that happens to use names like `Effect` or `Layer` reading normally.
+  The plugin only narrates Effect APIs in files that import from `effect` or belong to a package that depends on it (when the host passes `dependencies` to `typescript()`), and picks the v3 or v4 reading from that dependency's version unless `version` is pinned. That keeps unrelated code that happens to use names like `Effect` or `Layer` reading normally.
 </Note>
 
 ## Examples

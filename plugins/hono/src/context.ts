@@ -21,7 +21,7 @@ function headerList(c: Ctx, n: N): string {
 }
 
 /** Status and headers after a response's body: `(201, { … })` or a `{ status, headers }` init object. */
-function withExtras(c: Ctx, base: Doc, extra: N[]): Doc {
+function extrasText(c: Ctx, extra: N[]): string | null {
 	const [second, third] = extra;
 	const init = objectArg(second);
 	const isInit = init && (propOf(init, "status") || propOf(init, "headers"));
@@ -31,7 +31,11 @@ function withExtras(c: Ctx, base: Doc, extra: N[]): Doc {
 		...(status ? [c.say.response.status({ status: statusText(c, status) })] : []),
 		...(headers ? [c.say.response.headers({ headers: headerList(c, headers) })] : []),
 	];
-	const d = details(c, items);
+	return details(c, items);
+}
+
+function withExtras(c: Ctx, base: Doc, extra: N[]): Doc {
+	const d = extrasText(c, extra);
 	return d ? D(c.say.response.withDetails({ response: base.t, details: d }), base.kids) : base;
 }
 
@@ -54,8 +58,13 @@ export function responseDoc(c: Ctx, call: N): Doc | null {
 		return withExtras(c, D(pick(v.t), v.kids), rest);
 	};
 	switch (callee.property.name) {
-		case "json":
+		case "json": {
+			const v = first ? c.e.noun(first) : null;
+			// A bulleted object goes last, so the status isn't stranded after its bullets.
+			const literal = ["ObjectExpression", "ArrayExpression"].includes(unwrap(first)?.type);
+			if (v?.kids.length && literal) return D(r.jsonFrom({ data: v.t, details: extrasText(c, rest) }), v.kids);
 			return val((data) => r.json({ data }));
+		}
 		case "text":
 			return val((text) => r.text({ text }));
 		case "html":

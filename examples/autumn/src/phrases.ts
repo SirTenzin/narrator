@@ -3,6 +3,8 @@ export type AutumnPhrases = {
 	/** How abbreviations in identifiers read: `cus` -> "customer". */
 	glossary: Record<
 		| "cus"
+		| "cust"
+		| "cli"
 		| "cp"
 		| "cps"
 		| "atmn"

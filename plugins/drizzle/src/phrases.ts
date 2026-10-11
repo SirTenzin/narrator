@@ -52,6 +52,8 @@ export type ReferentialAction = "cascade" | "setNull" | "setDefault" | "restrict
 
 /** Drizzle ORM phrasebook. A translator implements this type in `src/<locale>.ts`. */
 export type DrizzlePhrases = {
+	/** `drizzle(client, { schema })`; `source` and `schema` may be empty. */
+	database: Phrase<"source" | "schema">;
 	compare: {
 		/** `eq` (and `ne`, which is `eq` negated). */
 		equal: NegPhrase<"left" | "right">;
@@ -145,17 +147,32 @@ export type DrizzlePhrases = {
 		/** `.from(t)` after `select(fields)`. */
 		fromFields: Phrase<"table">;
 		picking: Phrase<"fields">;
-		insertInto: Phrase<"table">;
-		update: Phrase<"table">;
-		deleteFrom: Phrase<"table">;
+		/** `returning` is only set in value form, where the chain ends in `.returning()`. */
+		insertInto: (p: { table: string; returning: boolean }) => string;
+		update: (p: { table: string; returning: boolean }) => string;
+		deleteFrom: (p: { table: string; returning: boolean }) => string;
+		/** A query used as a value (`return db.select()...`, `const rows = await db.delete(t)...`): noun forms of the titles. */
+		noun: {
+			everyRow: Phrase<"table">;
+			rows: Phrase<"table">;
+			select: Phrase<"selection">;
+			selectAll: string;
+			insertInto: (p: { table: string; returning: boolean }) => string;
+			update: (p: { table: string; returning: boolean }) => string;
+			deleteFrom: (p: { table: string; returning: boolean }) => string;
+		};
+		/** Header for picked fields listed as bullets below. */
+		theseFields: string;
+		returningFields: Phrase<"fields">;
 		values: Phrase<"values">;
 		setting: Phrase<"changes">;
 		where: Phrase<"condition">;
 		joined: Phrase<"table" | "condition">;
 		crossJoined: Phrase<"table">;
 		sortedBy: Phrase<"columns">;
-		atMost: Phrase<"count">;
-		skipping: Phrase<"count">;
+		/** `one` is set when the count is the literal 1. */
+		atMost: (p: { count: string; one: boolean }) => string;
+		skipping: (p: { count: string; one: boolean }) => string;
 		returning: string;
 		returningIds: string;
 		ignoreConflicts: string;

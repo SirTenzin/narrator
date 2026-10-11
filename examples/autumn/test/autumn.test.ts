@@ -22,3 +22,10 @@ test("a partial translation reports what it is missing", () => {
 	expect(gaps.missing).toContain("errorLabels.RecaseError");
 	expect(gaps.extra).toEqual([]);
 });
+
+test("Autumn abbreviations come from the preset, not core", () => {
+	const code = "const subs = cust.subIds.map((id) => stripeCli.get(id));";
+	expect(narrateWithStats(code).text).toBe("Let subs be stripe CLI's entry for each ID in cust's sub IDs.");
+	reads(code, "Let subscriptions be Stripe client's entry for each ID in customer's subscription IDs.");
+	reads("const mrr = 1;", "Let MRR be 1.");
+});

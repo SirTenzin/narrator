@@ -373,6 +373,12 @@ export interface CorePhrases {
 	types: TypePhrases;
 }
 
+/**
+ * Phrasebook types by plugin name, so `Locale.plugins` overrides are type-checked. Plugins add themselves:
+ * `declare module "@usenarrator/core" { interface PluginPhrases { zod: ZodPhrases } }`.
+ */
+export interface PluginPhrases {}
+
 /** An output (human) language. Add one by implementing this interface; see `@usenarrator/locale-en`. */
 export interface Locale {
 	/** BCP 47 tag, e.g. "en", "es", "pt-BR". Plugins look up their own phrasebooks by this id. */
@@ -380,5 +386,5 @@ export interface Locale {
 	grammar: Grammar;
 	phrases: CorePhrases;
 	/** Translations for plugins that don't ship this locale themselves, keyed by plugin name. */
-	plugins?: Record<string, unknown>;
+	plugins?: { [K in keyof PluginPhrases]?: PluginPhrases[K] } & Record<string, unknown>;
 }

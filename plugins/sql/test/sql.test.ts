@@ -180,7 +180,7 @@ describe("SELECT", () => {
 				"  • grouped by users' id",
 				"  • keeping only groups where the number of orders' id values is more than 5",
 				"  • sorted by column 2 (highest first)",
-				"  • skipping the first page times 20",
+				"  • skipping the first page times 20 rows",
 				"  • SQL: select u.id, u.email from users u left join orders o on o.user_id = u.id where u.active and o.total > ${min} and o.created_at > now() - interval '30 days' group by u.id having count(o.id) > 5 order by 2 desc offset ${page * 20}",
 			),
 		);
@@ -432,9 +432,51 @@ describe("guards", () => {
 		expect(narrate(code, { plugins })).toBe(narrate(code));
 	});
 
-	test("with the Drizzle plugin loaded, Drizzle's own sql template stays Drizzle's", () => {
+	test("with the Drizzle plugin loaded, Drizzle's sql template stays Drizzle's and borrows this plugin's SQL reading", () => {
 		const code =
 			'import { sql, eq } from "drizzle-orm";\nconst q = await db.select().from(users).where(sql`${users.id} = ${id}`);\nawait db.execute(sql`delete from x`);';
-		expect(narrate(code, { plugins: [drizzle(), ...plugins] })).toBe(narrate(code, { plugins: [drizzle()] }));
+		expect(narrate(code, { plugins: [drizzle(), ...plugins] })).toBe(
+			lines(
+				"Let q be the rows of users:",
+				"  • where the SQL condition ${users.id} = ${id} holds",
+				"",
+				"Delete rows from x:",
+				"  • in every row (there's no condition)",
+				"  • SQL: delete from x",
+			),
+		);
+	});
+
+	test("a postgres.js sql template is not Drizzle's, even with the Drizzle plugin loaded", () => {
+		const code = 'import postgres from "postgres";\nconst sql = postgres(url);\nawait sql`delete from x where id = ${id}`;';
+		expect(narrate(code, { plugins: [drizzle(), ...plugins] })).toBe(narrate(code, { plugins }));
+		expect(narrate(code, { plugins: [...plugins, drizzle()] })).toBe(narrate(code, { plugins }));
+	});
+});
+
+describe("driver result shapes", () => {
+	test("D1: prepare, bind, then first/all/run", () => {
+		expect(say('const row = await env.DB.prepare("select * from users where id = ?").bind(id).first();')).toBe(
+			lines("Let row be the first of the rows of users:", "  • where id is ID", "  • SQL: select * from users where id = ?"),
+		);
+		expect(say('const stmt = env.DB.prepare("delete from sessions where id = ?").bind(id);')).toContain(
+			"Let stmt be a prepared SQL statement to delete rows from sessions:",
+		);
+	});
+
+	test("the .rows of a query result is the query's rows", () => {
+		expect(say('const users = (await pool.query("select * from users where org_id = $1", [orgId])).rows;')).toBe(
+			lines("Let users be the rows of users:", "  • where org_id is org ID", "  • SQL: select * from users where org_id = $1"),
+		);
+	});
+
+	test("destructuring rows from a query reads as the rows", () => {
+		expect(say('const { rows } = await pool.query("select balance from accounts where id = $1", [id]);')).toBe(
+			lines("Let rows be the balance from accounts:", "  • where id is ID", "  • SQL: select balance from accounts where id = $1"),
+		);
+	});
+
+	test("a select without FROM names its aliases", () => {
+		expect(say("const v = await sql`select now() as at`;")).toContain("Let v be the current time (as at)");
 	});
 });

@@ -16,7 +16,9 @@ test("object entries loop with a skip", () => {
 });
 
 test("predicate function signature and boolean return", () => {
-	expect(narrate('export function isActive(sub: Subscription): boolean { return sub.status === "active" && sub.items.length > 0; }')).toBe(
+	expect(
+		narrate('export function isActive(subscription: Subscription): boolean { return subscription.status === "active" && subscription.items.length > 0; }'),
+	).toBe(
 		"Is active?, given subscription (Subscription); gives back true/false:\n  Give back whether subscription's status is \"active\" and subscription's items are not empty.",
 	);
 });

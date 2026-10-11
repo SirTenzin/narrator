@@ -10,7 +10,7 @@ import { withPipelines } from "./pipeline";
 import { valueRules } from "./valueRules";
 
 export type { StdPhrases } from "./phrases";
-export { en as stdEn };
+export { en, en as stdEn };
 
 /** Merges rule tables; where both claim a key, the first table's rule gets the first try. */
 const firstOf = (a: Record<string, CallRule<StdPhrases>>, b: Record<string, CallRule<StdPhrases>>) => {
@@ -84,3 +84,9 @@ export const std = definePlugin<StdPhrases>({
 	},
 	conditions: { ...conditionRules, ...nodeConditions, ...Object.fromEntries(Object.entries(nodeConditions).map(([k, r]) => [`*.${k}`, r])) },
 });
+
+declare module "@usenarrator/core" {
+	interface PluginPhrases {
+		std: StdPhrases;
+	}
+}

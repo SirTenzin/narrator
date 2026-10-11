@@ -5,7 +5,8 @@ const HONO_SOURCE = /^(?:(?:npm|jsr):)?(?:@hono\/|hono(?:\/|$))/;
 
 /** What a file imports from Hono and which local names hold apps, contexts, clients and streams. */
 export type Facts = {
-	src: string;
+	/** The file these facts were read from. */
+	program: N;
 	hono: boolean;
 	/** Local name -> imported name and module, for Hono imports only. */
 	imports: Map<string, { name: string; source: string }>;
@@ -30,8 +31,8 @@ export function factsReader(): (e: Engine) => Facts {
 	const cache = new WeakMap<Engine, Facts>();
 	return (e) => {
 		const hit = cache.get(e);
-		if (hit?.src === e.src) return hit;
-		const facts = empty(e.src);
+		if (hit && hit.program === e.program) return hit;
+		const facts = empty(e.program);
 		cache.set(e, facts);
 		scan({ e, facts });
 		return facts;
@@ -136,8 +137,8 @@ const typeName = (id: N): string | null => {
 	return t?.type === "TSTypeReference" && t.typeName.type === "Identifier" ? t.typeName.name : null;
 };
 
-const empty = (src: string): Facts => ({
-	src,
+const empty = (program: N): Facts => ({
+	program,
 	hono: false,
 	imports: new Map(),
 	apps: new Set(),
@@ -151,25 +152,9 @@ const empty = (src: string): Facts => ({
 /** Imports first, so the guards used while walking already know what came from Hono. */
 function scan(sc: Scope) {
 	const { e, facts: f } = sc;
-	if (!/hono/.test(e.src)) return;
-	const program = parse(e);
-	for (const st of program.body) {
-		if (st.type !== "ImportDeclaration" || !HONO_SOURCE.test(st.source.value)) continue;
-		f.hono = true;
-		for (const sp of st.specifiers) {
-			const name = sp.type === "ImportSpecifier" ? (sp.imported.name ?? sp.imported.value) : sp.type === "ImportDefaultSpecifier" ? "default" : "*";
-			f.imports.set(sp.local.name, { name, source: st.source.value });
-		}
-	}
-	if (f.hono) visit(program, (n) => record(sc, n));
-}
-
-/** JSX parses only as TSX and `<T>x` assertions only as TS; take whichever reads the file cleanly. */
-function parse(e: Engine): N {
-	const ts = e.parse("facts.ts", e.src);
-	if (!ts.errors.length) return ts.program;
-	const tsx = e.parse("facts.tsx", e.src);
-	return tsx.errors.length < ts.errors.length ? tsx.program : ts.program;
+	for (const [local, { from, name }] of e.imports) if (HONO_SOURCE.test(from)) f.imports.set(local, { name, source: from });
+	f.hono = f.imports.size > 0 || e.usesLibrary("hono");
+	if (f.hono) visit(e.program, (n) => record(sc, n));
 }
 
 function visit(n: N, f: (n: N) => void) {

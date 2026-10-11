@@ -1,6 +1,6 @@
 import { D, type Doc, type Line, mk } from "@usenarrator/core";
 import { type CallRule, definePlugin, type Engine, type N, type TsPlugin, unwrap } from "@usenarrator/lang-ts";
-import { calleeKey, isFn, readImports, strLit } from "../context";
+import { calleeKey, type FileImports, fileImports, isFn, strLit } from "../context";
 
 type P<K extends string> = (p: { [k in K]: string }) => string;
 
@@ -36,26 +36,20 @@ function bodyLines(e: Engine, fn: N): Line[] | null {
 	const ex = e.lambdaExpr(f);
 	const gen = ex && calleeKey(ex) === "Effect.gen" ? unwrap(ex).arguments.find((a: N) => isFn(a)) : null;
 	if (gen) return e.body(unwrap(gen).body, 0);
-	if (ex) {
-		const d = e.call(unwrap(ex), true);
-		return e.bullet(d);
-	}
+	if (unwrap(ex)?.type === "CallExpression") return e.bullet(e.call(unwrap(ex), true));
+	if (ex) return e.bullet(e.noun(ex));
 	return e.body(f.body, 0);
 }
 
-const EFFECT_VITEST = /^@effect\/vitest$/;
-
 /** `@effect/vitest` (`it.effect`, `layer(...)`, `assert`) and `TestClock`, v3 (`effect/TestClock`) and v4 (`effect/testing`). */
 export const effectTesting = (): TsPlugin<EffectTestingPhrases> => {
-	let src = "\0";
-	let imp = readImports("");
-	const fromVitest = (e: Engine, name: string) => {
-		if (e.src !== src) {
-			src = e.src;
-			imp = readImports(src);
-		}
-		return imp.effectNames.has(name) && [...imp.modules].some((m) => EFFECT_VITEST.test(m));
+	let file: { program: N; imp: FileImports } | null = null;
+	const imports = (e: Engine) => {
+		const f = file && file.program === e.program ? file : (file = { program: e.program, imp: fileImports(e) });
+		return f.imp;
 	};
+	/** `it` / `assert` / `layer` must come from `@effect/vitest`: plain vitest uses the same names. */
+	const fromVitest = (e: Engine, name: string) => e.imports.get(name)?.from === "@effect/vitest";
 	const testRule =
 		(pick: (s: EffectTestingPhrases) => P<"name">): CallRule<EffectTestingPhrases> =>
 		({ args: [name, fn], e, say }) => {
@@ -73,11 +67,7 @@ export const effectTesting = (): TsPlugin<EffectTestingPhrases> => {
 		(f: (e: Engine, say: EffectTestingPhrases, x: N) => string): CallRule<EffectTestingPhrases> =>
 		({ args: [x], e, say }) => {
 			if (!x) return null;
-			if (e.src !== src) {
-				src = e.src;
-				imp = readImports(src);
-			}
-			return imp.effectNames.has("TestClock") ? D(f(e, say, x)) : null;
+			return imports(e).effectNames.has("TestClock") ? D(f(e, say, x)) : null;
 		};
 	const calls: Record<string, CallRule<EffectTestingPhrases>> = {
 		"it.effect": testRule((s) => s.test),
@@ -101,3 +91,9 @@ export const effectTesting = (): TsPlugin<EffectTestingPhrases> => {
 		calls,
 	});
 };
+
+declare module "@usenarrator/core" {
+	interface PluginPhrases {
+		"effect-testing": EffectTestingPhrases;
+	}
+}

@@ -1,10 +1,10 @@
 import { D, type Doc } from "@usenarrator/core";
-import { type CallRule, definePlugin, type Engine, type N, type StmtRule, type TsPlugin, unwrap } from "@usenarrator/lang-ts";
+import { type CallRule, definePlugin, type Engine, type MemberRule, type N, type StmtRule, type TsPlugin, unwrap } from "@usenarrator/lang-ts";
 import { appCalls, appStatements, type Stmt } from "./app";
 import { clientCalls } from "./client";
 import { contextCalls, responseDoc } from "./context";
 import { en } from "./en";
-import { factsReader, isNext } from "./facts";
+import { factsReader, isContext, isNext, isRequest } from "./facts";
 import { middlewareCalls } from "./middleware";
 import type { HonoPhrases } from "./phrases";
 import type { Ctx, Rule } from "./shared";
@@ -50,11 +50,35 @@ export const hono = (): TsPlugin<HonoPhrases> => {
 			({ node, e, d, say }: { node: N; e: Engine; d: number; say: HonoPhrases }) =>
 				s(ctx(e, say), node, d),
 	);
+	const requestProp =
+		(pick: (say: HonoPhrases) => string): MemberRule<HonoPhrases> =>
+		({ obj, e, say }) =>
+			isRequest(ctx(e, say), obj) ? pick(say) : null;
+	const contextProp =
+		(pick: (say: HonoPhrases) => string): MemberRule<HonoPhrases> =>
+		({ obj, e, say }) =>
+			isContext(ctx(e, say), obj) ? pick(say) : null;
+	const members: Record<string, MemberRule<HonoPhrases>> = {
+		"*.req.url": requestProp((s) => s.request.url),
+		"*.req.method": requestProp((s) => s.request.method),
+		"*.req.path": requestProp((s) => s.request.path),
+		"*.req.routePath": requestProp((s) => s.request.routePath),
+		"*.req.raw": requestProp((s) => s.request.raw),
+		"*.env": contextProp((s) => s.context.env),
+		"*.var": contextProp((s) => s.context.variables),
+	};
 	return definePlugin<HonoPhrases>({
 		name: "hono",
 		library: { name: "hono", versions: ">=4 <6" },
 		phrases: { en },
 		calls,
+		members,
 		statements,
 	});
 };
+
+declare module "@usenarrator/core" {
+	interface PluginPhrases {
+		hono: HonoPhrases;
+	}
+}

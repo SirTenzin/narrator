@@ -3,3 +3,6 @@ dist
 *.zip
 apps/extension/safari
 apps/extension/safari-build
+/packages/*/LICENSE
+/plugins/*/LICENSE
+/apps/cli/LICENSE

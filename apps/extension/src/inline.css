@@ -114,3 +114,17 @@ table[data-pe-hidden] {
 .pe-table td {
 	vertical-align: top;
 }
+
+/* GitHub greys out code inside deferred-diff-lines until it highlights it, which never happens while the original table is hidden. */
+.pe-table.pe-table .blob-code-inner .pl-c1:not(.x) {
+	color: var(--color-prettylights-syntax-constant, #0550ae);
+}
+.pe-table.pe-table .blob-code-inner .pl-s:not(.x) {
+	color: var(--color-prettylights-syntax-string, #0a3069);
+}
+.pe-table.pe-table .blob-code-inner .pl-en:not(.x) {
+	color: var(--color-prettylights-syntax-entity, #6639ba);
+}
+.pe-table.pe-table .blob-code-inner .pl-smi:not(.x) {
+	color: var(--color-prettylights-syntax-storage-modifier-import, #1f2328);
+}

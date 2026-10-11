@@ -1,25 +1,59 @@
 {
 	"name": "@usenarrator/lang-ts",
-	"version": "0.0.0",
-	"private": true,
+	"version": "0.1.0",
 	"description": "TS/JS source language: AST walker, plugin API, standard-library rules.",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/SirTenzin/narrator.git",
+		"directory": "packages/lang-ts"
+	},
+	"homepage": "https://github.com/SirTenzin/narrator#readme",
 	"type": "module",
+	"sideEffects": false,
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
 	"exports": {
-		".": "./src/index.ts",
-		"./oxc": "./src/oxc.ts",
-		"./wasm": "./src/wasm.ts"
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js",
+			"default": "./dist/index.js"
+		},
+		"./oxc": {
+			"types": "./dist/oxc.d.ts",
+			"import": "./dist/oxc.js",
+			"default": "./dist/oxc.js"
+		},
+		"./wasm": {
+			"types": "./dist/wasm.d.ts",
+			"import": "./dist/wasm.js",
+			"default": "./dist/wasm.js"
+		},
+		"./package.json": "./package.json"
+	},
+	"files": [
+		"dist"
+	],
+	"publishConfig": {
+		"access": "public"
 	},
 	"dependencies": {
-		"@usenarrator/core": "workspace:*",
-		"oxc-parser": "^0.153.0"
+		"@usenarrator/core": "workspace:^"
 	},
 	"peerDependencies": {
-		"@oxc-parser/wasm": "0.60.0"
+		"@oxc-parser/wasm": "~0.60.0",
+		"oxc-parser": ">=0.153.0 <1"
 	},
 	"peerDependenciesMeta": {
 		"@oxc-parser/wasm": {
 			"optional": true
+		},
+		"oxc-parser": {
+			"optional": true
 		}
 	},
-	"sideEffects": false
+	"devDependencies": {
+		"@oxc-parser/wasm": "0.60.0",
+		"oxc-parser": "^0.153.0"
+	}
 }

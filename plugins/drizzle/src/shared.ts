@@ -1,5 +1,6 @@
 import { D, type Doc, mk } from "@usenarrator/core";
 import { type Engine, type N, unwrap } from "@usenarrator/lang-ts";
+import { fromTemplate, looksLikeSql, type SqlMode, tryDescribeSql } from "@usenarrator/plugin-sql";
 import type { DrizzlePhrases } from "./phrases";
 
 export type Ctx = { e: Engine; say: DrizzlePhrases };
@@ -77,6 +78,22 @@ export function isSqlTemplate(n: N): boolean {
 /** The full SQL text of a `sql` template, interpolations included as written. */
 export const sqlCode = (e: Engine, n: N) => mk("c", e.code(unwrap(n).quasi).slice(1, -1).replace(/\s+/g, " ").trim());
 
+export const isDrizzleModule = (m: string | undefined) => !!m && (m === "drizzle-orm" || m.startsWith("drizzle-orm/"));
+
+/** A template tag that is Drizzle's `sql`: imported from `drizzle-orm` by name or through a namespace (`orm.sql`). */
+export function isDrizzleSql(e: Engine, tag: N): boolean {
+	const t = unwrap(tag);
+	if (t?.type === "Identifier") return t.name !== "raw" && isDrizzleModule(e.imports.get(t.name)?.from);
+	const obj = t?.type === "MemberExpression" && !t.computed && t.property.name === "sql" ? unwrap(t.object) : null;
+	return obj?.type === "Identifier" && isDrizzleModule(e.imports.get(obj.name)?.from);
+}
+
+/** A `sql` template holding a whole statement, in plugin-sql's clause-by-clause English; null for fragments and SQL it can't read. */
+export function sqlStatement(e: Engine, n: N, mode: SqlMode): Doc | null {
+	const text = fromTemplate({ e, quasi: unwrap(n).quasi, isSqlTag: isSqlTemplate });
+	return looksLikeSql(text.display) ? tryDescribeSql({ e, sql: text, mode }) : null;
+}
+
 export function sqlFragment({ e, say }: Ctx, n: N): Doc {
 	const code = e.code(unwrap(n).quasi).slice(1, -1).trim();
 	return D(code ? say.sql.fragment({ sql: sqlCode(e, n) }) : say.sql.empty);
@@ -133,3 +150,6 @@ export const items = (n: N): N[] => {
 
 /** An object entry the plugin doesn't interpret, rendered by the engine (spreads included). */
 export const entryDoc = (e: Engine, p: N): Doc => (p.type === "SpreadElement" ? e.noun(p) : e.objectProp(p));
+
+/** The literal `1`, for singular counts. */
+export const isOne = (n: N) => unwrap(n)?.type === "Literal" && unwrap(n).value === 1;

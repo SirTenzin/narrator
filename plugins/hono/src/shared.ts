@@ -48,10 +48,48 @@ export const pathText = (e: Engine, n: N): string => {
 
 /** A status code with its name when the phrasebook knows it: "404 Not Found". */
 export function statusText({ e, say }: Ctx, n: N): string {
-	const code = num(n);
+	const code = num(n) ?? namedStatus({ e, n });
 	if (code === null) return e.text(n);
 	return say.response.code({ code: mk("l", String(code)), name: say.response.statusNames[String(code)] ?? null });
 }
+
+/** `HttpStatusCodes.NOT_FOUND` from a status-code constants module (stoker, http-status-codes) as its number. */
+function namedStatus({ e, n }: { e: Engine; n: N }): number | null {
+	const u = unwrap(n);
+	if (u?.type !== "MemberExpression" || u.computed || unwrap(u.object)?.type !== "Identifier") return null;
+	if (!/(^|\/)http-status-codes$/.test(e.imports.get(unwrap(u.object).name)?.from ?? "")) return null;
+	return STATUS_CONSTANTS[u.property.name] ?? null;
+}
+
+/** The constant names those modules export, as codes (identifiers, not English). */
+const STATUS_CONSTANTS: Record<string, number> = {
+	OK: 200,
+	CREATED: 201,
+	ACCEPTED: 202,
+	NO_CONTENT: 204,
+	MOVED_PERMANENTLY: 301,
+	MOVED_TEMPORARILY: 302,
+	SEE_OTHER: 303,
+	NOT_MODIFIED: 304,
+	TEMPORARY_REDIRECT: 307,
+	PERMANENT_REDIRECT: 308,
+	BAD_REQUEST: 400,
+	UNAUTHORIZED: 401,
+	FORBIDDEN: 403,
+	NOT_FOUND: 404,
+	METHOD_NOT_ALLOWED: 405,
+	CONFLICT: 409,
+	GONE: 410,
+	REQUEST_TOO_LONG: 413,
+	UNSUPPORTED_MEDIA_TYPE: 415,
+	UNPROCESSABLE_ENTITY: 422,
+	TOO_MANY_REQUESTS: 429,
+	INTERNAL_SERVER_ERROR: 500,
+	NOT_IMPLEMENTED: 501,
+	BAD_GATEWAY: 502,
+	SERVICE_UNAVAILABLE: 503,
+	GATEWAY_TIMEOUT: 504,
+};
 
 /** A validation target (`"json"`) as its phrase, or the expression itself. */
 export function targetText({ e, say }: Ctx, n: N): string {

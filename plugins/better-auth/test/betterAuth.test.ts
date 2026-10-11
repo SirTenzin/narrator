@@ -1,14 +1,24 @@
 import { describe, expect, test } from "bun:test";
+import { createNarrator, renderText } from "@usenarrator/core";
+import { typescript } from "@usenarrator/lang-ts";
+import { oxcParser } from "@usenarrator/lang-ts/oxc";
 import { en as english } from "@usenarrator/locale-en";
-import { narrate, narrateWithStats, phrasebookGaps } from "@usenarrator/testkit";
+import { narrate, phrasebookGaps } from "@usenarrator/testkit";
 import { type BetterAuthPhrases, betterAuth, en } from "../src";
 
 const plugins = [betterAuth()];
-const read = (code: string) => narrate(code, { plugins });
+
+/** Narrates `code` as a file of a package with these dependencies (snippets below live in a Better Auth app). */
+const narrateIn = (code: string, dependencies: Record<string, string> = { "better-auth": "^1.6.0" }) => {
+	const narrator = createNarrator({ languages: [typescript({ parser: oxcParser, plugins, dependencies: () => dependencies })], locale: english });
+	const { lines, stats } = narrator.narrate(code, "snippet.ts");
+	return { text: renderText(lines), fallbacks: stats.fallbacks };
+};
+const read = (code: string) => narrateIn(code).text;
 
 /** Narrates and asserts nothing fell back to raw code. */
 const readClean = (code: string) => {
-	const { text, fallbacks } = narrateWithStats(code, { plugins });
+	const { text, fallbacks } = narrateIn(code);
 	expect(fallbacks).toBe(0);
 	return text;
 };
@@ -376,7 +386,7 @@ describe("phrasebook", () => {
 			setup: { ...en.setup, serverAs: ({ name }) => `CONFIGURAR LA AUTENTICACIÓN COMO ${name}, CON` },
 			api: { ...en.api, do: { ...en.api.do, signOut: "CERRAR SESIÓN" } },
 		};
-		const text = narrate(`export const auth = betterAuth({ appName: "Acme" });\nawait auth.api.signOut();`, {
+		const text = narrate(`import { betterAuth } from "better-auth";\nexport const auth = betterAuth({ appName: "Acme" });\nawait auth.api.signOut();`, {
 			plugins,
 			locale: { ...english, plugins: { "better-auth": shouted } },
 		});
@@ -386,5 +396,20 @@ describe("phrasebook", () => {
 
 	test("a complete translation has no gaps", () => {
 		expect(phrasebookGaps(en, { ...en })).toEqual({ missing: [], extra: [] });
+	});
+});
+
+describe("activation", () => {
+	test("bare plugin and setup names are Better Auth's only when imported from it or the package depends on it", () => {
+		const code = 'const plugins = [organization(), admin()];\nconst auth = betterAuth({ appName: "Acme" });';
+		expect(narrateIn(code, {}).text).toBe(narrate(code));
+		expect(narrateIn(code).text).not.toBe(narrate(code));
+		const imported = 'import { organization } from "better-auth/plugins";\nconst plugins = [organization()];';
+		expect(narrateIn(imported, {}).text).toBe(narrateIn(imported).text);
+	});
+
+	test("a same-named function from another library is left alone", () => {
+		const code = 'import { jwt } from "@elysiajs/jwt";\nimport { stripe } from "./billing";\nconst a = jwt({ secret });\nconst b = stripe(key);';
+		expect(narrateIn(code).text).toBe(narrate(code));
 	});
 });

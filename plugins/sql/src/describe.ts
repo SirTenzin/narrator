@@ -1,5 +1,5 @@
 import { D, type Doc, mk } from "@usenarrator/core";
-import type { Engine } from "@usenarrator/lang-ts";
+import type { Engine, TsPlugin } from "@usenarrator/lang-ts";
 import type { Statement } from "pgsql-ast-parser";
 import { en } from "./en";
 import { type Ctx, value } from "./expr";
@@ -20,11 +20,18 @@ function parseFirst<T>(attempts: string[], parse: (s: string) => T): T | null {
 	return null;
 }
 
+type NarrateSql = { e: Engine; say: SqlPhrases; sql: SqlText; mode: SqlMode; parser: SqlParser | null };
+
 /** English for a SQL text, always followed by the full SQL; unreadable SQL falls back to the SQL alone. */
-export function narrateSql({ e, say, sql, mode, parser }: { e: Engine; say: SqlPhrases; sql: SqlText; mode: SqlMode; parser: SqlParser | null }): Doc {
+export function narrateSql(p: NarrateSql): Doc {
+	const shown = mk("c", p.sql.display);
+	return readSql(p) ?? D(p.mode === "action" ? p.say.run.rawAction({ sql: shown }) : p.say.run.rawValue({ sql: shown }));
+}
+
+/** `narrateSql`, but null when there's no parser or the SQL doesn't parse. */
+function readSql({ e, say, sql, mode, parser }: NarrateSql): Doc | null {
 	const shown = mk("c", sql.display);
-	const raw = () => D(mode === "action" ? say.run.rawAction({ sql: shown }) : say.run.rawValue({ sql: shown }));
-	if (!parser) return raw();
+	if (!parser) return null;
 	const c: Ctx = { e, say, params: sql.params, labels: sql.labels, aliases: new Map(), query: statement };
 	const sqlLine = e.bullet(D(say.run.sql({ sql: shown })));
 	const stmts = parseFirst(sql.attempts, parser.statements);
@@ -32,15 +39,15 @@ export function narrateSql({ e, say, sql, mode, parser }: { e: Engine; say: SqlP
 		try {
 			return describeStatements({ c, stmts, mode, sqlLine });
 		} catch {
-			return raw();
+			return null;
 		}
 	}
 	const expr = parseFirst(sql.attempts, parser.expression);
-	if (!expr) return raw();
+	if (!expr) return null;
 	try {
 		return D(say.run.fragment({ value: value(c, expr) }), sqlLine);
 	} catch {
-		return raw();
+		return null;
 	}
 }
 
@@ -70,8 +77,28 @@ function describeStatements({ c, stmts, mode, sqlLine }: { c: Ctx; stmts: Statem
 	return D(head, [...steps.flatMap((s) => e.bullet(s)), ...sqlLine]);
 }
 
-/** For other plugins (e.g. Drizzle's `db.execute(sql\`...\`)`): narrate SQL in this plugin's words for the active locale. */
-export function describeSql({ e, sql, mode, parser }: { e: Engine; sql: SqlText; mode: SqlMode; parser: SqlParser | null }): Doc {
+const parsers = new WeakMap<TsPlugin, () => SqlParser | null>();
+
+/** Lets `describeSql` find the parser of a loaded `sql()` plugin. */
+export const registerParser = (plugin: TsPlugin, parser: () => SqlParser | null) => parsers.set(plugin, parser);
+
+/**
+ * For other plugins (e.g. Drizzle's `db.execute(sql\`...\`)`): narrate SQL in this plugin's words for the active locale.
+ * Without `parser`, uses the parser of the `sql()` plugin loaded alongside, if any (else the SQL is shown as-is).
+ */
+export function describeSql(p: DescribeSql): Doc {
+	return narrateSql(describeArgs(p));
+}
+
+/** `describeSql`, but null when the SQL can't be read (no parser loaded, or it doesn't parse), so callers can keep their own wording. */
+export function tryDescribeSql(p: DescribeSql): Doc | null {
+	return readSql(describeArgs(p));
+}
+
+type DescribeSql = { e: Engine; sql: SqlText; mode: SqlMode; parser?: SqlParser | null };
+
+function describeArgs({ e, sql, mode, parser }: DescribeSql): NarrateSql {
 	const say = e.phrasesFor({ name: "sql", phrases: { en } }) as SqlPhrases;
-	return narrateSql({ e, say, sql, mode, parser });
+	const loaded = e.dialects.find((d) => parsers.has(d));
+	return { e, say, sql, mode, parser: parser !== undefined ? parser : loaded ? (parsers.get(loaded)?.() ?? null) : null };
 }

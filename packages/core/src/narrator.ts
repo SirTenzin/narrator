@@ -1,21 +1,36 @@
+import type { DependencyIndex } from "./dependencies";
 import type { FileNarration, FileNarrator, SourceLanguage } from "./language";
 import type { Locale } from "./locale";
-import { buildDiffReport, type ChangedFile, type FileJson, type Resolver } from "./report";
+import { buildDiffReport, type ChangedFile, diffFiles, type FileDiff, type FileJson, type Resolver } from "./report";
 
 export type Narrator = {
 	locale: Locale;
 	canNarrate(path: string): boolean;
 	narrate(src: string, path: string): FileNarration;
 	fileNarrator(path: string): FileNarrator;
+	/** HTML-ready rows for a change set; `resolve` turns names into links. */
 	diff(files: ChangedFile[], opts?: { resolve?: Resolver }): FileJson[];
+	/** The same change set as structured units with their `Line`s; render with `renderDiffText`. */
+	diffFiles(files: ChangedFile[]): FileDiff[];
 };
 
-export function createNarrator({ languages, locale }: { languages: SourceLanguage[]; locale: Locale }): Narrator {
+export function createNarrator({
+	languages,
+	locale,
+	dependencies,
+}: {
+	languages: SourceLanguage[];
+	locale: Locale;
+	/** Manifests found in the repo (see `createDependencyIndex`), so plugins know what each file's package uses. */
+	dependencies?: DependencyIndex;
+}): Narrator {
 	const languageFor = (path: string) => languages.find((l) => l.handles(path));
 	const fileNarrator = (path: string) => {
 		const language = languageFor(path);
 		if (!language) throw new Error(`No source language handles ${path}`);
-		return language.create(locale);
+		if (!dependencies) return language.create(locale);
+		const ecosystems = language.ecosystems ?? [];
+		return language.create(locale, { dependencies: (p) => Object.assign({}, ...ecosystems.map((eco) => dependencies.forFile(p, eco))) });
 	};
 	return {
 		locale,
@@ -24,5 +39,6 @@ export function createNarrator({ languages, locale }: { languages: SourceLanguag
 		fileNarrator,
 		diff: (files, opts) =>
 			buildDiffReport({ files: files.filter((f) => languageFor(f.path)), narratorFor: fileNarrator, resolve: opts?.resolve ?? (() => null) }),
+		diffFiles: (files) => diffFiles({ files: files.filter((f) => languageFor(f.path)), narratorFor: fileNarrator }),
 	};
 }

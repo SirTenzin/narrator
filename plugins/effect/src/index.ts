@@ -54,10 +54,10 @@ function opsFor(version: Version, groups: Versioned[]): OpTable {
 
 /** Effect (effect.website), v3 and v4: generators read as steps, pipes as numbered steps. */
 export const effect = ({ version }: EffectOptions = {}): TsPlugin<EffectPhrases> => {
-	const v: Version = version ?? "auto";
-	const ops = opsFor(v, [effectOps, { shared: scheduleOps }, { shared: schemaOps }, dataOps, streamOps, layerOps, stateOps, configOps, observeOps]);
+	const groups = [effectOps, { shared: scheduleOps }, { shared: schemaOps }, dataOps, streamOps, layerOps, stateOps, configOps, observeOps];
+	const tables: Record<Version, OpTable> = { 3: opsFor(3, groups), 4: opsFor(4, groups), auto: opsFor("auto", groups) };
 	const state: FileState = {
-		src: "\0",
+		program: null,
 		importsEffect: false,
 		fibers: new Set(),
 		refs: new Set(),
@@ -68,8 +68,15 @@ export const effect = ({ version }: EffectOptions = {}): TsPlugin<EffectPhrases>
 		foreignNames: new Set(),
 		modules: new Set(),
 	};
+	/** A pinned version wins; otherwise the file's package decides, and both readings apply when it's unknown. */
+	const versionOf = (e: Engine): Version => {
+		if (version) return version;
+		const major = e.libraryMajor("effect");
+		return major === 3 || major === 4 ? major : "auto";
+	};
 	const ctx = (e: Engine, say: EffectPhrases): Ctx => {
-		const c = { e, say, version: v, state, ops };
+		const v = versionOf(e);
+		const c = { e, say, version: v, state, ops: tables[v] };
 		resetState(c);
 		return c;
 	};
@@ -88,17 +95,20 @@ export const effect = ({ version }: EffectOptions = {}): TsPlugin<EffectPhrases>
 	};
 
 	const calls: Record<string, CallRule<EffectPhrases>> = {};
-	for (const [key, op] of Object.entries(ops)) {
+	const keys = new Set([...Object.keys(tables[3]), ...Object.keys(tables[4]), ...Object.keys(tables.auto)]);
+	for (const key of keys) {
 		const owner = key.slice(0, key.indexOf("."));
 		calls[key] = ({ node, args, e, stmt, say }) => {
 			const c = ctx(e, say);
-			return owns(c, owner) ? render(c, op, node, args, stmt ? "act" : "noun") : null;
+			const op = c.ops[key];
+			return op && owns(c, owner) ? render(c, op, node, args, stmt ? "act" : "noun") : null;
 		};
 		// `Layer.succeed(Tag)(impl)`: the engine hands curried rules the outer call.
-		if (op.kind === "curried")
+		if ([3, 4, "auto"].some((v) => tables[v as Version][key]?.kind === "curried"))
 			calls[`${key}()`] = ({ node, args, e, stmt, say }) => {
 				const c = ctx(e, say);
-				return owns(c, owner) ? op.render(c, unwrap(node.callee).arguments, args, stmt ? "act" : "noun") : null;
+				const op = c.ops[key];
+				return op?.kind === "curried" && owns(c, owner) ? op.render(c, unwrap(node.callee).arguments, args, stmt ? "act" : "noun") : null;
 			};
 	}
 
@@ -145,9 +155,13 @@ export const effect = ({ version }: EffectOptions = {}): TsPlugin<EffectPhrases>
 	calls["*.useSync"] = use;
 
 	const conditions: Record<string, CondRule<EffectPhrases>> = {};
-	for (const [key, pick] of Object.entries(dataConditions(v)))
-		conditions[key] = ({ args, e, neg, say }) =>
-			args[0] && owns(ctx(e, say), key.slice(0, key.indexOf("."))) ? pick(say)({ subject: e.noun(args[0]).t, neg }) : null;
+	const condTables: Record<Version, ReturnType<typeof dataConditions>> = { 3: dataConditions(3), 4: dataConditions(4), auto: dataConditions("auto") };
+	for (const key of Object.keys(condTables.auto))
+		conditions[key] = ({ args, e, neg, say }) => {
+			const c = ctx(e, say);
+			const pick = condTables[c.version][key];
+			return pick && args[0] && owns(c, key.slice(0, key.indexOf("."))) ? pick(say)({ subject: e.noun(args[0]).t, neg }) : null;
+		};
 
 	calls[YIELD_KEY] = ({ args, e, stmt, say }) => {
 		const c = ctx(e, say);
@@ -187,3 +201,9 @@ export const effect = ({ version }: EffectOptions = {}): TsPlugin<EffectPhrases>
 		describeSchema: (e, n, say) => schemaType(ctx(e, say), n, true),
 	});
 };
+
+declare module "@usenarrator/core" {
+	interface PluginPhrases {
+		effect: EffectPhrases;
+	}
+}

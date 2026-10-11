@@ -1,4 +1,4 @@
-import { type Cell, detectMoves, diffUnits, type Merged } from "./diff";
+import { type Cell, detectMoves, diffUnits, type Merged, type UnitDiff } from "./diff";
 import type { FileNarrator } from "./language";
 import { toHtml } from "./markup";
 
@@ -28,7 +28,42 @@ const lineAt = (starts: number[], off: number) => {
 	return lo + 1;
 };
 
-/** Narrates both sides of every changed file, diffs them, detects moves, and renders HTML rows. */
+/** A changed file's declarations, diffed as English lines. */
+export type FileDiff = { path: string; oldPath: string | null; status: ChangedFile["status"]; adds: number; dels: number; units: UnitDiff[] };
+
+const hasChanges = (f: { status: string; units: { status: string }[] }) => f.status === "renamed" || f.units.some((u) => u.status !== "unchanged");
+
+function diffChangedFiles({ files, narratorFor }: { files: ChangedFile[]; narratorFor: (path: string) => FileNarrator }) {
+	const safeUnits = (src: string, path: string) => {
+		if (!src) return [];
+		try {
+			return narratorFor(path).units(src, path);
+		} catch {
+			return [];
+		}
+	};
+	const computed = files.map((f) => ({ f, units: diffUnits(safeUnits(f.oldSrc, f.oldPath ?? f.path), safeUnits(f.newSrc, f.path)) }));
+	detectMoves(computed.map((c) => ({ path: c.f.path, units: c.units })));
+	return computed;
+}
+
+/** Narrates both sides of every changed file, diffs them and detects moves: structured units with their `Line`s. */
+export function diffFiles({ files, narratorFor }: { files: ChangedFile[]; narratorFor: (path: string) => FileNarrator }): FileDiff[] {
+	return diffChangedFiles({ files, narratorFor })
+		.map(
+			({ f, units }): FileDiff => ({
+				path: f.path,
+				oldPath: f.oldPath,
+				status: f.status,
+				adds: units.reduce((n, u) => n + u.adds, 0),
+				dels: units.reduce((n, u) => n + u.dels, 0),
+				units,
+			}),
+		)
+		.filter(hasChanges);
+}
+
+/** Like `diffFiles`, rendered as HTML-ready rows with source line numbers. */
 export function buildDiffReport({
 	files,
 	narratorFor,
@@ -38,19 +73,7 @@ export function buildDiffReport({
 	narratorFor: (path: string) => FileNarrator;
 	resolve: Resolver;
 }): FileJson[] {
-	const safeUnits = (src: string, path: string) => {
-		if (!src) return [];
-		try {
-			return narratorFor(path).units(src, path);
-		} catch {
-			return [];
-		}
-	};
-	const computed = files.map((f) => {
-		const units = diffUnits(safeUnits(f.oldSrc, f.oldPath ?? f.path), safeUnits(f.newSrc, f.path));
-		return { f, units, oldStarts: lineStartsOf(f.oldSrc), newStarts: lineStartsOf(f.newSrc) };
-	});
-	detectMoves(computed.map((c) => ({ path: c.f.path, units: c.units })));
+	const computed = diffChangedFiles({ files, narratorFor }).map((c) => ({ ...c, oldStarts: lineStartsOf(c.f.oldSrc), newStarts: lineStartsOf(c.f.newSrc) }));
 	const oldStartsByPath = new Map(computed.map((c) => [c.f.path, c.oldStarts]));
 
 	const mergedHtml = (m: Merged) =>
@@ -119,5 +142,5 @@ export function buildDiffReport({
 			}),
 		}),
 	);
-	return result.filter((f) => f.status === "renamed" || f.units.some((u) => u.status !== "unchanged"));
+	return result.filter(hasChanges);
 }

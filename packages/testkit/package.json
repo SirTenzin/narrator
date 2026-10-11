@@ -1,16 +1,36 @@
 {
 	"name": "@usenarrator/testkit",
-	"version": "0.0.0",
-	"private": true,
+	"version": "0.1.0",
 	"description": "Helpers for testing plugins and locales.",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/SirTenzin/narrator.git",
+		"directory": "packages/testkit"
+	},
+	"homepage": "https://github.com/SirTenzin/narrator#readme",
 	"type": "module",
+	"sideEffects": false,
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
 	"exports": {
-		".": "./src/index.ts"
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js",
+			"default": "./dist/index.js"
+		},
+		"./package.json": "./package.json"
+	},
+	"files": [
+		"dist"
+	],
+	"publishConfig": {
+		"access": "public"
 	},
 	"dependencies": {
-		"@usenarrator/core": "workspace:*",
-		"@usenarrator/lang-ts": "workspace:*",
-		"@usenarrator/locale-en": "workspace:*"
-	},
-	"sideEffects": false
+		"@usenarrator/core": "workspace:^",
+		"@usenarrator/lang-ts": "workspace:^",
+		"@usenarrator/locale-en": "workspace:^",
+		"oxc-parser": "^0.153.0"
+	}
 }

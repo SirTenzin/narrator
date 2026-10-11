@@ -38,11 +38,11 @@ const setupStatement: StmtRule<P> = ({ node, e, d, say }) => {
 	const v = node.declarations[0];
 	const init = unwrap(v.init);
 	const fn = init?.type === "CallExpression" ? calleeName(init) : null;
-	if (v.id.type === "Identifier" && (fn === "betterAuth" || fn === "createAuthClient")) {
+	if (v.id.type === "Identifier" && (fn === "betterAuth" || fn === "createAuthClient") && fromBetterAuth({ e, node: init })) {
 		e.emitDoc(d, setupDoc({ e, say, args: init.arguments, client: fn === "createAuthClient", name: e.ref(v.id.name) }), node);
 		return true;
 	}
-	if (v.id.type === "ObjectPattern" && (fn === "toNextJsHandler" || fn === "toSolidStartHandler")) {
+	if (v.id.type === "ObjectPattern" && (fn === "toNextJsHandler" || fn === "toSolidStartHandler") && fromBetterAuth({ e, node: init })) {
 		const methods = v.id.properties.map((p: N) => mk("l", keyOf(p) ?? e.code(p)));
 		e.emitDoc(d, D(say.mount.routeMethods({ auth: e.text(init.arguments[0]), methods: e.g.list(methods) })), node);
 		return true;
@@ -171,38 +171,71 @@ const pluginCalls: Record<string, Rule> = Object.fromEntries(
 	]),
 );
 
+const bareCalls: Record<string, Rule> = {
+	betterAuth: ({ e, say, args }) => setupDoc({ e, say, args, client: false, name: null }),
+	createAuthClient: ({ e, say, args }) => setupDoc({ e, say, args, client: true, name: null }),
+	...Object.fromEntries(Object.entries(ADAPTERS).map(([k, orm]) => [k, adapterRule(orm)])),
+	customSession,
+	customSessionClient: pluginRule("customSession"),
+	toNextJsHandler: ({ e, say, args }) => D(say.mount.nextHandlers({ auth: e.text(args[0]) })),
+	toNodeHandler: ({ e, say, args }) => D(say.mount.nodeHandler({ auth: e.text(args[0]) })),
+	toSolidStartHandler: ({ e, say, args }) => D(say.mount.solidStartHandler({ auth: e.text(args[0]) })),
+	svelteKitHandler: ({ e, say, args }) => {
+		const auth = findProp(objectArg(args[0]), "auth");
+		return auth ? D(say.mount.svelteKitHandler({ auth: e.text(auth.value) })) : null;
+	},
+	headers: ({ say, args }) => (args.length ? null : D(say.mount.requestHeaders)),
+	fromNodeHeaders: ({ e, args }) => e.noun(args[0]),
+	createAuthMiddleware: middleware,
+	createAuthEndpoint: authEndpoint,
+	getSessionFromCtx: ({ say }) => D(say.helpers.sessionFromContext),
+	getSessionCookie: ({ e, say, args }) => D(say.helpers.sessionCookie({ request: e.text(args[0]) })),
+	getCookieCache: ({ e, say, args }) => D(say.helpers.cookieCache({ request: e.text(args[0]) })),
+};
+
+/** `better-auth`, `better-auth/plugins`, `@better-auth/sso`, and integrations like `autumn-js/better-auth`. */
+const isBetterAuthModule = (m: string) => /(^|[/@])better-auth(\/|$)/.test(m);
+
+/**
+ * A bare call like `organization()` or `betterAuth()` is Better Auth's when its name is imported from a Better Auth
+ * package, or isn't imported (nor declared here) in a file whose package depends on Better Auth.
+ */
+function fromBetterAuth({ e, node, also }: { e: Ctx["e"]; node: N; also?: string }): boolean {
+	const callee = unwrap(node.callee);
+	const name = callee?.type === "Identifier" ? callee.name : null;
+	if (!name) return false;
+	const from = e.imports.get(name)?.from;
+	if (from) return isBetterAuthModule(from) || from === also;
+	return !e.localFns.has(name) && e.usesLibrary("better-auth");
+}
+
+/** Gates every bare-name rule on `fromBetterAuth`; member rules (`auth.api.*`, `*.handler`) keep their own shape checks. */
+const gated = (rules: Record<string, Rule>, also?: Record<string, string>): Record<string, Rule> =>
+	Object.fromEntries(
+		Object.entries(rules).map(([k, r]) => [k, k.includes(".") ? r : (ctx) => (fromBetterAuth({ e: ctx.e, node: ctx.node, also: also?.[k] }) ? r(ctx) : null)]),
+	);
+
 /** Better Auth (better-auth.com): server config, `auth.api.*`, the client, hooks, handlers, and plugin helpers. */
 export const betterAuth = (): TsPlugin<P> =>
 	definePlugin<P>({
 		name: "better-auth",
+		library: { name: "better-auth", versions: ">=1.2 <2" },
 		phrases: { en },
 		statements: [setupStatement],
 		calls: {
-			...pluginCalls,
+			...gated(pluginCalls),
 			...endpointCalls(),
-			betterAuth: ({ e, say, args }) => setupDoc({ e, say, args, client: false, name: null }),
-			createAuthClient: ({ e, say, args }) => setupDoc({ e, say, args, client: true, name: null }),
-			...Object.fromEntries(Object.entries(ADAPTERS).map(([k, orm]) => [k, adapterRule(orm)])),
-			customSession,
-			customSessionClient: pluginRule("customSession"),
-			toNextJsHandler: ({ e, say, args }) => D(say.mount.nextHandlers({ auth: e.text(args[0]) })),
-			toNodeHandler: ({ e, say, args }) => D(say.mount.nodeHandler({ auth: e.text(args[0]) })),
-			toSolidStartHandler: ({ e, say, args }) => D(say.mount.solidStartHandler({ auth: e.text(args[0]) })),
-			svelteKitHandler: ({ e, say, args }) => {
-				const auth = findProp(objectArg(args[0]), "auth");
-				return auth ? D(say.mount.svelteKitHandler({ auth: e.text(auth.value) })) : null;
-			},
+			...gated(bareCalls, { headers: "next/headers" }),
 			"*.handler": ({ e, say, args, obj }) => (looksLikeAuth(obj) ? D(say.mount.handle({ auth: e.text(obj), request: e.text(args[0]) })) : null),
 			"*.all": mountRoute,
 			"*.use": mountRoute,
-			headers: ({ say, args }) => (args.length ? null : D(say.mount.requestHeaders)),
-			fromNodeHeaders: ({ e, args }) => e.noun(args[0]),
-			createAuthMiddleware: middleware,
-			createAuthEndpoint: authEndpoint,
-			getSessionFromCtx: ({ say }) => D(say.helpers.sessionFromContext),
-			getSessionCookie: ({ e, say, args }) => D(say.helpers.sessionCookie({ request: e.text(args[0]) })),
-			getCookieCache: ({ e, say, args }) => D(say.helpers.cookieCache({ request: e.text(args[0]) })),
-			"new APIError": apiError,
+			"new APIError": (ctx) => (fromBetterAuth({ e: ctx.e, node: ctx.node }) ? apiError(ctx) : null),
 		},
-		conditions: { isAPIError: isApiError },
+		conditions: { isAPIError: (ctx) => (fromBetterAuth({ e: ctx.e, node: ctx.node }) ? isApiError(ctx) : null) },
 	});
+
+declare module "@usenarrator/core" {
+	interface PluginPhrases {
+		"better-auth": BetterAuthPhrases;
+	}
+}
