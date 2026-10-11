@@ -156,7 +156,7 @@ export default function List() {
 				"Item, a component that takes name, is packed, and note:",
 				"  If name is missing, show nothing.",
 				"  Show an item containing:",
-				"    • <del> showing name if is packed, otherwise name",
+				"    • <del> showing name if it is packed, otherwise name",
 				"    • if note is set, small text showing note",
 			].join("\n"),
 		);
@@ -330,7 +330,7 @@ function ChatRoom({ roomId }) {
 				"ChatRoom, a component that takes room ID:",
 				`  Keep track of server URL (starts as "https://localhost:1234").`,
 				"  Whenever server URL or room ID changes:",
-				"    Create connection (server URL and room ID) → connection.",
+				"    Create connection (server URL and room ID).",
 				"    Connect connection.",
 				"    Before running again and when it goes away, disconnect connection.",
 				`  Show a heading "Welcome to the {room ID} room!".`,
@@ -484,13 +484,13 @@ function StatusBar() {
 				"      Set is online to true.",
 				`    Add window event listener ("online" and handle online).`,
 				`    When it goes away, remove window event listener ("online" and handle online).`,
-				"  Give back whether is online.",
+				"  Give back whether it is online.",
 				"",
 				"StatusBar, a component:",
 				"  Get is online from useOnlineStatus.",
 				`  Get data and error from useSWR ("/api/user" and fetcher).`,
 				`  Run useHotkeys ("ctrl+k" and open search).`,
-				`  Show a heading showing "✅ Online" if is online, otherwise "❌ Disconnected".`,
+				`  Show a heading showing "✅ Online" if it is online, otherwise "❌ Disconnected".`,
 			].join("\n"),
 		);
 	});
@@ -622,7 +622,7 @@ describe("react-dom", () => {
 			read(
 				`import { Component } from "react";\nclass Counter extends Component {\n  increment() {\n    this.setState({ count: this.state.count + 1 });\n  }\n}`,
 			),
-		).toContain("Update the state: set count to this's state's count plus 1.");
+		).toContain("Update the state: set count to this object's state's count plus 1.");
 	});
 });
 

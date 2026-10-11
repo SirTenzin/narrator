@@ -113,7 +113,7 @@ app.delete("/:id", {
 				"  • Expect the path parameters to be an object with id (a number, required)",
 				"  • A 204 No Content reply is nothing",
 				"  • A 404 Not Found reply is an object with message (a string)",
-				"  Remove repo (request's params' ID).",
+				"  Remove repo (the path parameters' ID).",
 				"  Set the reply status to 204 No Content.",
 			].join("\n"),
 		);
