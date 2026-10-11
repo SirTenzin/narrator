@@ -77,6 +77,8 @@ export type FastifyPhrases = {
 		onErrorWith: Phrase<"handler">;
 		notFound: string;
 		notFoundWith: Phrase<"handler">;
+		/** `setNotFoundHandler({ preHandler }, handler)`. */
+		notFoundAfter: Phrase<"before">;
 		/** A route option the plugin has no reading for. */
 		option: Phrase<"name" | "value">;
 	};
@@ -158,7 +160,7 @@ export type FastifyPhrases = {
 		when: Record<Hook, string>;
 		/** `addHook("onRequest", fastify.authenticate)`. */
 		run: Phrase<"when" | "handler">;
-		/** A route-level hook in a route's "after …" list. */
+		/** A route-level hook: a heading over its steps when inline. */
 		named: Record<Hook, string>;
 	};
 	plugins: {
@@ -181,6 +183,9 @@ export type FastifyPhrases = {
 		serverFn: Phrase<"name">;
 		request: Phrase<"name" | "value">;
 		reply: Phrase<"name" | "value">;
+		/** `decorateRequest("user", null)`. */
+		requestEmpty: Phrase<"name">;
+		replyEmpty: Phrase<"name">;
 		/** Heading over a request/reply decorator function. */
 		requestFn: Phrase<"name">;
 		replyFn: Phrase<"name">;

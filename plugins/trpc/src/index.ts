@@ -1,10 +1,10 @@
 import { D, type Doc } from "@usenarrator/core";
 import { type CallRule, definePlugin, type Engine, type MemberRule, type StmtRule, type TsPlugin, unwrap } from "@usenarrator/lang-ts";
-import { clientCreateDoc, HELPERS, HOOKS, helperCall, hookCall, UTILS, utilsCall, vanillaCall } from "./client";
+import { clientCreateDoc, HELPERS, HOOKS, helperCall, hookCall, mutateTracked, UTILS, utilsCall, vanillaCall } from "./client";
 import { en } from "./en";
 import type { TrpcPhrases } from "./phrases";
 import { adapterDoc, errorDoc, helperDoc, initDoc, middlewareDoc, nextDoc, procedureDoc, routerDoc, tMemberDoc } from "./server";
-import { type Ctx, factsReader, isUtilsCall } from "./shared";
+import { type Ctx, factsReader, isClientRoot, isUtilsCall } from "./shared";
 
 export { en } from "./en";
 export type { ErrorCode, Link, OptionsHelper, ProcedureKind, TrpcPhrases, UtilsMethod } from "./phrases";
@@ -38,7 +38,9 @@ export const trpc = (): TsPlugin<TrpcPhrases> => {
 	for (const name of ["router", "createTRPCRouter", "createRouter", "*.router"]) on(name, (c, { node }) => routerDoc(c, node));
 	for (const name of ["middleware", "*.middleware"]) on(name, (c, { node }) => middlewareDoc(c, node));
 	for (const name of ["mergeRouters", "createCallerFactory", "*.mergeRouters", "*.createCallerFactory"]) on(name, (c, { node }) => helperDoc(c, node));
-	on("next", (c, { node }) => nextDoc(c, node));
+	on("next", (c, { node, stmt }) => nextDoc(c, node, !stmt));
+	on("*.createClient", (c, { node, obj }) => (obj && isClientRoot(c.facts, obj) ? clientCreateDoc(c, node, true) : null));
+	on("*.mutate", (c, { obj, args }) => mutateTracked(c, obj, args));
 	on("new TRPCError", (c, { node }) => errorDoc(c, node));
 	for (const name of ["createHTTPServer", "createHTTPHandler", "fetchRequestHandler", "createNextApiHandler", "createExpressMiddleware"])
 		on(name, (c, { node }) => adapterDoc(c, node));

@@ -64,6 +64,8 @@ export type TrpcPhrases = {
 		merged: Phrase<"routers">;
 		/** A sub-router mounted at a key: `post: postRouter`. */
 		nested: Phrase<"path" | "router">;
+		/** A procedure defined elsewhere: `find: findEnvelopesRoute`. */
+		handledBy: Phrase<"path" | "router">;
 		/** `createCallerFactory(appRouter)`. */
 		callerFactory: Phrase<"router">;
 		/** `createCaller(ctx)`. */
@@ -90,6 +92,8 @@ export type TrpcPhrases = {
 		noun: string;
 		/** `next()` inside a middleware. */
 		next: string;
+		/** `const result = await next()`: what the procedure returned. */
+		result: string;
 		/** `next({ ctx: { user } })`. */
 		nextWith: Phrase<"context">;
 	};
@@ -145,6 +149,8 @@ export type TrpcPhrases = {
 		useSubscription: (p: { path: string; details: string | null }) => string;
 		usePrefetchQuery: (p: { path: string; details: string | null }) => string;
 		input: Phrase<"input">;
+		/** `createPost.mutate(input)`; `input` may be null. */
+		run: (p: { mutation: string; input: string | null }) => string;
 		/** `skipToken` as the input: the query is off. */
 		skipped: string;
 		onlyWhen: Phrase<"condition">;

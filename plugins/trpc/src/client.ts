@@ -50,9 +50,9 @@ function linkText(c: Ctx, n: N): string {
 }
 
 /** `createTRPCClient<AppRouter>({ links })`, `createTRPCReact<AppRouter>()`, `useTRPC()`. */
-export function clientCreateDoc(c: Ctx, node: N): Doc | null {
+export function clientCreateDoc(c: Ctx, node: N, viaHooks = false): Doc | null {
 	const u = unwrap(node);
-	const name = importedAs(c.facts, u?.callee);
+	const name = viaHooks ? "createTRPCClient" : importedAs(c.facts, u?.callee);
 	const { e, say } = c;
 	const t = u.typeArguments?.params?.[0];
 	const router = t ? mk("c", e.code(t)) : null;
@@ -172,4 +172,12 @@ export function helperCall(c: Ctx, m: OptionsHelper, obj: N | null, args: N[]): 
 	const opts = m === "mutationOptions" ? args[0] : args[1];
 	const extra = optionDetails(c, opts);
 	return D(extra.length ? say.common.withDetails({ subject: d.t, details: say.common.details({ items: extra }) }) : d.t, callbacks(c, opts));
+}
+
+/** `createPost.mutate(input)` on a variable holding `api.post.create.useMutation()`. */
+export function mutateTracked(c: Ctx, obj: N | null, args: N[]): Doc | null {
+	const u = unwrap(obj);
+	if (u?.type !== "Identifier" || !c.facts.mutations.has(u.name)) return null;
+	const input = args[0] ? c.e.noun(args[0]) : null;
+	return D(c.say.react.run({ mutation: c.e.ref(u.name), input: input?.t ?? null }), input?.kids ?? []);
 }

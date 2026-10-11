@@ -20,6 +20,8 @@ export type Facts = {
 	clients: Set<string>;
 	/** `useUtils()` / `useContext()` results. */
 	utils: Set<string>;
+	/** Variables holding `api.x.useMutation()`. */
+	mutations: Set<string>;
 };
 
 export type Ctx = { e: Engine; say: TrpcPhrases; facts: Facts };
@@ -40,6 +42,7 @@ export function factsReader(): (e: Engine) => Facts {
 			middlewares: new Set(),
 			clients: new Set(),
 			utils: new Set(),
+			mutations: new Set(),
 		};
 		cache.set(e, f);
 		for (const [local, { from, name }] of e.imports) if (TRPC.test(from)) f.imports.set(local, name);
@@ -138,6 +141,8 @@ function record(f: Facts, n: N) {
 		if ((created && CLIENT_FACTORIES.includes(created)) || (callee?.type === "Identifier" && f.clients.has(`fn:${callee.name}`)))
 			return void f.clients.add(name);
 		if (isUtilsCall(f, init)) return void f.utils.add(name);
+		if (callee?.type === "MemberExpression" && callee.property.name === "useMutation" && isClientRoot(f, rootOf(callee.object)))
+			return void f.mutations.add(name);
 		if (callee?.type === "MemberExpression" && PROCEDURE_STEPS.includes(callee.property.name) && isProcedureBase(f, rootOf(init))) f.procedures.add(name);
 	}
 }
@@ -195,17 +200,16 @@ export function fnLines(e: Engine, fn: N, exprAsAction = false): Line[] {
 
 export const bullets = (e: Engine, docs: Doc[]): Line[] => docs.flatMap((d) => e.bullet(D(capFirst(d.t), d.kids)));
 
-/** "label: value" items for an options object, skipping `skip`. */
+/** "label: value" items for an options object, skipping `skip`; block values keep their lines through `e.text`. */
 export function optionItems(c: Ctx, o: N | null, skip: string[] = []): Doc[] {
 	return (o?.properties ?? []).flatMap((p: N): Doc[] => {
-		if (p.type === "SpreadElement") return [c.e.noun(p)];
+		if (p.type === "SpreadElement") return [D(c.e.text(p))];
 		const k = keyOf(p);
 		if (!k || skip.includes(k)) return [];
 		const v = unwrap(p.value);
 		if (v?.type === "Literal" && typeof v.value === "boolean")
 			return [D(c.say.common.option({ name: c.e.prop(k), value: v.value ? c.say.common.yes : c.say.common.no }))];
-		const t = p.shorthand ? D(c.e.ref(k)) : c.e.noun(v);
-		return [D(c.say.common.option({ name: c.e.prop(k), value: t.t }), t.kids)];
+		return [D(c.say.common.option({ name: c.e.prop(k), value: p.shorthand ? c.e.ref(k) : c.e.text(v) }))];
 	});
 }
 

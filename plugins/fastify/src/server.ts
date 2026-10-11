@@ -206,9 +206,11 @@ function hookList(rc: Rc, o: N | null): Doc | null {
 		const v = unwrap(propOf(o, h));
 		if (!v) return [];
 		const items = v.type === "ArrayExpression" ? v.elements.filter(Boolean) : [v];
-		return items.map((x: N) => (isFnNode(x) ? D(rc.say.hooks.named[h], stepLines(rc, x)) : rc.e.noun(x)));
+		return items.map((x: N) => (isFnNode(x) ? D("", bullets(rc.e, [D(rc.say.hooks.named[h], stepLines(rc, x))])) : rc.e.noun(x)));
 	});
-	return docs.length ? listDoc(rc.e, docs) : null;
+	const named = docs.filter((d: Doc) => d.t);
+	const kids = docs.flatMap((d: Doc) => d.kids);
+	return named.length ? D(listDoc(rc.e, named).t, kids) : kids.length ? D("", kids) : null;
 }
 
 /** The schema's checks and response shapes, plus any other route option, as bullet details. */
@@ -267,7 +269,7 @@ function routeDoc(rc: Rc, method: string, path: N, opts: N | null, handler: N | 
 		lines = v.kids;
 	}
 	const det = routeDetails(rc, opts, []);
-	const title = say.routes.answer({ method, path: pathText(e, path), handler: inline, before: before?.t ?? null });
+	const title = say.routes.answer({ method, path: pathText(e, path), handler: inline, before: before?.t || null });
 	return D(title, [...(before?.kids ?? []), ...bullets(e, det), ...lines]);
 }
 
@@ -336,7 +338,9 @@ function decorateCall(rc: Rc, m: string, args: N[]): Doc | null {
 		const head = m === "decorate" ? d.serverFn : m === "decorateRequest" ? d.requestFn : d.replyFn;
 		return D(head({ name: n }), stepLines(rc, value));
 	}
-	const v = unwrap(value)?.type === "Literal" && unwrap(value).value === null ? D(say.common.nothing) : e.noun(value);
+	const empty = unwrap(value)?.type === "Literal" && unwrap(value).value === null;
+	if (empty && m !== "decorate") return D((m === "decorateRequest" ? d.requestEmpty : d.replyEmpty)({ name: n }));
+	const v = e.noun(value);
 	const phrase = m === "decorate" ? d.server : m === "decorateRequest" ? d.request : d.reply;
 	return D(phrase({ name: n, value: v.t }), v.kids);
 }
@@ -385,9 +389,11 @@ export function serverCall(rc: Rc, m: string, obj: N | null, args: N[]): Doc | n
 			return args.length ? null : D(say.server.close);
 		case "setErrorHandler":
 		case "setNotFoundHandler": {
-			const [fn] = args;
+			const fn = args.length > 1 ? args[1] : args[0];
 			if (!fn) return null;
 			const err = m === "setErrorHandler";
+			const hooks = args.length > 1 ? hookList(rc, objectArg(args[0])) : null;
+			if (hooks && isFnNode(fn)) return D(say.routes.notFoundAfter({ before: hooks.t }), [...hooks.kids, ...handlerLines(rc, fn)]);
 			if (isFnNode(fn)) return D(err ? say.routes.onError : say.routes.notFound, handlerLines(rc, fn));
 			const v = e.noun(fn);
 			return D((err ? say.routes.onErrorWith : say.routes.notFoundWith)({ handler: v.t }), v.kids);

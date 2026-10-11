@@ -64,10 +64,14 @@ function setData(c: Ctx, target: string, updater: N | undefined, all: boolean): 
 
 /** A method that takes a query's options (v5) or `(key, fn, options)` (v4), worded by `phrase`. */
 const queryRule =
-	(phrase: (c: Ctx) => (p: { query: string }) => string, kind: "query" | "infinite" = "query"): ClientRule =>
-	(c, args) => {
+	(
+		phrase: (c: Ctx) => (p: { query: string }) => string,
+		kind: "query" | "infinite" = "query",
+		asStatement?: (c: Ctx) => (p: { query: string }) => string,
+	): ClientRule =>
+	(c, args, stmt) => {
 		const q = queryDoc(c, args, kind);
-		return q ? D(phrase(c)({ query: q.t }), q.kids) : null;
+		return q ? D((stmt && asStatement ? asStatement : phrase)(c)({ query: q.t }), q.kids) : null;
 	};
 
 export const CLIENT_METHODS: Record<string, ClientRule> = {
@@ -88,12 +92,36 @@ export const CLIENT_METHODS: Record<string, ClientRule> = {
 	getQueryState: (c, [key]) => (key ? D(c.say.client.getState({ query: queryName(c, key) })) : null),
 	prefetchQuery: queryRule((c) => c.say.client.prefetch),
 	prefetchInfiniteQuery: queryRule((c) => c.say.client.prefetchInfinite, "infinite"),
-	fetchQuery: queryRule((c) => c.say.client.fetch),
-	fetchInfiniteQuery: queryRule((c) => c.say.client.fetchInfinite, "infinite"),
-	ensureQueryData: queryRule((c) => c.say.client.ensure),
-	ensureInfiniteQueryData: queryRule((c) => c.say.client.ensure, "infinite"),
-	query: queryRule((c) => c.say.client.imperative),
-	infiniteQuery: queryRule((c) => c.say.client.imperative, "infinite"),
+	fetchQuery: queryRule(
+		(c) => c.say.client.fetch,
+		"query",
+		(c) => c.say.client.warm,
+	),
+	fetchInfiniteQuery: queryRule(
+		(c) => c.say.client.fetchInfinite,
+		"infinite",
+		(c) => c.say.client.warm,
+	),
+	ensureQueryData: queryRule(
+		(c) => c.say.client.ensure,
+		"query",
+		(c) => c.say.client.ensureStmt,
+	),
+	ensureInfiniteQueryData: queryRule(
+		(c) => c.say.client.ensure,
+		"infinite",
+		(c) => c.say.client.ensureStmt,
+	),
+	query: queryRule(
+		(c) => c.say.client.imperative,
+		"query",
+		(c) => c.say.client.warm,
+	),
+	infiniteQuery: queryRule(
+		(c) => c.say.client.imperative,
+		"infinite",
+		(c) => c.say.client.warm,
+	),
 	clear: (c, args) => (args.length ? null : D(c.say.client.clear)),
 	isFetching: (c, args) => D(c.say.client.isFetching({ queries: args.length ? queriesText(c, args).text : null })),
 	isMutating: (c) => D(c.say.client.isMutating),

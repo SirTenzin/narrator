@@ -19,6 +19,7 @@ export const en: TrpcPhrases = {
 		noun: "a tRPC router with these procedures",
 		merged: ({ routers }) => `a tRPC router combining ${routers}`,
 		nested: ({ path, router }) => `under ${path}, the procedures of ${router}`,
+		handledBy: ({ path, router }) => `${path}, handled by ${router}`,
 		callerFactory: ({ router }) => `a way to call ${router}'s procedures directly from the server`,
 		caller: ({ context }) => `a server-side caller for the procedures, with ${context} as the context`,
 	},
@@ -38,6 +39,7 @@ export const en: TrpcPhrases = {
 	middleware: {
 		noun: "a tRPC middleware",
 		next: "let the procedure run",
+		result: "the procedure's result",
 		nextWith: ({ context }) => `let the procedure run, adding ${context} to the context`,
 	},
 	errors: {
@@ -105,6 +107,7 @@ export const en: TrpcPhrases = {
 		useSubscription: ({ path, details }) => `a live subscription to ${path}${paren(details)}`,
 		usePrefetchQuery: ({ path, details }) => `start fetching the ${path} query before it is needed${paren(details)}`,
 		input: ({ input }) => `input: ${input}`,
+		run: ({ mutation, input }) => `run ${mutation}${withInput(input)}`,
 		skipped: "skipped for now",
 		onlyWhen: ({ condition }) => `only when ${condition}`,
 		onSuccess: ({ given: g }) => `when it succeeds${given(g)}`,

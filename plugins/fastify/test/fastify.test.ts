@@ -92,6 +92,33 @@ start();`),
 		);
 	});
 
+	test("TypeBox schemas and inline route hooks", () => {
+		const text = read(`import Fastify from "fastify";
+import { Type } from "@sinclair/typebox";
+const app = Fastify();
+app.delete("/:id", {
+  schema: { params: Type.Object({ id: Type.Number() }), response: { 204: Type.Null(), 404: { message: Type.String() } } },
+  preHandler: (request, reply) => request.isAdmin(reply),
+}, async (request, reply) => {
+  await repo.remove(request.params.id);
+  reply.code(204);
+});`);
+		expect(text).toBe(
+			[
+				"Let app be a new Fastify server.",
+				"",
+				"Answer DELETE /:id:",
+				"  • Before the handler runs:",
+				"    Check whether request is admin (reply).",
+				"  • Expect the path parameters to be an object with id (a number, required)",
+				"  • A 204 No Content reply is nothing",
+				"  • A 404 Not Found reply is an object with message (a string)",
+				"  Remove repo (request's params' ID).",
+				"  Set the reply status to 204 No Content.",
+			].join("\n"),
+		);
+	});
+
 	test("returns inside callbacks within a handler keep their meaning", () => {
 		expect(body(`fastify.get("/a", async () => {\n  const ids = items.map((x) => { return x.id; });\n  return ids;\n});`)).toContain("Reply with IDs.");
 	});
@@ -121,7 +148,7 @@ fastify.setNotFoundHandler((request, reply) => reply.code(404).send("missing"));
 				"Add the authenticate function to the server:",
 				"  Verify the request's JWT.",
 				"",
-				"Give every request a user property, starting as nothing.",
+				"Give every request the user property, starting empty.",
 				"",
 				"When a request fails:",
 				"  Reply with an object with ok: false (status 500 Internal Server Error).",

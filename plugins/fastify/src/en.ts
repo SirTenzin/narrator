@@ -17,6 +17,7 @@ export const en: FastifyPhrases = {
 		onErrorWith: ({ handler }) => `handle failed requests with ${handler}`,
 		notFound: "when no route matches",
 		notFoundWith: ({ handler }) => `handle unmatched requests with ${handler}`,
+		notFoundAfter: ({ before }) => `when no route matches, after ${before}`,
 		option: ({ name, value }) => `${name}: ${value}`,
 	},
 	schema: {
@@ -134,10 +135,10 @@ export const en: FastifyPhrases = {
 		},
 		run: ({ when, handler }) => `${when}, run ${handler}`,
 		named: {
-			onRequest: "on arrival",
+			onRequest: "as the request arrives",
 			preParsing: "before parsing",
 			preValidation: "before validation",
-			preHandler: "before the handler",
+			preHandler: "before the handler runs",
 			preSerialization: "before serializing",
 			onSend: "before sending",
 			onResponse: "after replying",
@@ -182,8 +183,10 @@ export const en: FastifyPhrases = {
 	decorate: {
 		server: ({ name, value }) => `add ${name} to the server as ${value}`,
 		serverFn: ({ name }) => `add the ${name} function to the server`,
-		request: ({ name, value }) => `give every request a ${name} property, starting as ${value}`,
-		reply: ({ name, value }) => `give every reply a ${name} property, starting as ${value}`,
+		request: ({ name, value }) => `give every request the ${name} property, set to ${value}`,
+		reply: ({ name, value }) => `give every reply the ${name} property, set to ${value}`,
+		requestEmpty: ({ name }) => `give every request the ${name} property, starting empty`,
+		replyEmpty: ({ name }) => `give every reply the ${name} property, starting empty`,
 		requestFn: ({ name }) => `give every request a ${name} method`,
 		replyFn: ({ name }) => `give every reply a ${name} method`,
 		has: ({ name, neg }) => `the server ${neg ? "does not have" : "has"} ${name}`,

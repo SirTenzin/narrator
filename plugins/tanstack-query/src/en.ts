@@ -191,6 +191,8 @@ export const en: TanStackQueryPhrases = {
 		fetch: ({ query }) => `the data of ${query}, from the cache if fresh, otherwise fetched`,
 		fetchInfinite: ({ query }) => `the pages of ${query}, from the cache if fresh, otherwise fetched`,
 		ensure: ({ query }) => `the data of ${query}, from the cache if there is any, otherwise fetched`,
+		warm: ({ query }) => `fetch ${query} into the cache unless it is fresh`,
+		ensureStmt: ({ query }) => `make sure ${query} is in the cache, fetching it if needed`,
 		imperative: ({ query }) => `the data of ${query}, from the cache if fresh, otherwise fetched`,
 		clear: "clear the whole query cache",
 		isFetching: ({ queries }) => `how many ${queries ? `of ${queries}` : "queries"} are fetching right now`,

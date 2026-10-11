@@ -15,7 +15,7 @@ export function shapeText(c: Ctx, n: N): string {
 	const { e, say } = c;
 	const s = say.schema;
 	const o = objectArg(n);
-	if (!o) return e.schemaText(n) ?? e.text(n);
+	if (!o) return typeboxText(c, n) ?? e.schemaText(n) ?? e.text(n);
 	const ref = str(propOf(o, "$ref"));
 	if (ref) return s.ref({ ref: mk("c", ref) });
 	const en = unwrap(propOf(o, "enum"));
@@ -54,7 +54,7 @@ export function shapeText(c: Ctx, n: N): string {
 		const items = propOf(o, "items");
 		base = items ? s.arrayOf({ items: shapeText(c, items) }) : s.types.array;
 	} else if (main && JSON_TYPES.includes(main)) base = s.types[main as JsonType];
-	else if (!main && isShorthand(o)) return shapeText(c, { type: "ObjectExpression", start: o.start, end: o.end, ...shorthand(o) });
+	else if (!main && isShorthand(c, o)) return shapeText(c, { type: "ObjectExpression", start: o.start, end: o.end, ...shorthand(o) });
 	else return e.text(n);
 	const rules = ruleTexts(c, o);
 	if (nullable) rules.push(s.nullable);
@@ -62,8 +62,9 @@ export function shapeText(c: Ctx, n: N): string {
 }
 
 /** v4's short form: `querystring: { name: { type: "string" } }` without `type: "object"`. */
-const isShorthand = (o: N) =>
-	o.properties.length > 0 && o.properties.every((p: N) => p.type === "Property" && objectArg(p.value) && propOf(objectArg(p.value), "type"));
+const isShorthand = (c: Ctx, o: N) =>
+	o.properties.length > 0 &&
+	o.properties.every((p: N) => p.type === "Property" && ((objectArg(p.value) && propOf(objectArg(p.value), "type")) || typeboxText(c, p.value) !== null));
 
 const shorthand = (o: N) => ({
 	properties: [
@@ -99,4 +100,66 @@ function ruleTexts(c: Ctx, o: N): string[] {
 	if (def) out.push(s.defaultValue({ value: lit(c, def) }));
 	if (unwrap(propOf(o, "additionalProperties"))?.value === false) out.push(s.noExtra);
 	return out;
+}
+
+const TYPEBOX = /^(@sinclair\/typebox|typebox|@fastify\/type-provider-typebox)$/;
+
+/** `Type.Object({ id: Type.Number() })` from TypeBox, Fastify's usual type provider, in the same words as JSON Schema. */
+function typeboxText(c: Ctx, n: N): string | null {
+	const u = unwrap(n);
+	const callee = u?.type === "CallExpression" ? unwrap(u.callee) : null;
+	if (callee?.type !== "MemberExpression" || callee.computed || unwrap(callee.object)?.type !== "Identifier") return null;
+	const from = c.e.imports.get(unwrap(callee.object).name)?.from;
+	if (!from || !TYPEBOX.test(from)) return null;
+	const { e, say } = c;
+	const s = say.schema;
+	const [a, b] = u.arguments;
+	const withOpts = (base: string, opts: N | undefined) => {
+		const o = objectArg(opts);
+		const rules = o ? ruleTexts(c, o) : [];
+		return rules.length ? s.withRules({ type: base, rules: e.g.list(rules) }) : base;
+	};
+	const optional = (v: N) => {
+		const x = unwrap(v);
+		const cal = x?.type === "CallExpression" ? unwrap(x.callee) : null;
+		return cal?.type === "MemberExpression" && cal.property.name === "Optional" ? x.arguments[0] : null;
+	};
+	switch (callee.property.name) {
+		case "Object": {
+			const o = objectArg(a);
+			if (!o) return null;
+			const fields = o.properties.map((p: N) => {
+				const inner = optional(p.value);
+				return s.field({ name: mk("c", keyOf(p) ?? e.text(p.key)), type: shapeText(c, inner ?? p.value), required: !inner });
+			});
+			return withOpts(fields.length ? s.objectWith({ fields: e.g.list(fields) }) : s.types.object, b);
+		}
+		case "String":
+		case "Number":
+		case "Integer":
+		case "Boolean":
+		case "Null":
+			return withOpts(s.types[callee.property.name.toLowerCase() as JsonType], a);
+		case "Array":
+			return a ? withOpts(s.arrayOf({ items: shapeText(c, a) }), b) : null;
+		case "Optional":
+			return a ? shapeText(c, a) : null;
+		case "Union": {
+			const list = unwrap(a);
+			return list?.type === "ArrayExpression"
+				? s.oneOf({
+						list: e.g.list(
+							list.elements.map((x: N) => shapeText(c, x)),
+							"or",
+						),
+					})
+				: null;
+		}
+		case "Literal":
+			return a ? lit(c, a) : null;
+		case "Ref":
+			return a ? s.ref({ ref: e.text(a) }) : null;
+		default:
+			return null;
+	}
 }

@@ -142,7 +142,8 @@ function entries(c: Ctx, o: N, prefix: string): Doc[] {
 		if (v?.type === "CallExpression" && isRouterFn(c.facts, v.callee) && objectArg(v.arguments[0])) return entries(c, objectArg(v.arguments[0])!, `${path}.`);
 		if (v?.type === "ObjectExpression") return entries(c, v, `${path}.`);
 		const r = e.noun(v);
-		return [D(say.router.nested({ path: mk("c", path), router: r.t }), r.kids)];
+		const isRouter = v?.type === "Identifier" && /router$/i.test(v.name);
+		return [D((isRouter ? say.router.nested : say.router.handledBy)({ path: mk("c", path), router: r.t }), r.kids)];
 	});
 }
 
@@ -154,10 +155,11 @@ export function middlewareDoc(c: Ctx, node: N): Doc | null {
 }
 
 /** `next()` / `next({ ctx: { user } })` inside a middleware. */
-export function nextDoc(c: Ctx, node: N): Doc | null {
+export function nextDoc(c: Ctx, node: N, value = false): Doc | null {
 	const u = unwrap(node);
 	if (u?.type !== "CallExpression" || unwrap(u.callee)?.name !== "next" || !c.facts.active) return null;
 	const [a] = u.arguments;
+	if (value) return D(c.say.middleware.result);
 	if (!a) return D(c.say.middleware.next);
 	const ctx = propOf(objectArg(a), "ctx");
 	if (!ctx) return null;

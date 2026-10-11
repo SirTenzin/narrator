@@ -255,6 +255,10 @@ export type TanStackQueryPhrases = {
 		fetchInfinite: Phrase<"query">;
 		/** `ensureQueryData(…)`: cached data if there is any, else fetched. */
 		ensure: Phrase<"query">;
+		/** `fetchQuery(…)` / `queryClient.query(…)` used as a statement. */
+		warm: Phrase<"query">;
+		/** `ensureQueryData(…)` used as a statement. */
+		ensureStmt: Phrase<"query">;
 		/** `queryClient.query(…)` (v5.90+): the imperative fetch. */
 		imperative: Phrase<"query">;
 		clear: string;
