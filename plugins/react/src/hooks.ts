@@ -80,7 +80,10 @@ function builtinDecl(c: Ctx, hook: string, decl: N, call: N, node: N, d: number)
 			const fn = unwrap(a0);
 			const block = isFn(fn) && !e.lambdaExpr(fn);
 			const action = block ? D(say.hooks.steps, stepsOf(e, fn)) : e.noun(a0);
-			return D(say.hooks.actionState({ name, initial: initialText(c, a1) ?? e.say.expressions.nothing, action: action.t, run, pending: ref(els[2]) }), action.kids);
+			return D(
+				say.hooks.actionState({ name, initial: initialText(c, a1) ?? e.say.expressions.nothing, action: action.t, run, pending: ref(els[2]) }),
+				action.kids,
+			);
 		}
 		case "useOptimistic": {
 			const name = ref(els[0]);
@@ -200,7 +203,8 @@ function effect(c: Ctx, hook: string, call: N, node: N, d: number): boolean {
 	}
 	e.emit(d, `${capFirst(head)}:`, node);
 	const when = dep.kind === "once" ? say.hooks.cleanup.once : say.hooks.cleanup.when;
-	const stmts: N[] = fn.body.type === "BlockStatement" ? fn.body.body : [{ type: "ExpressionStatement", expression: fn.body, start: fn.body.start, end: fn.body.end }];
+	const stmts: N[] =
+		fn.body.type === "BlockStatement" ? fn.body.body : [{ type: "ExpressionStatement", expression: fn.body, start: fn.body.start, end: fn.body.end }];
 	if (!stmts.length) e.emit(d + 1, `${e.say.statements.doNothing}.`, fn.body, "note");
 	for (const st of stmts) {
 		if (st.type === "ReturnStatement" && st.argument) {
@@ -259,7 +263,8 @@ function setterDoc(c: Ctx, state: string, arg: N): Doc {
 	const name = e.ref(state);
 	const a = unwrap(arg);
 	if (!a) return D(say.updates.set({ name, value: e.say.expressions.nothing }));
-	const isToggle = (x: N, param: string) => x?.type === "UnaryExpression" && x.operator === "!" && unwrap(x.argument)?.type === "Identifier" && unwrap(x.argument).name === param;
+	const isToggle = (x: N, param: string) =>
+		x?.type === "UnaryExpression" && x.operator === "!" && unwrap(x.argument)?.type === "Identifier" && unwrap(x.argument).name === param;
 	if (isToggle(a, state)) return D(say.updates.toggle({ name }));
 	if (!isFn(a)) {
 		const v = e.looksBoolean(a) ? e.cond(a) : e.noun(a);
@@ -274,7 +279,13 @@ function setterDoc(c: Ctx, state: string, arg: N): Doc {
 			const u = unwrap(body);
 			if (!u) return D(`${say.updates.update({ name })}:`, e.body(a.body, 0));
 			if (param && isToggle(u, param)) return D(say.updates.toggle({ name }));
-			if (param && u.type === "ArrayExpression" && unwrap(u.elements[0])?.type === "SpreadElement" && unwrap(u.elements[0].argument)?.name === param && u.elements.length > 1) {
+			if (
+				param &&
+				u.type === "ArrayExpression" &&
+				unwrap(u.elements[0])?.type === "SpreadElement" &&
+				unwrap(u.elements[0].argument)?.name === param &&
+				u.elements.length > 1
+			) {
 				const rest = u.elements.slice(1).map((x: N) => e.text(x));
 				return D(say.updates.add({ name, value: e.g.list(rest) }));
 			}

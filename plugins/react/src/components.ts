@@ -59,7 +59,7 @@ function propsOf(c: Ctx, p: N): string | null {
 
 /** Emits a component: one line when it is a single short piece of UI, else a heading and its steps. */
 export function renderComponent(c: Ctx, { fn, node, d, title, heads, traits }: { fn: N; node: N; d: number; title: string; heads: Heads; traits: string[] }) {
-	const { e, say } = c;
+	const { e } = c;
 	e.recordParamTypes(fn.params);
 	e.collectTypes(fn);
 	const props = propsOf(c, fn.params[0]);
@@ -75,13 +75,16 @@ export function renderComponent(c: Ctx, { fn, node, d, title, heads, traits }: {
 			e.emit(d, `${text}.`, node, "head");
 			return;
 		}
-		e.emitHead(d, capFirst(heads.head({ props, trait })), title, node);
-		e.emitDoc(d + 1, D(say.ui.show({ ui: ui.t }), ui.kids), ex);
+	}
+	e.emitHead(d, capFirst(heads.head({ props, trait })), title, node);
+	if (block) {
+		for (const r of returnsOf(fn)) c.facts.shows.add(r);
+		e.block(fn.body, d + 1);
 		return;
 	}
-	for (const r of returnsOf(fn)) c.facts.shows.add(r);
-	e.emitHead(d, capFirst(heads.head({ props, trait })), title, node);
-	e.block(fn.body, d + 1);
+	const ret = { type: "ReturnStatement", argument: fn.body, start: fn.body.start, end: fn.body.end };
+	c.facts.shows.add(ret);
+	e.stmt(ret, d + 1);
 }
 
 /** The default heading: "UserList: a component that takes user ID and on select". */

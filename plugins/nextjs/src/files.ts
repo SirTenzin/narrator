@@ -1,9 +1,9 @@
 import { capFirst, D, mk } from "@usenarrator/core";
 import { type N, unwrap } from "@usenarrator/lang-ts";
 import { isHandlerName } from "./facts";
-import { isResponseClass, urlText } from "./server";
 import type { DynamicMode, FileKind, MatchType } from "./phrases";
-import { codeText, type Ctx, isFn, keyOf, num, objectArg, propOf, secondsText, str } from "./shared";
+import { isResponseClass, urlText } from "./server";
+import { type Ctx, codeText, isFn, keyOf, num, objectArg, propOf, secondsText, str } from "./shared";
 
 export type Stmt = (c: Ctx, node: N, d: number) => boolean;
 
@@ -204,7 +204,14 @@ export const matcherConfig: Stmt = (c, node, d) => {
 	const items = list.type === "ArrayExpression" ? list.elements.filter(Boolean).map((x: N) => matcherItem(c, x)) : [matcherItem(c, list)];
 	const { e, say } = c;
 	if (items.length > 3) {
-		e.emitDoc(d, D(say.middleware.matcherList({ kind }), items.flatMap((i: string) => e.bullet(D(i)))), node);
+		e.emitDoc(
+			d,
+			D(
+				say.middleware.matcherList({ kind }),
+				items.flatMap((i: string) => e.bullet(D(i))),
+			),
+			node,
+		);
 		return true;
 	}
 	e.emit(d, `${capFirst(say.middleware.matcher({ kind, paths: e.g.list(items) }))}.`, node);
@@ -271,7 +278,10 @@ function configText(c: Ctx, name: string, init: N) {
 			const phrase = name === "metadata" ? cfg.metadata : cfg.viewport;
 			const joined = e.g.list(items.map((i: { t: string }) => i.t));
 			if (items.length <= 2 && joined.length < 100) return phrase({ items: joined });
-			return D(name === "metadata" ? cfg.metadataList : cfg.viewportList, items.flatMap((i: ReturnType<typeof D>) => e.bullet(i)));
+			return D(
+				name === "metadata" ? cfg.metadataList : cfg.viewportList,
+				items.flatMap((i: ReturnType<typeof D>) => e.bullet(i)),
+			);
 		}
 		default:
 			return null;
@@ -344,4 +354,15 @@ export const routeProps: Stmt = (c, node, d) => {
 	return true;
 };
 
-export const statements = (): Stmt[] => [directive, specialFile, routeHandler, pagesApi, middleware, matcherConfig, segmentConfig, generator, replyStatement, routeProps];
+export const statements = (): Stmt[] => [
+	directive,
+	specialFile,
+	routeHandler,
+	pagesApi,
+	middleware,
+	matcherConfig,
+	segmentConfig,
+	generator,
+	replyStatement,
+	routeProps,
+];

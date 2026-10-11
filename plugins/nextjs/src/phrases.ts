@@ -90,7 +90,7 @@ export type NextPhrases = {
 		unauthorized: string;
 		revalidatePath: (p: { path: string; layout: boolean }) => string;
 		revalidateTag: Phrase<"tag">;
-		revalidateTagWith: (p: { tag: string; profile: string | null }) => string;
+		revalidateTagWith: (p: { tag: string; profile: string | null; life: string | null }) => string;
 		updateTag: Phrase<"tag">;
 		refresh: string;
 		cacheTag: Phrase<"tags">;

@@ -78,7 +78,36 @@ export type DomEvent =
 	| "onDragStart";
 
 /** `<input type="…">` values with their own noun. */
-export type InputType = "text" | "email" | "password" | "number" | "checkbox" | "radio" | "file" | "search" | "date" | "range" | "hidden" | "tel" | "url" | "submit";
+export type InputType =
+	| "text"
+	| "email"
+	| "password"
+	| "number"
+	| "checkbox"
+	| "radio"
+	| "file"
+	| "search"
+	| "date"
+	| "range"
+	| "hidden"
+	| "tel"
+	| "url"
+	| "submit";
+
+/** DOM element methods the plugin reads when called on a ref's element. */
+export type DomMethod =
+	| "focus"
+	| "blur"
+	| "click"
+	| "select"
+	| "scrollIntoView"
+	| "showModal"
+	| "close"
+	| "play"
+	| "pause"
+	| "reset"
+	| "submit"
+	| "requestSubmit";
 
 export type ReactPhrases = {
 	component: {
@@ -193,5 +222,7 @@ export type ReactPhrases = {
 		refValue: Phrase<"ref">;
 		elements: Record<string, string>;
 		anElement: string;
+		/** Element methods called through a ref: `inputRef.current.focus()`. */
+		methods: Record<DomMethod, Phrase<"element">>;
 	};
 };

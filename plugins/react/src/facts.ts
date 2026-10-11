@@ -134,7 +134,11 @@ function record(s: Scope, d: N) {
 	const els: N[] = d.id.type === "ArrayPattern" ? d.id.elements : [];
 	const [a, b] = [idName(els[0]), idName(els[1])];
 	if ((hook === "useState" || hook === "useOptimistic") && a && b) f.setters.set(b, a);
-	if (hook === "useState" && !a && b) f.setters.set(b, b.replace(/^set([A-Z])/, (_, c) => c.toLowerCase()));
+	if (hook === "useState" && !a && b)
+		f.setters.set(
+			b,
+			b.replace(/^set([A-Z])/, (_, c) => c.toLowerCase()),
+		);
 	if (hook === "useReducer" && a && b) f.dispatchers.set(b, a);
 	if (hook === "useTransition" && b) f.transitions.add(b);
 	if (hook === "useRef" && d.id.type === "Identifier" && !f.refs.has(d.id.name)) f.refs.set(d.id.name, elementType(init) ? "element" : "value");

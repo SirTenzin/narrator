@@ -21,7 +21,11 @@ export const isResponseClass = (c: Ctx, n: N) => {
 	const o = unwrap(n);
 	if (o?.type !== "Identifier") return false;
 	if (c.facts.imports.get(o.name)?.name === "NextResponse") return true;
-	return o.name === "Response" && !c.facts.imports.has("Response") && (c.facts.file?.kind === "route" || c.facts.file?.kind === "middleware" || c.facts.file?.kind === "proxy");
+	return (
+		o.name === "Response" &&
+		!c.facts.imports.has("Response") &&
+		(c.facts.file?.kind === "route" || c.facts.file?.kind === "middleware" || c.facts.file?.kind === "proxy")
+	);
 };
 
 /** `NextResponse.json(…)`: the object must be the imported `NextResponse` (or `Response` in a route file). */
@@ -71,7 +75,8 @@ const serverRules: Record<string, Rule> = {
 		const tag = codeText(c.e, args[0]);
 		if (!args[1]) return c.say.server.revalidateTag({ tag });
 		const profile = str(args[1]);
-		return c.say.server.revalidateTagWith({ tag, profile: profile === "max" ? null : profile !== null ? codeText(c.e, args[1]) : lifeDetails(c, args[1]) });
+		if (profile === null) return c.say.server.revalidateTagWith({ tag, profile: null, life: lifeDetails(c, args[1]) });
+		return c.say.server.revalidateTagWith({ tag, profile: profile === "max" ? null : codeText(c.e, args[1]), life: null });
 	}),
 	updateTag: imported("updateTag", (c, { args }) => c.say.server.updateTag({ tag: codeText(c.e, args[0]) })),
 	refresh: imported("refresh", (c) => c.say.server.refresh),
@@ -93,7 +98,9 @@ const serverRules: Record<string, Rule> = {
 	headers: imported("headers", (c) => c.say.server.headers),
 	draftMode: imported("draftMode", (c) => c.say.server.draftMode),
 	connection: imported("connection", (c) => c.say.server.connection),
-	after: imported("after", (c, { args }) => (isFn(args[0]) ? D(`${c.say.server.after}:`, steps(c, args[0])) : D(`${c.say.server.after}, ${c.e.text(args[0])}`))),
+	after: imported("after", (c, { args }) =>
+		isFn(args[0]) ? D(`${c.say.server.after}:`, steps(c, args[0])) : D(`${c.say.server.after}, ${c.e.text(args[0])}`),
+	),
 	dynamic: imported("default", (c, { node, args }) => {
 		if (c.facts.imports.get(unwrap(node.callee).name)?.from !== "next/dynamic") return null;
 		const body = isFn(args[0]) ? unwrap(c.e.lambdaExpr(unwrap(args[0]))) : null;

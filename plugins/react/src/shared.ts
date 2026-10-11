@@ -93,7 +93,13 @@ export function depsOf(e: Engine, n: N): { kind: "always" } | { kind: "once" } |
 	if (u.type !== "ArrayExpression") return { kind: "when", deps: e.text(u) };
 	const items = u.elements.filter(Boolean);
 	if (!items.length) return { kind: "once" };
-	return { kind: "when", deps: e.g.list(items.map((x: N) => e.text(x)), "or") };
+	return {
+		kind: "when",
+		deps: e.g.list(
+			items.map((x: N) => e.text(x)),
+			"or",
+		),
+	};
 }
 
 const asStatement = (ex: N) => ({ type: "ExpressionStatement", expression: ex, start: ex.start, end: ex.end });

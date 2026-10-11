@@ -5,11 +5,11 @@ import { en } from "./en";
 import { factsReader, reactName } from "./facts";
 import { hookDecl, hookStatement } from "./hooks";
 import { eachOfDoc, uiDoc } from "./jsx";
-import type { ReactPhrases } from "./phrases";
+import type { DomMethod, ReactPhrases } from "./phrases";
 import { type Ctx, type ElementRule, isFn, isJsxMap, nameRef } from "./shared";
 
 export { en } from "./en";
-export type { DomEvent, InputType, ReactPhrases, Tag } from "./phrases";
+export type { DomEvent, DomMethod, InputType, ReactPhrases, Tag } from "./phrases";
 export type { ElementRule, Heads };
 
 export type ReactOptions = {
@@ -50,7 +50,8 @@ const isRoot = (c: Ctx, n: N) => {
 
 const valueRules: Record<string, Rule> = {
 	useContext: ({ say, e }, { args }) => say.hooks.context({ context: contextName({ say, e } as Ctx, args[0]) }),
-	use: (c, { args }) => (isContext(c, args[0]) ? c.say.hooks.context({ context: contextName(c, args[0]) }) : c.say.hooks.usePromise({ promise: c.e.text(args[0]) })),
+	use: (c, { args }) =>
+		isContext(c, args[0]) ? c.say.hooks.context({ context: contextName(c, args[0]) }) : c.say.hooks.usePromise({ promise: c.e.text(args[0]) }),
 	useId: ({ say }) => say.hooks.id,
 	useDeferredValue: ({ say, e }, { args }) => say.hooks.deferred({ value: e.text(args[0]) }),
 	useFormStatus: ({ say }) => say.hooks.formStatus,
@@ -90,6 +91,14 @@ function callRules(): Record<string, Rule> {
 		const where = root.type === "CallExpression" ? c.e.text(root.arguments[0]) : c.e.text(root);
 		return D(c.say.dom.render({ ui: ui.t, root: where }), ui.kids);
 	};
+	for (const m of Object.keys(en.dom.methods) as DomMethod[])
+		out[`*.${m}`] = (c, { obj, args }) => {
+			const u = unwrap(obj);
+			if (args.length || u?.type !== "MemberExpression" || u.computed || u.property.name !== "current") return null;
+			const root = unwrap(u.object);
+			if (root?.type !== "Identifier" || c.facts.refs.get(root.name) !== "element") return null;
+			return c.say.dom.methods[m]({ element: c.say.dom.elementRef({ ref: c.e.ref(root.name) }) });
+		};
 	out["*.setState"] = (c, { obj, args }) => {
 		if (!c.facts.active || unwrap(obj)?.type !== "ThisExpression" || unwrap(args[0])?.type !== "ObjectExpression") return null;
 		const items = unwrap(args[0]).properties.map((p: N) => {

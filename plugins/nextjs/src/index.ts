@@ -43,7 +43,8 @@ export function nextjs(options: NextOptions = {}): TsPlugin[] {
 	const ctx = (e: Engine, say: NextPhrases): Ctx => ({ e, say, facts: read(e), kit });
 
 	const callTable: Record<string, CallRule<NextPhrases>> = {};
-	for (const [k, r] of Object.entries(calls())) callTable[k] = ({ e, say, node, args, obj, stmt }) => r(ctx(e, say), { node, args, obj, stmt }) as Doc | string | null;
+	for (const [k, r] of Object.entries(calls()))
+		callTable[k] = ({ e, say, node, args, obj, stmt }) => r(ctx(e, say), { node, args, obj, stmt }) as Doc | string | null;
 	const condTable: Record<string, CondRule<NextPhrases>> = {};
 	for (const [k, r] of Object.entries(conditions())) condTable[k] = ({ e, say, obj, args, neg }) => r(ctx(e, say), { obj, args, neg });
 	const memberTable: Record<string, MemberRule<NextPhrases>> = {};

@@ -39,7 +39,11 @@ function segment(s: string): string | null {
 	return dyn ? `:${dyn[1]}` : seg;
 }
 
-const routeOf = (dirs: string[]) => `/${dirs.map(segment).filter((x) => x !== null).join("/")}`;
+const routeOf = (dirs: string[]) =>
+	`/${dirs
+		.map(segment)
+		.filter((x) => x !== null)
+		.join("/")}`;
 
 /** Reads a file path under `app/` or `pages/` (optionally inside `src/`); null for anything else. */
 export function fileInfo(path: string | null): FileInfo | null {

@@ -26,14 +26,20 @@ export function nextElements(sayOf: (e: Engine) => NextPhrases): Record<string, 
 		Image: ({ e, tag, attr, text }) => {
 			if (!from(e, tag, "next/image")) return null;
 			const alt = attr("alt");
-			return { element: sayOf(e).elements.image({ alt: alt && str(alt) !== "" ? text(alt) : null }), consumed: ["src", "alt", "priority", "fill", "quality", "placeholder", "blurDataURL", "unoptimized"] };
+			return {
+				element: sayOf(e).elements.image({ alt: alt && str(alt) !== "" ? text(alt) : null }),
+				consumed: ["src", "alt", "priority", "fill", "quality", "placeholder", "blurDataURL", "unoptimized"],
+			};
 		},
 		Script: ({ e, tag, attr, text }) => {
 			if (!from(e, tag, "next/script")) return null;
 			const say = sayOf(e);
 			const src = attr("src");
 			const strategy = str(attr("strategy")) as ScriptStrategy | null;
-			return { element: say.elements.script({ src: src ? hrefOf(e, src, text) : null, strategy: strategy ? (say.elements.strategies[strategy] ?? null) : null }), consumed: ["src", "strategy"] };
+			return {
+				element: say.elements.script({ src: src ? hrefOf(e, src, text) : null, strategy: strategy ? (say.elements.strategies[strategy] ?? null) : null }),
+				consumed: ["src", "strategy"],
+			};
 		},
 		Form: ({ e, tag, attr, text }) => {
 			const action = attr("action");

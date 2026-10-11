@@ -113,8 +113,8 @@ export const en: NextPhrases = {
 		unauthorized: "show the unauthorized page",
 		revalidatePath: ({ path, layout }) => `refresh the cached data for ${path}${layout ? " and every page under it" : ""}`,
 		revalidateTag: ({ tag }) => `expire data tagged ${tag} so it is fetched fresh next time`,
-		revalidateTagWith: ({ tag, profile }) =>
-			`mark data tagged ${tag} as stale, serving it while fresh data loads in the background${profile ? ` (${profile} profile)` : ""}`,
+		revalidateTagWith: ({ tag, profile, life }) =>
+			`mark data tagged ${tag} as stale, serving it while fresh data loads in the background${profile ? ` (${profile} profile)` : paren(life)}`,
 		updateTag: ({ tag }) => `expire data tagged ${tag} and fetch it fresh for this request`,
 		refresh: "refresh the page in the browser",
 		cacheTag: ({ tags }) => `tag this cached result as ${tags}`,

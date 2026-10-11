@@ -2,13 +2,14 @@ import { D, type Doc, type Line, mk } from "@usenarrator/core";
 import { type N, unwrap } from "@usenarrator/lang-ts";
 import { reactName } from "./facts";
 import type { DomEvent, InputType, Tag } from "./phrases";
-import { actionOf, bullets, type Ctx, fits, hasJsx, isFn, isJsxMap, isNullish, returnsOf, str } from "./shared";
+import { actionOf, bullets, type Ctx, fits, hasJsx, isFn, isJsxMap, isNullish, returnsOf, same, str } from "./shared";
 
 /** One piece of UI; `text` marks a quoted run of text so its parent can read `a heading "Users"`. */
 type Item = Doc & { text?: boolean };
 
 /** Styling and plumbing props that say nothing about what the user sees or does. */
-const SKIP = /^(className|class|style|key|ref|id|tabIndex|role|asChild|htmlFor|data-.*|aria-.*|xmlns.*|viewBox|fill|stroke.*|d|width|height|sizes|loading|decoding|suppressHydrationWarning|dangerouslySetInnerHTML)$/;
+const SKIP =
+	/^(className|class|style|key|ref|id|tabIndex|role|asChild|htmlFor|data-.*|aria-.*|xmlns.*|viewBox|fill|stroke.*|d|width|height|sizes|loading|decoding|suppressHydrationWarning|dangerouslySetInnerHTML)$/;
 const FLAGS = /^(disabled|checked|hidden|required|readOnly|open|selected|autoFocus|multiple|defaultChecked|loading|isLoading|isDisabled|isOpen)$/;
 /** Wrappers that add nothing a reader needs when they carry no behaviour of their own. */
 const TRANSPARENT = new Set(["div", "span", "Fragment", "React.Fragment", "StrictMode", "React.StrictMode", "Profiler", "React.Profiler"]);
@@ -174,8 +175,8 @@ function elementOf(c: Ctx, n: N): Item[] | null {
 	}
 	const element = say.ui.element({ element: head.element, details: details.items });
 	const only = kids[0];
-	if (kids.length === 1 && only?.text && !only.kids.length && !details.kids.length)
-		return [D(say.ui.element({ element: say.ui.withText({ element: head.element, text: only.t }), details: details.items }))];
+	if (kids.length === 1 && only?.text && !only.kids.length)
+		return [D(say.ui.element({ element: say.ui.withText({ element: head.element, text: only.t }), details: details.items }), details.kids)];
 	if (!kids.length) return [D(element, details.kids)];
 	if (kids.length === 1 && fits(only!, 70) && !details.kids.length) return [D(say.ui.showing({ element, child: only!.t }))];
 	return [D(say.ui.containing({ element }), [...details.kids, ...bullets(e, kids)])];
@@ -219,6 +220,7 @@ function htmlHead(c: Ctx, n: N, tag: string): Head {
 	if (tag === "button" && str(attr("type")) === "submit") return { element: say.ui.input.submit, consumed: ["type"] };
 	if (tag === "form" && attr("action") && !str(attr("action"))) return { element: say.ui.formAction({ action: e.text(attr("action")) }), consumed: ["action"] };
 	if (tag === "div" || tag === "span") return { element: say.ui.container, consumed: [], transparent: true };
+	if (tag === "html" || tag === "body") return { element: say.ui.container, consumed: attrsOf(n).map((a: N) => a.name?.name), transparent: true };
 	return { element: say.ui.tags[tag as Tag] ?? mk("c", `<${tag}>`), consumed: [] };
 }
 
@@ -282,6 +284,7 @@ function valueOf(c: Ctx, key: string, v: N): Doc {
 		return D(name, e.body(fn.body, 0));
 	}
 	const d = e.noun(v);
+	if (same(e, d.t, key)) return d;
 	return D(say.ui.labeled({ name, value: d.t }), d.kids);
 }
 
