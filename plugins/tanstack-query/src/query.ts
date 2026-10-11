@@ -197,10 +197,10 @@ export function mutationDoc(c: Ctx, args: N[], wrap?: (m: string) => string): Do
 	if (o) {
 		props = o.properties;
 		key = propOf(o, "mutationKey");
-	} else if (isFn(a) || a.type === "Identifier" || a.type === "MemberExpression") {
+	} else if (isFn(a) || a.type === "Identifier" || a.type === "MemberExpression" || (a.type === "CallExpression" && args.length === 1)) {
 		if (!isFn(a) && args.length === 1) {
 			const v = c.e.noun(a);
-			return D(c.say.query.fromOptions({ options: v.t }), v.kids);
+			return D(c.say.mutation.fromOptions({ options: v.t }), v.kids);
 		}
 		fn = a;
 		props = objectArg(b)?.properties ?? [];

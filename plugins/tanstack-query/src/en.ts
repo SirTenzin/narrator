@@ -95,6 +95,7 @@ export const en: TanStackQueryPhrases = {
 	mutation: {
 		noun: "a mutation",
 		the: "the mutation",
+		fromOptions: ({ options }) => `the mutation described by ${options}`,
 		keyed: ({ key }) => `the ${key} mutation`,
 		options: ({ mutation }) => `the options for ${mutation}`,
 		runs: ({ fn }) => `running ${fn}`,

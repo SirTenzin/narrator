@@ -13,6 +13,7 @@
 		"@usenarrator/lang-ts": "workspace:*"
 	},
 	"devDependencies": {
-		"@usenarrator/testkit": "workspace:*"
+		"@usenarrator/testkit": "workspace:*",
+		"@usenarrator/plugin-zod": "workspace:*"
 	}
 }

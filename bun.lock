@@ -272,6 +272,7 @@
         "@usenarrator/lang-ts": "workspace:*",
       },
       "devDependencies": {
+        "@usenarrator/plugin-zod": "workspace:*",
         "@usenarrator/testkit": "workspace:*",
       },
     },

@@ -11,6 +11,8 @@ type ClientRule = (c: Ctx, args: N[], stmt: boolean) => Doc | null;
 export function queriesText(c: Ctx, args: N[]): { text: string; filters: N | null; rest: N[] } {
 	const { e, say } = c;
 	const [a, ...more] = args.map(unwrap);
+	const builder = a?.type === "CallExpression" ? unwrap(a.callee) : null;
+	if (builder?.type === "MemberExpression" && /Filter$/.test(builder.property.name ?? "")) return { text: e.text(a), filters: null, rest: more };
 	const positional = a && !objectArg(a);
 	const filters = positional ? objectArg(more[0]) : objectArg(a);
 	const key = positional ? a : propOf(filters, "queryKey");

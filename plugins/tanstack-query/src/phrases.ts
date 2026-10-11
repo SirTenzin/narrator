@@ -167,6 +167,8 @@ export type TanStackQueryPhrases = {
 		the: string;
 		/** With `mutationKey`. */
 		keyed: Phrase<"key">;
+		/** `useMutation(options)` with options built elsewhere. */
+		fromOptions: Phrase<"options">;
 		/** `mutationOptions({ … })`. */
 		options: Phrase<"mutation">;
 		/** `mutationFn: (vars) => api.post(…)`. */
