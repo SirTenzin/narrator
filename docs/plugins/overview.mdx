@@ -28,6 +28,8 @@ Let rows be the rows of users:
   • at most 1 row
 ```
 
+Each plugin is its own package, such as `@usenarrator/plugin-drizzle`. Plugins list `@usenarrator/core` and `@usenarrator/lang-ts` as peer dependencies, so every plugin in a project shares one engine. npm and pnpm install them for you. With Yarn, or pnpm with `auto-install-peers=false`, install them yourself. See [What to install](/getting-started#what-to-install).
+
 ## Available plugins
 
 ### Validation

@@ -4,6 +4,7 @@ import { oxcParser } from "@usenarrator/lang-ts/oxc";
 import { en } from "@usenarrator/locale-en";
 import { findRepoRoot, loadDependencyIndex } from "./repo";
 
+export { changedFilesFromGit, gitAttributeSkips } from "./git";
 export { findRepoRoot, listRepoFiles, loadDependencyIndex } from "./repo";
 
 export type NodeNarratorOptions = {

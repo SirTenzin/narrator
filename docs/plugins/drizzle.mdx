@@ -13,6 +13,8 @@ import { drizzle } from "@usenarrator/plugin-drizzle";
 typescript({ parser: oxcParser, plugins: [drizzle()] });
 ```
 
+`npm install @usenarrator/plugin-drizzle` also installs `@usenarrator/plugin-sql`, which reads `` sql`...` `` templates holding whole statements. You don't need to add `sql()` yourself unless you want raw SQL strings elsewhere read too.
+
 ## Queries
 
 {/* narrate plugins="drizzle" */}

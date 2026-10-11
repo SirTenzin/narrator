@@ -1,4 +1,4 @@
-import { createNarrator, type Locale, renderText } from "@usenarrator/core";
+import { createNarrator, describeProblem, type Locale, type Narration, renderText } from "@usenarrator/core";
 import { type TsPlugin, typescript } from "@usenarrator/lang-ts";
 import { oxcParser } from "@usenarrator/lang-ts/oxc";
 import { en } from "@usenarrator/locale-en";
@@ -14,14 +14,22 @@ export type SnippetOptions = {
 const snippetNarrator = ({ plugins = [], locale = en, dependencies }: SnippetOptions) =>
 	createNarrator({ languages: [typescript({ parser: oxcParser, plugins, dependencies: dependencies && (() => dependencies) })], locale });
 
-/** Narrates a TS/JS snippet to plain text: the main assertion helper for plugin tests. */
+// A narrator keeps going past a failing rule, but a plugin test should fail loudly instead.
+const narrateStrictly = (code: string, opts: SnippetOptions): Narration => {
+	const result = snippetNarrator(opts).narrate(code, opts.path ?? "snippet.ts");
+	const crashes = result.problems.filter((p) => p.source !== "parser");
+	if (crashes.length) throw new Error(crashes.map(describeProblem).join("\n"));
+	return result;
+};
+
+/** Narrates a TS/JS snippet to plain text: the main assertion helper for plugin tests. Throws when a rule fails. */
 export function narrate(code: string, opts: SnippetOptions = {}): string {
-	return renderText(snippetNarrator(opts).narrate(code, opts.path ?? "snippet.ts").lines);
+	return renderText(narrateStrictly(code, opts).lines);
 }
 
 /** Narrates and also reports how much fell back to raw code, so tests can assert full coverage. */
 export function narrateWithStats(code: string, opts: SnippetOptions = {}) {
-	const { lines, stats } = snippetNarrator(opts).narrate(code, opts.path ?? "snippet.ts");
+	const { lines, stats } = narrateStrictly(code, opts);
 	return { text: renderText(lines), fallbacks: stats.fallbacks };
 }
 

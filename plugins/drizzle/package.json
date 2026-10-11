@@ -11,6 +11,9 @@
 	"homepage": "https://github.com/SirTenzin/narrator#readme",
 	"type": "module",
 	"sideEffects": false,
+	"engines": {
+		"node": "^20.19.0 || >=22.12.0"
+	},
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
 	"exports": {
@@ -27,12 +30,15 @@
 	"publishConfig": {
 		"access": "public"
 	},
-	"peerDependencies": {
-		"@usenarrator/core": "workspace:^",
-		"@usenarrator/lang-ts": "workspace:^",
+	"dependencies": {
 		"@usenarrator/plugin-sql": "workspace:^"
 	},
+	"peerDependencies": {
+		"@usenarrator/core": "workspace:^",
+		"@usenarrator/lang-ts": "workspace:^"
+	},
 	"devDependencies": {
+		"@usenarrator/plugin-sql": "workspace:^",
 		"@usenarrator/core": "workspace:^",
 		"@usenarrator/lang-ts": "workspace:^",
 		"@usenarrator/testkit": "workspace:^"

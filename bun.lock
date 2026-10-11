@@ -55,9 +55,6 @@
         "oxc-parser": "^0.153.0",
         "pgsql-ast-parser": "^12.0.2",
       },
-      "devDependencies": {
-        "@usenarrator/example-autumn": "workspace:^",
-      },
     },
     "apps/extension": {
       "name": "@usenarrator/extension",
@@ -267,15 +264,18 @@
     "plugins/drizzle": {
       "name": "@usenarrator/plugin-drizzle",
       "version": "0.1.0",
+      "dependencies": {
+        "@usenarrator/plugin-sql": "workspace:^",
+      },
       "devDependencies": {
         "@usenarrator/core": "workspace:^",
         "@usenarrator/lang-ts": "workspace:^",
+        "@usenarrator/plugin-sql": "workspace:^",
         "@usenarrator/testkit": "workspace:^",
       },
       "peerDependencies": {
         "@usenarrator/core": "workspace:^",
         "@usenarrator/lang-ts": "workspace:^",
-        "@usenarrator/plugin-sql": "workspace:^",
       },
     },
     "plugins/effect": {
@@ -372,6 +372,9 @@
     "plugins/nextjs": {
       "name": "@usenarrator/plugin-nextjs",
       "version": "0.1.0",
+      "dependencies": {
+        "@usenarrator/plugin-react": "workspace:^",
+      },
       "devDependencies": {
         "@usenarrator/core": "workspace:^",
         "@usenarrator/lang-ts": "workspace:^",
@@ -381,7 +384,6 @@
       "peerDependencies": {
         "@usenarrator/core": "workspace:^",
         "@usenarrator/lang-ts": "workspace:^",
-        "@usenarrator/plugin-react": "workspace:^",
       },
     },
     "plugins/prisma": {

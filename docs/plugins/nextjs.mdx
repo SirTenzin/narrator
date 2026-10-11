@@ -13,7 +13,7 @@ import { nextjs } from "@usenarrator/plugin-nextjs";
 typescript({ parser: oxcParser, plugins: [...nextjs()] });
 ```
 
-`nextjs()` returns two plugins: the Next.js rules and a [React plugin](/plugins/react) that also knows `next/link`, `next/image`, `next/script` and `next/form`. Spread it into your plugin list, or pass the array as it is, since `plugins` accepts nested arrays. Don't add `react()` as well.
+`nextjs()` returns two plugins: the Next.js rules and a [React plugin](/plugins/react) that also knows `next/link`, `next/image`, `next/script` and `next/form`. Spread it into your plugin list, or pass the array as it is, since `plugins` accepts nested arrays. Don't add `react()` as well. Installing `@usenarrator/plugin-nextjs` installs `@usenarrator/plugin-react` with it.
 
 The plugin declares `library: { name: "next", versions: ">=13.4 <17" }`. Pages and layouts are recognized from their path alone. Everything else, such as request APIs, caching and navigation, is only narrated in files that import from `next` or belong to a package that depends on it (see [Dependency detection](/concepts/dependency-detection)).
 

@@ -1,6 +1,6 @@
-import type { FileNarrator, SourceLanguage } from "@usenarrator/core";
+import type { FileNarrator, NarrationProblem, SourceLanguage } from "@usenarrator/core";
 import { Engine } from "./engine";
-import type { Parser } from "./parser";
+import type { ParseOutput, Parser } from "./parser";
 import type { TsPlugin } from "./plugin";
 import { std } from "./std";
 import { unitsOf } from "./units";
@@ -37,6 +37,24 @@ function checkedParser(parser: Parser): Parser {
 	};
 }
 
+const lineOf = (src: string, offset: number) => {
+	let line = 1;
+	for (let i = src.indexOf("\n"); i !== -1 && i < offset; i = src.indexOf("\n", i + 1)) line++;
+	return line;
+};
+
+const syntaxProblems = ({ errors, src, path }: { errors: ParseOutput["errors"]; src: string; path: string }): NarrationProblem[] =>
+	errors.map((e: any) => {
+		const offset = e?.labels?.[0]?.start;
+		return {
+			path,
+			message: typeof e === "string" ? e : String(e?.message ?? e),
+			severity: "error",
+			source: "parser",
+			...(typeof offset === "number" ? { line: lineOf(src, offset) } : {}),
+		};
+	});
+
 /** The TS/JS source language. Narrates `.ts`, `.tsx`, `.js`, `.jsx`, `.mjs`, `.cjs` (not `.d.ts`). */
 export function typescript({
 	parser,
@@ -55,19 +73,32 @@ export function typescript({
 		ecosystems: ["npm"],
 		engine,
 		create(locale, ctx): FileNarrator {
-			const e = engine(locale);
 			const depsFor = ctx?.dependencies ?? dependencies;
+			let problems: NarrationProblem[] = [];
+			let current = "";
+			const recordingParser: Parser = (filename, src) => {
+				const out = parser(filename, src);
+				problems = syntaxProblems({ errors: out.errors ?? [], src, path: current });
+				return out;
+			};
+			const e = new Engine({ parser: recordingParser, plugins: all, locale });
+			const prepare = (path: string) => {
+				current = path;
+				problems = [];
+				e.dependencies = depsFor?.(path) ?? {};
+				setup?.({ engine: e, path });
+			};
 			return {
 				narrate: (src, path) => {
-					e.dependencies = depsFor?.(path) ?? {};
-					setup?.({ engine: e, path });
-					return { ...e.narrate(src, path), stats: e.stats };
+					prepare(path);
+					const result = e.narrate(src, path);
+					return { ...result, stats: e.stats, problems };
 				},
 				units: (src, path) => {
-					e.dependencies = depsFor?.(path) ?? {};
-					setup?.({ engine: e, path });
+					prepare(path);
 					return unitsOf(e, src, path);
 				},
+				problems: () => problems,
 			};
 		},
 	};

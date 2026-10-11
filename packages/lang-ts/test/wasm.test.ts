@@ -45,7 +45,8 @@ describe("typescript({ parser }) checks its parser", () => {
 
 	test("the factory itself instead of its result", () => {
 		const narrator = createNarrator({ languages: [typescript({ parser: createWasmParser as any })], locale: en });
-		expect(() => narrator.narrate("let a = 1;", "a.ts")).toThrow(/returned a Promise; pass the result of `await createWasmParser\(\)`/);
+		const { problems } = narrator.narrate("let a = 1;", "a.ts");
+		expect(problems[0]?.message).toMatch(/returned a Promise; pass the result of `await createWasmParser\(\)`/);
 	});
 
 	test("something that is not a parser", () => {
