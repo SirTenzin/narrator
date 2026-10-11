@@ -41,7 +41,12 @@ export type PluginId =
 	| "bullmq"
 	| "inngest"
 	| "triggerDev"
-	| "temporal";
+	| "temporal"
+	| "stripe"
+	| "prisma"
+	| "kysely"
+	| "valibot"
+	| "arktype";
 
 const uses = (deps: Deps, names: (string | RegExp)[]) => Object.keys(deps).some((d) => names.some((n) => (typeof n === "string" ? d === n : n.test(d))));
 
@@ -65,6 +70,11 @@ const LIBRARIES: Record<Exclude<PluginId, "testing" | "autumn">, (string | RegEx
 	inngest: ["inngest"],
 	triggerDev: [/^@trigger\.dev\//],
 	temporal: [/^@temporalio\//],
+	stripe: ["stripe"],
+	prisma: ["@prisma/client", "prisma"],
+	kysely: ["kysely"],
+	valibot: ["valibot"],
+	arktype: ["arktype"],
 };
 const TEST_RUNNERS = ["vitest", "jest", "mocha", "ava", "@jest/globals", "@types/jest", "@types/mocha", "@types/bun", "bun-types", "@playwright/test"];
 const TEST_FILE = /(\.|\/|^)(test|spec)s?\.[cm]?[jt]sx?$|(^|\/)__tests__\//;

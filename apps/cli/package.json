@@ -55,7 +55,12 @@
 		"@usenarrator/plugin-bullmq": "workspace:^",
 		"@usenarrator/plugin-inngest": "workspace:^",
 		"@usenarrator/plugin-trigger-dev": "workspace:^",
-		"@usenarrator/plugin-temporal": "workspace:^"
+		"@usenarrator/plugin-temporal": "workspace:^",
+		"@usenarrator/plugin-stripe": "workspace:^",
+		"@usenarrator/plugin-prisma": "workspace:^",
+		"@usenarrator/plugin-kysely": "workspace:^",
+		"@usenarrator/plugin-valibot": "workspace:^",
+		"@usenarrator/plugin-arktype": "workspace:^"
 	},
 	"devDependencies": {
 		"@usenarrator/example-autumn": "workspace:^"

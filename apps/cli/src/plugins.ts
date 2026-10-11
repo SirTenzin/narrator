@@ -1,5 +1,6 @@
 import type { TsPlugin } from "@usenarrator/lang-ts";
 import { aiSdk } from "@usenarrator/plugin-ai-sdk";
+import { arktype } from "@usenarrator/plugin-arktype";
 import { betterAuth } from "@usenarrator/plugin-better-auth";
 import { bullmq } from "@usenarrator/plugin-bullmq";
 import { decimal } from "@usenarrator/plugin-decimal";
@@ -13,15 +14,19 @@ import { express } from "@usenarrator/plugin-express";
 import { fastify } from "@usenarrator/plugin-fastify";
 import { hono } from "@usenarrator/plugin-hono";
 import { inngest } from "@usenarrator/plugin-inngest";
+import { kysely } from "@usenarrator/plugin-kysely";
 import { nextjs } from "@usenarrator/plugin-nextjs";
+import { prisma } from "@usenarrator/plugin-prisma";
 import { react } from "@usenarrator/plugin-react";
 import { sql } from "@usenarrator/plugin-sql";
 import { pgsqlParser } from "@usenarrator/plugin-sql/pgsql";
+import { stripe } from "@usenarrator/plugin-stripe";
 import { tanstackQuery } from "@usenarrator/plugin-tanstack-query";
 import { temporal } from "@usenarrator/plugin-temporal";
 import { testing } from "@usenarrator/plugin-testing";
 import { triggerDev } from "@usenarrator/plugin-trigger-dev";
 import { trpc } from "@usenarrator/plugin-trpc";
+import { valibot } from "@usenarrator/plugin-valibot";
 import { zod } from "@usenarrator/plugin-zod";
 
 type PluginSpec = {
@@ -59,6 +64,11 @@ export const PLUGINS: Record<string, PluginSpec> = {
 	inngest: { create: () => [inngest()], detect: oneOf("inngest") },
 	"trigger-dev": { create: () => [triggerDev()], detect: (name) => name.startsWith("@trigger.dev/") },
 	temporal: { create: () => [temporal()], detect: (name) => name.startsWith("@temporalio/") },
+	stripe: { create: () => [stripe()], detect: oneOf("stripe") },
+	prisma: { create: () => [prisma()], detect: oneOf("@prisma/client", "prisma") },
+	kysely: { create: () => [kysely()], detect: oneOf("kysely") },
+	valibot: { create: () => [valibot()], detect: oneOf("valibot") },
+	arktype: { create: () => [arktype()], detect: oneOf("arktype") },
 	sql: {
 		create: () => [sql({ parser: pgsqlParser })],
 		detect: oneOf("postgres", "pg", "better-sqlite3", "@neondatabase/serverless", "kysely", "slonik", "@prisma/client", "mysql2", "bun-types", "@types/bun"),

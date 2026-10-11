@@ -28,6 +28,7 @@
         "@usenarrator/locale-en": "workspace:^",
         "@usenarrator/node": "workspace:^",
         "@usenarrator/plugin-ai-sdk": "workspace:^",
+        "@usenarrator/plugin-arktype": "workspace:^",
         "@usenarrator/plugin-better-auth": "workspace:^",
         "@usenarrator/plugin-bullmq": "workspace:^",
         "@usenarrator/plugin-decimal": "workspace:^",
@@ -38,14 +39,18 @@
         "@usenarrator/plugin-fastify": "workspace:^",
         "@usenarrator/plugin-hono": "workspace:^",
         "@usenarrator/plugin-inngest": "workspace:^",
+        "@usenarrator/plugin-kysely": "workspace:^",
         "@usenarrator/plugin-nextjs": "workspace:^",
+        "@usenarrator/plugin-prisma": "workspace:^",
         "@usenarrator/plugin-react": "workspace:^",
         "@usenarrator/plugin-sql": "workspace:^",
+        "@usenarrator/plugin-stripe": "workspace:^",
         "@usenarrator/plugin-tanstack-query": "workspace:^",
         "@usenarrator/plugin-temporal": "workspace:^",
         "@usenarrator/plugin-testing": "workspace:^",
         "@usenarrator/plugin-trigger-dev": "workspace:^",
         "@usenarrator/plugin-trpc": "workspace:^",
+        "@usenarrator/plugin-valibot": "workspace:^",
         "@usenarrator/plugin-zod": "workspace:^",
         "oxc-parser": "^0.153.0",
         "pgsql-ast-parser": "^12.0.2",
@@ -64,6 +69,7 @@
         "@usenarrator/lang-ts": "workspace:*",
         "@usenarrator/locale-en": "workspace:*",
         "@usenarrator/plugin-ai-sdk": "workspace:*",
+        "@usenarrator/plugin-arktype": "workspace:*",
         "@usenarrator/plugin-better-auth": "workspace:*",
         "@usenarrator/plugin-bullmq": "workspace:*",
         "@usenarrator/plugin-decimal": "workspace:*",
@@ -74,14 +80,18 @@
         "@usenarrator/plugin-fastify": "workspace:*",
         "@usenarrator/plugin-hono": "workspace:*",
         "@usenarrator/plugin-inngest": "workspace:*",
+        "@usenarrator/plugin-kysely": "workspace:*",
         "@usenarrator/plugin-nextjs": "workspace:*",
+        "@usenarrator/plugin-prisma": "workspace:*",
         "@usenarrator/plugin-react": "workspace:*",
         "@usenarrator/plugin-sql": "workspace:*",
+        "@usenarrator/plugin-stripe": "workspace:*",
         "@usenarrator/plugin-tanstack-query": "workspace:*",
         "@usenarrator/plugin-temporal": "workspace:*",
         "@usenarrator/plugin-testing": "workspace:*",
         "@usenarrator/plugin-trigger-dev": "workspace:*",
         "@usenarrator/plugin-trpc": "workspace:*",
+        "@usenarrator/plugin-valibot": "workspace:*",
         "@usenarrator/plugin-zod": "workspace:*",
         "pgsql-ast-parser": "^12.0.2",
       },
@@ -96,6 +106,7 @@
         "@usenarrator/lang-ts": "workspace:*",
         "@usenarrator/locale-en": "workspace:*",
         "@usenarrator/plugin-ai-sdk": "workspace:*",
+        "@usenarrator/plugin-arktype": "workspace:*",
         "@usenarrator/plugin-better-auth": "workspace:*",
         "@usenarrator/plugin-bullmq": "workspace:*",
         "@usenarrator/plugin-drizzle": "workspace:*",
@@ -105,14 +116,18 @@
         "@usenarrator/plugin-fastify": "workspace:*",
         "@usenarrator/plugin-hono": "workspace:*",
         "@usenarrator/plugin-inngest": "workspace:*",
+        "@usenarrator/plugin-kysely": "workspace:*",
         "@usenarrator/plugin-nextjs": "workspace:*",
+        "@usenarrator/plugin-prisma": "workspace:*",
         "@usenarrator/plugin-react": "workspace:*",
         "@usenarrator/plugin-sql": "workspace:*",
+        "@usenarrator/plugin-stripe": "workspace:*",
         "@usenarrator/plugin-tanstack-query": "workspace:*",
         "@usenarrator/plugin-temporal": "workspace:*",
         "@usenarrator/plugin-testing": "workspace:*",
         "@usenarrator/plugin-trigger-dev": "workspace:*",
         "@usenarrator/plugin-trpc": "workspace:*",
+        "@usenarrator/plugin-valibot": "workspace:*",
         "@usenarrator/plugin-zod": "workspace:*",
         "pgsql-ast-parser": "^12.0.2",
       },
@@ -187,6 +202,19 @@
         "@usenarrator/core": "workspace:^",
         "@usenarrator/lang-ts": "workspace:^",
         "@usenarrator/plugin-zod": "workspace:^",
+        "@usenarrator/testkit": "workspace:^",
+      },
+      "peerDependencies": {
+        "@usenarrator/core": "workspace:^",
+        "@usenarrator/lang-ts": "workspace:^",
+      },
+    },
+    "plugins/arktype": {
+      "name": "@usenarrator/plugin-arktype",
+      "version": "0.1.0",
+      "devDependencies": {
+        "@usenarrator/core": "workspace:^",
+        "@usenarrator/lang-ts": "workspace:^",
         "@usenarrator/testkit": "workspace:^",
       },
       "peerDependencies": {
@@ -325,6 +353,19 @@
         "@usenarrator/lang-ts": "workspace:^",
       },
     },
+    "plugins/kysely": {
+      "name": "@usenarrator/plugin-kysely",
+      "version": "0.1.0",
+      "devDependencies": {
+        "@usenarrator/core": "workspace:^",
+        "@usenarrator/lang-ts": "workspace:^",
+        "@usenarrator/testkit": "workspace:^",
+      },
+      "peerDependencies": {
+        "@usenarrator/core": "workspace:^",
+        "@usenarrator/lang-ts": "workspace:^",
+      },
+    },
     "plugins/nextjs": {
       "name": "@usenarrator/plugin-nextjs",
       "version": "0.1.0",
@@ -338,6 +379,19 @@
         "@usenarrator/core": "workspace:^",
         "@usenarrator/lang-ts": "workspace:^",
         "@usenarrator/plugin-react": "workspace:^",
+      },
+    },
+    "plugins/prisma": {
+      "name": "@usenarrator/plugin-prisma",
+      "version": "0.1.0",
+      "devDependencies": {
+        "@usenarrator/core": "workspace:^",
+        "@usenarrator/lang-ts": "workspace:^",
+        "@usenarrator/testkit": "workspace:^",
+      },
+      "peerDependencies": {
+        "@usenarrator/core": "workspace:^",
+        "@usenarrator/lang-ts": "workspace:^",
       },
     },
     "plugins/react": {
@@ -371,6 +425,19 @@
       "optionalPeers": [
         "pgsql-ast-parser",
       ],
+    },
+    "plugins/stripe": {
+      "name": "@usenarrator/plugin-stripe",
+      "version": "0.1.0",
+      "devDependencies": {
+        "@usenarrator/core": "workspace:^",
+        "@usenarrator/lang-ts": "workspace:^",
+        "@usenarrator/testkit": "workspace:^",
+      },
+      "peerDependencies": {
+        "@usenarrator/core": "workspace:^",
+        "@usenarrator/lang-ts": "workspace:^",
+      },
     },
     "plugins/tanstack-query": {
       "name": "@usenarrator/plugin-tanstack-query",
@@ -431,6 +498,19 @@
         "@usenarrator/core": "workspace:^",
         "@usenarrator/lang-ts": "workspace:^",
         "@usenarrator/plugin-zod": "workspace:^",
+        "@usenarrator/testkit": "workspace:^",
+      },
+      "peerDependencies": {
+        "@usenarrator/core": "workspace:^",
+        "@usenarrator/lang-ts": "workspace:^",
+      },
+    },
+    "plugins/valibot": {
+      "name": "@usenarrator/plugin-valibot",
+      "version": "0.1.0",
+      "devDependencies": {
+        "@usenarrator/core": "workspace:^",
+        "@usenarrator/lang-ts": "workspace:^",
         "@usenarrator/testkit": "workspace:^",
       },
       "peerDependencies": {
@@ -591,6 +671,8 @@
 
     "@usenarrator/plugin-ai-sdk": ["@usenarrator/plugin-ai-sdk@workspace:plugins/ai-sdk"],
 
+    "@usenarrator/plugin-arktype": ["@usenarrator/plugin-arktype@workspace:plugins/arktype"],
+
     "@usenarrator/plugin-better-auth": ["@usenarrator/plugin-better-auth@workspace:plugins/better-auth"],
 
     "@usenarrator/plugin-bullmq": ["@usenarrator/plugin-bullmq@workspace:plugins/bullmq"],
@@ -611,11 +693,17 @@
 
     "@usenarrator/plugin-inngest": ["@usenarrator/plugin-inngest@workspace:plugins/inngest"],
 
+    "@usenarrator/plugin-kysely": ["@usenarrator/plugin-kysely@workspace:plugins/kysely"],
+
     "@usenarrator/plugin-nextjs": ["@usenarrator/plugin-nextjs@workspace:plugins/nextjs"],
+
+    "@usenarrator/plugin-prisma": ["@usenarrator/plugin-prisma@workspace:plugins/prisma"],
 
     "@usenarrator/plugin-react": ["@usenarrator/plugin-react@workspace:plugins/react"],
 
     "@usenarrator/plugin-sql": ["@usenarrator/plugin-sql@workspace:plugins/sql"],
+
+    "@usenarrator/plugin-stripe": ["@usenarrator/plugin-stripe@workspace:plugins/stripe"],
 
     "@usenarrator/plugin-tanstack-query": ["@usenarrator/plugin-tanstack-query@workspace:plugins/tanstack-query"],
 
@@ -626,6 +714,8 @@
     "@usenarrator/plugin-trigger-dev": ["@usenarrator/plugin-trigger-dev@workspace:plugins/trigger-dev"],
 
     "@usenarrator/plugin-trpc": ["@usenarrator/plugin-trpc@workspace:plugins/trpc"],
+
+    "@usenarrator/plugin-valibot": ["@usenarrator/plugin-valibot@workspace:plugins/valibot"],
 
     "@usenarrator/plugin-zod": ["@usenarrator/plugin-zod@workspace:plugins/zod"],
 

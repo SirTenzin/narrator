@@ -35,6 +35,11 @@ const LOADERS: Record<PluginId, (v: PluginVersions) => Promise<TsPlugin[]>> = {
 	inngest: async () => [(await import("@usenarrator/plugin-inngest")).inngest()],
 	triggerDev: async () => [(await import("@usenarrator/plugin-trigger-dev")).triggerDev()],
 	temporal: async () => [(await import("@usenarrator/plugin-temporal")).temporal()],
+	stripe: async () => [(await import("@usenarrator/plugin-stripe")).stripe()],
+	prisma: async () => [(await import("@usenarrator/plugin-prisma")).prisma()],
+	kysely: async () => [(await import("@usenarrator/plugin-kysely")).kysely()],
+	valibot: async () => [(await import("@usenarrator/plugin-valibot")).valibot()],
+	arktype: async () => [(await import("@usenarrator/plugin-arktype")).arktype()],
 };
 
 /** Later plugins win, so this is the CLI's order; the Autumn preset already bundles drizzle and decimal. */
