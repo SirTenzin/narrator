@@ -1,0 +1,66 @@
+---
+title: "@usenarrator/cli"
+sidebarTitle: "CLI"
+description: "The narrator command: narrate files, directories, globs and git diffs from the terminal."
+---
+
+```bash
+npm install --global @usenarrator/cli
+```
+
+```text
+narrator <file|dir|glob>...      narrate files (reads stdin when none are given)
+narrator diff <base>..<head>     narrate a git change set (omit <head> for the working tree)
+```
+
+## Narrating files
+
+Each argument can be a file, a directory or a glob. Directories are searched recursively for `.ts`, `.tsx`, `.js`, `.jsx`, `.mjs` and `.cjs` files, skipping `.d.ts` files and the `node_modules`, `.git`, `dist`, `build`, `coverage`, `.next` and `.turbo` folders. With one file, the CLI prints its English. With several, it prints each file's path followed by its English, indented.
+
+## Narrating diffs
+
+`narrator diff <base>..<head>` compares two revisions, `narrator diff <base>...<head>` compares `head` with its merge base, and `narrator diff <base>` compares a revision with the working tree. Renamed files are detected with git's rename detection, and moved or renamed declarations are matched across files. See [Units and diffs](/concepts/units-and-diffs).
+
+## Options
+
+| Option | Description |
+| --- | --- |
+| `--plugins <list>` | A comma-separated list of plugins to load, or `all` or `none`. By default, plugins are chosen from the `package.json` files that apply to the narrated files, and every plugin is loaded when no manifest lists a known library. |
+| `--preset <name>` | Adds a codebase preset after the plugins. `autumn` is the example preset in the repository. |
+| `--locale <id>` | The output language. `en` is built in, and other ids are loaded from `@usenarrator/locale-<id>`. |
+| `--plain`, `--ansi`, `--json`, `--html` | The output format. The default is `--ansi` in a terminal and `--plain` otherwise, and `NO_COLOR` turns colour off. `--json` prints lines with their depth, kind, text and source offsets, and `--html` prints a standalone page. |
+| `-h`, `--help` | Prints usage. |
+
+## Plugin names
+
+| Name | Detected from |
+| --- | --- |
+| `zod` | `zod` |
+| `valibot` | `valibot` |
+| `arktype` | `arktype` |
+| `testing` | `vitest`, `jest`, `@jest/globals`, `@types/jest`, `bun-types`, `@types/bun` |
+| `decimal` | `decimal.js`, `decimal.js-light` |
+| `drizzle` | `drizzle-orm` |
+| `prisma` | `prisma`, `@prisma/client` |
+| `kysely` | `kysely` |
+| `sql` | `postgres`, `pg`, `better-sqlite3`, `@neondatabase/serverless`, `kysely`, `slonik`, `@prisma/client`, `mysql2`, Bun's types |
+| `effect` | `effect`, `@effect/*` |
+| `better-auth` | `better-auth` |
+| `stripe` | `stripe` |
+| `hono` | `hono` |
+| `elysia` | `elysia` |
+| `express` | `express` |
+| `fastify` | `fastify` |
+| `trpc` | `@trpc/*` |
+| `ai-sdk` | `ai`, `@ai-sdk/*` |
+| `react` | `react`, `react-dom` (skipped when `nextjs` is detected, since it includes React) |
+| `nextjs` | `next` |
+| `tanstack-query` | `@tanstack/*-query` |
+| `bullmq` | `bullmq`, `bullmq-pro` |
+| `inngest` | `inngest` |
+| `trigger-dev` | `@trigger.dev/*` |
+| `temporal` | `@temporalio/*` |
+
+## From code
+
+The package also exports `main(argv)`, which runs the CLI and returns an exit code, and `detectPlugins(dependencyNames)`, `loadPlugins(names)` and `PLUGINS` for building the same plugin selection yourself.

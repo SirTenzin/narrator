@@ -1,0 +1,107 @@
+---
+title: "Fastify"
+description: "Read Fastify servers as routes with their schemas, hooks, plugins and replies."
+---
+
+<span className="nr-pill">@usenarrator/plugin-fastify</span>
+
+The [Fastify](https://fastify.dev) plugin reads a server as the routes it answers. A route's JSON Schema or TypeBox schema becomes plain sentences about what the request must look like and what each reply contains, hooks read as when they run, and `register` calls name the official plugins by what they add.
+
+```ts
+import { fastify } from "@usenarrator/plugin-fastify";
+
+typescript({ parser: oxcParser, plugins: [fastify()] });
+// or pin a major version: fastify({ version: 4 }) or fastify({ version: 5 })
+```
+
+The plugin declares `library: { name: "fastify", versions: ">=4 <6" }`. It only narrates files that import or `require` Fastify or belong to a package that depends on it (see [Dependency detection](/concepts/dependency-detection)), so an Express app in the same repository is not mistaken for a Fastify server.
+
+## Examples
+
+{/* narrate plugins="fastify" path="server.ts" */}
+```ts A route with a schema
+import Fastify from "fastify";
+
+const app = Fastify({ logger: true });
+
+app.post("/users", {
+  schema: {
+    body: { type: "object", required: ["name"], properties: { name: { type: "string", minLength: 1 } } },
+    response: { 201: { type: "object", properties: { id: { type: "string", format: "uuid" } } } },
+  },
+  preHandler: [app.authenticate],
+}, async (request, reply) => {
+  const user = await db.insert(request.body);
+  if (!user) return reply.code(409).send({ error: "exists" });
+  reply.code(201);
+  return user;
+});
+
+await app.listen({ port: 3000 });
+```
+
+```text English
+Let app be a new Fastify server (with request logging).
+
+Answer POST /users, after app's authenticate:
+  • Expect the body to be an object with name (a string, at least 1 character, required)
+  • A 201 Created reply is an object with id (a string, in uuid format)
+  Insert DB (the request body), and call the result user.
+  If user is missing, reply with an object with error: "exists" (status 409 Conflict).
+  Set the reply status to 201 Created.
+  Reply with user.
+
+Start app listening on port 3000.
+```
+
+{/* narrate plugins="fastify" path="plugins.ts" */}
+```ts Hooks, decorators and plugins
+import Fastify from "fastify";
+import cors from "@fastify/cors";
+
+const app = Fastify();
+
+await app.register(cors, { origin: true });
+await app.register(userRoutes, { prefix: "/users" });
+
+app.decorate("authenticate", async (request, reply) => {
+  await request.jwtVerify();
+});
+
+app.addHook("onClose", closeDb);
+
+app.setErrorHandler((error, request, reply) => {
+  reply.status(500).send({ ok: false });
+});
+```
+
+```text English
+Let app be a new Fastify server.
+Register CORS (origin: yes).
+Register user routes under /users.
+
+Add the authenticate function to the server:
+  Verify the request's JWT.
+
+When the server closes, run close DB.
+
+When a request fails:
+  Reply with an object with ok: false (status 500 Internal Server Error).
+```
+
+## Versions
+
+`reply.redirect` swapped its arguments in Fastify 5: it is `redirect(url, code)` where Fastify 4 had `redirect(code, url)`. When the status code is a literal number the plugin can tell which is which. Otherwise it uses the major version your package declares, or the one you pin with `version`.
+
+## What it covers
+
+- Servers: `Fastify()` and `require("fastify")()` with their options, `listen`, `close`, `ready` and `inject` in tests.
+- Routes: the shorthand methods, `route()` with several methods, one-line handlers, and returned values as replies.
+- Schemas: JSON Schema and TypeBox for `body`, `querystring`, `params` and `headers`, and reply shapes per status code.
+- Replies: `send`, `code` and `status`, headers, `redirect`, and the request's parts.
+- Hooks (`onRequest`, `preHandler`, `onClose` and the rest), route-level hooks, decorators, error and not-found handlers.
+- Plugins: `register` with prefixes and options, official `@fastify/*` plugins by name, autoload, inline plugins and `fastify-plugin`.
+
+## Translating
+
+The English phrasebook is exported as `en` and typed as `FastifyPhrases`.

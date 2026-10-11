@@ -30,17 +30,64 @@ Let rows be the rows of users:
 
 ## Available plugins
 
-<Columns cols={2}>
+### Validation
+
+<Columns cols={3}>
   <Card title="zod" icon="shield-check" href="/plugins/zod">Schemas read as the shapes they describe.</Card>
-  <Card title="Testing" icon="flask-conical" href="/plugins/testing">`describe`, `it`, `expect` and matchers from Bun, Jest and Vitest.</Card>
-  <Card title="decimal.js" icon="calculator" href="/plugins/decimal">Arithmetic chains and comparisons read as math.</Card>
+  <Card title="Valibot" icon="shield-check" href="/plugins/valibot">Schemas, pipes and validation calls.</Card>
+  <Card title="ArkType" icon="shield-check" href="/plugins/arktype">Definitions, including the string syntax.</Card>
+</Columns>
+
+### Data
+
+<Columns cols={3}>
   <Card title="Drizzle ORM" icon="database" href="/plugins/drizzle">Queries, operators, relational queries, transactions and schemas.</Card>
-  <Card title="Effect" icon="sparkles" href="/plugins/effect">Generators, pipes, errors, layers, schedules and Schema, for v3 and v4.</Card>
-  <Card title="Better Auth" icon="key-round" href="/plugins/better-auth">Auth configuration, plugins and client calls.</Card>
-  <Card title="Hono" icon="route" href="/plugins/hono">Apps, routes, context, middleware, validation and the RPC client.</Card>
-  <Card title="Elysia" icon="server" href="/plugins/elysia">Routes, hooks, lifecycle, TypeBox schemas and Eden.</Card>
-  <Card title="AI SDK" icon="bot" href="/plugins/ai-sdk">Model calls, tools, agents, streaming and the UI hooks.</Card>
+  <Card title="Prisma" icon="database" href="/plugins/prisma">Reads, writes, aggregates, transactions and extensions.</Card>
+  <Card title="Kysely" icon="database" href="/plugins/kysely">Query builder chains, the expression builder and transactions.</Card>
   <Card title="SQL" icon="table" href="/plugins/sql">SQL strings and templates from postgres.js, pg, SQLite, Prisma and more.</Card>
+  <Card title="decimal.js" icon="calculator" href="/plugins/decimal">Arithmetic chains and comparisons read as math.</Card>
+</Columns>
+
+### Servers
+
+<Columns cols={3}>
+  <Card title="Hono" icon="route" href="/plugins/hono">Apps, routes, context, middleware, validation and the RPC client.</Card>
+  <Card title="Express" icon="route" href="/plugins/express">Apps, routers, middleware, requests and replies.</Card>
+  <Card title="Fastify" icon="route" href="/plugins/fastify">Routes with schemas, hooks, plugins and decorators.</Card>
+  <Card title="Elysia" icon="server" href="/plugins/elysia">Routes, hooks, lifecycle, TypeBox schemas and Eden.</Card>
+  <Card title="tRPC" icon="server" href="/plugins/trpc">Routers, procedures, middleware and clients.</Card>
+</Columns>
+
+### Frontend
+
+<Columns cols={3}>
+  <Card title="React" icon="atom" href="/plugins/react">Components as the UI they show, hooks, context and actions.</Card>
+  <Card title="Next.js" icon="app-window" href="/plugins/nextjs">Routes from file paths, route handlers, the proxy and caching.</Card>
+  <Card title="TanStack Query" icon="refresh-cw" href="/plugins/tanstack-query">Queries, mutations and the query client, for v4 and v5.</Card>
+</Columns>
+
+### Payments, auth and AI
+
+<Columns cols={3}>
+  <Card title="Stripe" icon="credit-card" href="/plugins/stripe">Billing calls, amounts, pagination and webhook events.</Card>
+  <Card title="Better Auth" icon="key-round" href="/plugins/better-auth">Auth configuration, plugins and client calls.</Card>
+  <Card title="AI SDK" icon="bot" href="/plugins/ai-sdk">Model calls, tools, agents, streaming and the UI hooks.</Card>
+</Columns>
+
+### Background jobs
+
+<Columns cols={3}>
+  <Card title="BullMQ" icon="list-ordered" href="/plugins/bullmq">Queues, job options, schedulers, workers and flows.</Card>
+  <Card title="Inngest" icon="zap" href="/plugins/inngest">Functions, triggers, flow control and durable steps.</Card>
+  <Card title="Trigger.dev" icon="timer" href="/plugins/trigger-dev">Tasks, schedules, triggering, waits and metadata.</Card>
+  <Card title="Temporal" icon="workflow" href="/plugins/temporal">Workflows, activities, messages, workers and the client.</Card>
+</Columns>
+
+### Effect and testing
+
+<Columns cols={3}>
+  <Card title="Effect" icon="sparkles" href="/plugins/effect">Generators, pipes, errors, layers, schedules and Schema, for v3 and v4.</Card>
+  <Card title="Testing" icon="flask-conical" href="/plugins/testing">`describe`, `it`, `expect` and matchers from Bun, Jest and Vitest.</Card>
 </Columns>
 
 ## Using plugins
@@ -61,7 +108,13 @@ const narrator = createNarrator({
 });
 ```
 
-`plugins` also accepts arrays of plugins, so a codebase can bundle its own conventions with the libraries it uses and export them as one value.
+`plugins` also accepts arrays of plugins, so a codebase can bundle its own conventions with the libraries it uses and export them as one value. `nextjs()` uses this to return its own rules together with a React plugin.
+
+## Plugins only speak up where they apply
+
+Loading a plugin doesn't change how unrelated files read. Most plugins check whether the current file imports their library, or belongs to a package whose `package.json` depends on it, before they claim a call. The few that skip this check, such as zod, decimal.js, Drizzle and Testing, only claim calls whose shape is specific to their library. That means you can load every plugin for a whole monorepo, and Express's `app.get` won't be read as Hono's in the package that uses Express. The check uses the dependency manifests you pass to `createNarrator`, and [Dependency detection](/concepts/dependency-detection) explains how they are found.
+
+The [CLI](/reference/cli) and the [browser extension](/guides/browser-extension) go one step further and only load the plugins whose libraries the repository uses.
 
 ## Plugins for your own code
 

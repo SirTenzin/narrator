@@ -1,0 +1,120 @@
+---
+title: "Stripe"
+description: "Read Stripe Node SDK calls as billing actions, with amounts, intervals and webhook events explained."
+---
+
+<span className="nr-pill">@usenarrator/plugin-stripe</span>
+
+The [Stripe](https://docs.stripe.com/api?lang=node) plugin reads SDK calls as the billing actions they perform. Creating a subscription names the customer, the price and the quantity. Amounts are explained in the currency's smallest unit, so `1999` in USD reads as "1999 (cents)" and `500` in JPY says that yen has no smaller unit. Options such as `trial_period_days`, `proration_behavior` and `expand` become short bullets, and a webhook handler's `switch` on `event.type` says what each event means.
+
+```ts
+import { stripe } from "@usenarrator/plugin-stripe";
+
+typescript({ parser: oxcParser, plugins: [stripe()] });
+```
+
+The plugin declares `library: { name: "stripe", versions: ">=14 <24" }`. It only narrates files that import `stripe` or belong to a package that depends on it (see [Dependency detection](/concepts/dependency-detection)), and only calls on the Stripe client, so other SDKs with resources named `customers` or `invoices` are left alone. It reads both the current request options and the pre-v22 `(id, options)` form.
+
+## Examples
+
+{/* narrate plugins="stripe" path="billing.ts" */}
+```ts Subscriptions and payments
+import Stripe from "stripe";
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+
+await stripe.subscriptions.create(
+  {
+    customer: customerId,
+    items: [{ price: "price_123", quantity: 2 }],
+    trial_period_days: 14,
+    expand: ["latest_invoice.payment_intent"],
+  },
+  { idempotencyKey: key },
+);
+
+const intent = await stripe.paymentIntents.create({ amount: 1999, currency: "usd", customer: customerId });
+
+await stripe.subscriptions.update(subscription.id, { cancel_at_period_end: true, proration_behavior: "none" });
+```
+
+```text English
+Let stripe be a Stripe client using the API key the STRIPE_SECRET_KEY environment variable.
+
+Create a Stripe subscription for the customer customer ID with the price "price_123" (quantity 2):
+  • with a 14-day free trial
+  • also loading latest invoice's payment intent in full
+  • idempotency key key, so a retry won't do it twice
+
+Let intent be a new Stripe payment intent for 1999 (cents) in USD for the customer customer ID.
+
+Update the subscription:
+  • set to cancel at the end of the current billing period
+  • without prorating the change
+```
+
+{/* narrate plugins="stripe" path="webhook.ts" */}
+```ts A webhook handler
+import Stripe from "stripe";
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+
+export async function handleWebhook(body: string, signature: string) {
+  const event = stripe.webhooks.constructEvent(body, signature, endpointSecret);
+  switch (event.type) {
+    case "invoice.paid":
+      await markPaid(event.data.object);
+      break;
+    case "customer.subscription.trial_will_end":
+      await sendTrialReminder(event.data.object);
+      break;
+    default:
+      console.log(`Unhandled event type ${event.type}`);
+  }
+}
+```
+
+```text English
+Let stripe be a Stripe client using the API key the STRIPE_SECRET_KEY environment variable.
+
+To handle webhook (async), given body and signature:
+  Let event be the Stripe event in body, after checking it really came from Stripe (signature signature, webhook secret endpoint secret).
+  Depending on what kind of Stripe event event is:
+    • If it is "invoice.paid" (an invoice was paid):
+      Mark paid (the Stripe object event is about).
+    • If it is "customer.subscription.trial_will_end" (a free trial ends in three days):
+      Send trial reminder (the Stripe object event is about).
+    • For any other event:
+      Log "Unhandled event type {event's type}".
+```
+
+{/* narrate plugins="stripe" path="sync.ts" */}
+```ts Pagination
+import Stripe from "stripe";
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+
+for await (const customer of stripe.customers.list({ limit: 100 })) {
+  await syncCustomer(customer);
+}
+```
+
+```text English
+Let stripe be a Stripe client using the API key the STRIPE_SECRET_KEY environment variable.
+
+For each customer in all Stripe customers, fetched page by page (up to 100 per page):
+  Sync customer (customer).
+```
+
+## What it covers
+
+- Resource calls (`create`, `retrieve`, `update`, `list`, `del`, `cancel`, `pay`, `voidInvoice` and the rest) on subscriptions, customers, prices, products, invoices, payment intents, checkout sessions, coupons and nested resources.
+- Amounts in the currency's smallest unit, including zero-decimal currencies, and prices with their billing interval.
+- Parameters such as trials, proration, payment behavior and `expand`, and request options such as idempotency keys, connected accounts and API versions.
+- Lists and pagination: one page, `for await` over every page, `autoPagingEach` and `autoPagingToArray`.
+- Webhooks: `constructEvent` and `constructEventAsync`, a `switch` on `event.type` with what each event means, `event.data.object` and previous attributes.
+- The client: `new Stripe` with its options.
+
+## Translating
+
+The English phrasebook is exported as `en` and typed as `StripePhrases`.

@@ -13,8 +13,10 @@ interface Locale {
   id: string;
   grammar: Grammar;
   phrases: CorePhrases;
-  plugins?: Record<string, unknown>;
+  plugins?: { [K in keyof PluginPhrases]?: PluginPhrases[K] } & Record<string, unknown>;
 }
+
+interface PluginPhrases {} // plugins add themselves by declaration merging
 ```
 
 <ParamField path="id" type="string" required>
@@ -27,7 +29,7 @@ interface Locale {
   Every phrase the TypeScript engine can produce.
 </ParamField>
 <ParamField path="plugins" type="Record<string, unknown>">
-  Phrasebooks for plugins that don't ship this locale, keyed by plugin name. These take priority over the plugin's own phrasebooks.
+  Phrasebooks for plugins that don't ship this locale, keyed by plugin name. These take priority over the plugin's own phrasebooks. Entries for plugins registered in `PluginPhrases` are type-checked against that plugin's phrasebook type. See [Typed overrides](/guides/translating#typed-overrides).
 </ParamField>
 
 ## Grammar
@@ -43,6 +45,7 @@ interface Grammar {
   isPlural(noun: string): boolean;
   negatePredicateHead(head: string): string;
   bareNoun(phrase: string): string;
+  isPluralSubject(subject: string): boolean;
   isTimeLike(phrase: string): boolean;
 }
 ```
@@ -54,6 +57,7 @@ interface Grammar {
 | `possessive` | "customer" becomes "customer's", "users" becomes "users'" |
 | `negatePredicateHead` | "is" becomes "is not", "has" becomes "has no", "can" becomes "cannot" |
 | `bareNoun` | "a number" becomes "number", for use after "a list of" |
+| `isPluralSubject` | `true` for "customer's items" and `false` for "the number of items", so verbs agree ("are" or "is") |
 | `isTimeLike` | `true` for phrases like "expires at" or "now", so comparisons read "before" and "after" |
 
 All of these receive strings that may contain [markup](/concepts/markup).

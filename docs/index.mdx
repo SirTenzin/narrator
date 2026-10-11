@@ -31,7 +31,7 @@ Narrator is an SDK, published under the `@usenarrator/*` scope, that turns sourc
     It uses the native oxc parser on Node and Bun, and a WASM build of the same parser in browsers and extension workers.
   </Card>
   <Card title="Pluggable on three axes" icon="blocks">
-    You can add source languages (TypeScript and JavaScript today), output languages (English today), and library plugins for zod, Drizzle, Effect, Hono and more.
+    You can add source languages (TypeScript and JavaScript today), output languages (English today), and library plugins. Twenty-five ship today, from React and Next.js to Drizzle, Stripe and Temporal.
   </Card>
 </Columns>
 
@@ -43,7 +43,7 @@ It also helps people who read code less often than they write it: a product mana
 
 ## A 30-second demo
 
-The repository ships a small CLI. Point it at a file:
+The `narrator` CLI narrates files, directories and git diffs. Point it at a file:
 
 {/* cli file="billing.ts" */}
 ```ts billing.ts
@@ -58,7 +58,7 @@ export async function renewSubscription(subscription: Subscription, now: Date) {
 }
 ```
 
-```text bun apps/cli/narrate.ts billing.ts --plain
+```text narrator billing.ts --plain
 To renew subscription (async), given subscription (Subscription) and now (Date):
   If subscription's status is "canceled", stop here.
   Let plan be the first p in plans where p's ID is subscription's plan ID.

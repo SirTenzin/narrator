@@ -209,7 +209,7 @@ The [decimal plugin](/plugins/decimal) is about 80 lines and uses every common f
 
 ## Rule keys
 
-The engine looks up rules by the shape of the callee. A call can match several keys, and they are tried from most to least specific.
+The engine looks up call rules by the shape of the callee. A call can match several keys, and they are tried from most to least specific.
 
 | Key | Matches | Example |
 | --- | --- | --- |
@@ -222,8 +222,62 @@ The engine looks up rules by the shape of the callee. A call can match several k
 | `Obj.fn()` | The outer call of a curried call | `Effect.fn("name")(function* () {...})` |
 | `` tag`` `` | A tagged template | `` sql`select ...` `` |
 | `` *.tag`` `` | A tagged template on any receiver | `` db.sql`...` `` |
+| `` tag.fn()`` `` | A tagged template whose tag is itself a call | `` sql.type<Row>()`...` `` |
+
+A tagged template rule receives the template literal as `args[0]`.
 
 When several plugins register the same key, the plugin listed later wins, and the built-in `std` plugin always comes first. If a rule returns `null` or `undefined`, the next rule for that key is tried, then the next key, and finally the engine's generic phrasing.
+
+## Member rules and JSX
+
+Calls aren't the only thing a library gives meaning to. `members` rules read property access, such as `c.env.DB` in a Cloudflare Worker or `env.STRIPE_KEY` in a config module, and a `jsx` rule reads JSX elements wherever the engine meets one: in arguments, in lambdas and in returns. The [React plugin](/plugins/react) uses a `jsx` rule to read JSX as UI.
+
+Member rules are keyed like call rules, from most to least specific: `Obj.prop`, `*.owner.prop`, `*.prop`, then the families `Obj.*` and `*.owner.*`. A rule receives the member expression as `node`, its object as `obj` and the property name as `prop`. When a rule claims an inner link of a longer chain, such as `c.env.DB` inside `c.env.DB.prepare`, that link becomes the owner of the rest of the chain.
+
+{/* run file="examples/members-and-jsx.ts" */}
+```ts members-and-jsx.ts
+import { definePlugin } from "@usenarrator/lang-ts";
+import { narrate } from "@usenarrator/testkit";
+
+const platform = definePlugin({
+	name: "platform",
+	members: {
+		// `env.STRIPE_KEY` -> "the STRIPE_KEY setting"
+		"env.*": ({ prop }) => `the ${prop} setting`,
+		// `req.session.user` on any receiver -> "the signed-in user"
+		"*.session.user": () => "the signed-in user",
+	},
+	calls: {
+		// A tagged template: `` gql`...` ``
+		"gql``": ({ e }) => (e.usesLibrary("graphql-tag") ? "a GraphQL query" : null),
+	},
+	jsx: ({ node, e }) => {
+		const name = node.openingElement?.name?.name;
+		if (name !== "Feature") return null;
+		const flag = node.openingElement.attributes.find((a: any) => a.name?.name === "flag");
+		return `the children, only when the ${e.text(flag.value)} flag is on`;
+	},
+});
+
+const code = `
+import gql from "graphql-tag";
+const key = env.STRIPE_KEY;
+await audit(req.session.user, "export");
+const Query = gql\`query { viewer { id } }\`;
+const banner = <Feature flag="new-nav"><Nav /></Feature>;
+`;
+
+console.log(narrate(code, { plugins: [platform], path: "app.tsx" }));
+```
+
+```text Output
+Let key be the STRIPE_KEY setting.
+Run audit (the signed-in user and "export").
+Let query be a GraphQL query.
+Let banner be the children, only when the "new-nav" flag is on.
+```
+
+Member rules apply where a property is read as a value. A property tested as a condition, as in `if (!req.session.user)`, still reads as the property chain.
 
 ## Guards
 
@@ -231,9 +285,12 @@ When several plugins register the same key, the plugin listed later wins, and th
 
 Common guards in the repository's plugins:
 
+- **Check that the file uses your library.** `e.usesLibrary("hono")` is `true` when the file imports `hono` (or a subpath such as `hono/cors`), or when its package depends on Hono. Almost every library plugin checks this, so a `.get()` in an Express app or an unrelated `Effect` class is left alone. See [Dependency detection](/concepts/dependency-detection).
+- **Check where a name came from.** `e.imports` maps each imported local name to its module and exported name, so `e.imports.get("Link")` tells you whether `Link` is `next/link`'s default export or someone else's component.
 - **Check the receiver.** The decimal plugin only claims `*.add` when the receiver is a `new Decimal(...)` expression.
 - **Check the arguments.** Comparisons require exactly one argument. The flags example above only claims `Flags.isEnabled` when its argument is a string literal.
-- **Check the file's imports.** The Effect, Hono and Elysia plugins only narrate their APIs in files that import the library, so a `.get()` in an Express app or an unrelated `Effect` class is left alone. The engine exposes the parsed source as `e.src`, and plugins scan the program's import declarations once per file.
+
+Plugins that need more facts about a file, such as which variables hold a Stripe client, compute them once per file from `e.program`, the file's syntax tree, and cache them by engine or by `e.program`. `e.path` gives the file's path, which the Next.js plugin uses to read routes.
 
 <Warning>
   A rule that throws stops narration of that statement. Prefer returning `null` for anything unexpected.
@@ -248,9 +305,25 @@ Common guards in the repository's plugins:
 | `errors` | Constructor names (or a pattern) whose instances are errors, so `throw new X("message")` reads well. |
 | `errorLabels` | How to name an error class, for example `{ HttpError: "an HTTP error" }`. |
 | `constants` | Exact source text mapped to a phrase, for example `{ "Number.MAX_SAFE_INTEGER": "no limit" }`. |
+| `members` | Rules for property reads, keyed as described in [Member rules and JSX](#member-rules-and-jsx). |
+| `jsx` | One rule for JSX elements and fragments. Return `null` to leave an element to the engine or a later plugin. |
 | `statements` | Rules that take over a whole statement and emit lines themselves. Effect uses these for `yield*` steps. |
 | `describeSchema` | Describes a schema builder expression as a type. zod and Effect Schema use it so fields read as types. |
 | `library` | The library and version range the plugin reads. See [Plugin versioning](/guides/plugin-versioning). |
+
+## Type your phrasebook for translators
+
+Locales can override a plugin's phrases under `locale.plugins[name]`. To make those overrides type-checked, add your phrasebook type to the `PluginPhrases` interface in `@usenarrator/core`:
+
+```ts
+declare module "@usenarrator/core" {
+  interface PluginPhrases {
+    decimal: DecimalPhrases;
+  }
+}
+```
+
+The key must match your plugin's `name`. See [Translating Narrator](/guides/translating#how-plugin-phrases-are-chosen).
 
 The full type is in the [TsPlugin reference](/reference/ts-plugin).
 

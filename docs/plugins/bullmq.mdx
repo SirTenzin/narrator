@@ -1,0 +1,98 @@
+---
+title: "BullMQ"
+description: "Read BullMQ queues, jobs, schedulers and workers as what runs, when, and how often."
+---
+
+<span className="nr-pill">@usenarrator/plugin-bullmq</span>
+
+The [BullMQ](https://bullmq.io) plugin reads background job code as a schedule. Adding a job says which queue it goes to, with what data, and the options that matter ("up to 5 attempts, waiting 1 second and doubling between tries"). Job schedulers and repeatable jobs turn their cron patterns into words, and a worker reads as what it does with each job, followed by the steps of its processor.
+
+```ts
+import { bullmq } from "@usenarrator/plugin-bullmq";
+
+typescript({ parser: oxcParser, plugins: [bullmq()] });
+```
+
+The plugin declares `library: { name: "bullmq", versions: ">=5 <7" }`. It only narrates files that import BullMQ (or BullMQ Pro) or belong to a package that depends on it (see [Dependency detection](/concepts/dependency-detection)), so `Set#add` and other libraries' `Queue` and `Worker` classes are left alone.
+
+## Examples
+
+{/* narrate plugins="bullmq" path="emails.ts" */}
+```ts Queues and job options
+import { Queue } from "bullmq";
+
+const emails = new Queue("emails", { connection });
+
+await emails.add(
+  "welcome",
+  { userId: user.id },
+  { attempts: 5, backoff: { type: "exponential", delay: 1000 }, delay: 60_000, removeOnComplete: true },
+);
+```
+
+```text English
+Set up the job queue "emails" as emails (connection: connection).
+
+Add a "welcome" job to emails with the data user ID: user's ID:
+  • up to 5 attempts
+  • waiting 1 second before the first retry and doubling the wait each time
+  • starting after 1 minute
+  • deleted once it completes
+```
+
+{/* narrate plugins="bullmq" path="schedules.ts" */}
+```ts Job schedulers
+import { Queue } from "bullmq";
+
+const reports = new Queue("reports", { connection });
+
+await reports.upsertJobScheduler(
+  "weekly-report",
+  { pattern: "0 9 * * 1", tz: "Europe/London" },
+  { name: "send-report", data: { kind: "weekly" } },
+);
+```
+
+```text English
+Set up the job queue "reports" as reports (connection: connection).
+Schedule a "send-report" job on reports every Monday at 09:00 Europe/London time (cron 0 9 * * 1) with the data kind: "weekly" (job scheduler "weekly-report").
+```
+
+{/* narrate plugins="bullmq" path="worker.ts" */}
+```ts A worker and its events
+import { Worker } from "bullmq";
+
+const worker = new Worker(
+  "emails",
+  async (job) => {
+    await job.updateProgress(50);
+    return sendEmail(job.data);
+  },
+  { connection, concurrency: 10, limiter: { max: 100, duration: 60_000 } },
+);
+
+worker.on("failed", (job, err) => {
+  logger.error(err);
+});
+```
+
+```text English
+Start a worker as worker that handles each job from the "emails" queue (connection: connection, up to 10 jobs at a time, at most 100 jobs per minute):
+  Report job as 50% done.
+  Send email (job's data), and give back the result.
+
+Whenever a job fails on worker:
+  Log an error (with error).
+```
+
+## What it covers
+
+- Queues: `new Queue` with its default job options, `add` and `addBulk`, job IDs and deduplication, and maintenance such as `pause`, `drain`, `clean` and `obliterate`.
+- Job options: attempts and backoff, delays, priorities, LIFO, and how long finished jobs are kept.
+- Schedules: `upsertJobScheduler` with `every` or a cron `pattern` and time zone, removing schedulers, and v5 repeatable jobs. Cron patterns read as words ("every Monday at 09:00").
+- Workers: inline, sandboxed and named processors, concurrency and rate limits, job methods such as `updateProgress`, worker events, and `close`.
+- `QueueEvents` and `FlowProducer`, where a parent job runs once its children finish.
+
+## Translating
+
+The English phrasebook is exported as `en` and typed as `BullmqPhrases`. Its `time` section holds the words for durations and cron schedules, which the Inngest, Trigger.dev and Temporal plugins share in the same shape (`TimePhrases`).

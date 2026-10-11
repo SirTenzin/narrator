@@ -65,9 +65,19 @@ The diff also looks across the whole change set:
 - A unit whose name changed but whose body reads almost the same is reported as **renamed**.
 - Long runs of unchanged lines are folded, keeping three lines of context around each change.
 
-The [Getting started](/getting-started#narrate-a-diff) page shows a complete diff example with real output.
+The [Getting started](/getting-started) page shows a complete diff example with real output.
 
-## The report format
+## Structured diffs
+
+`narrator.diffFiles(files)` runs the same diff and returns `FileDiff[]`, which keeps the `Line` objects instead of rendering HTML. Use it for terminals, JSON output, or your own renderer. `renderDiffText({ files, format? })` prints it as indented text with `-` and `+` per sentence, and takes `toAnsi` as the format for colour. The CLI's `narrator diff` uses both.
+
+```ts
+type FileDiff = { path: string; oldPath: string | null; status: "added" | "deleted" | "renamed" | "modified"; adds: number; dels: number; units: UnitDiff[] };
+```
+
+Each `UnitDiff` has the unit's `key`, `title`, `status`, `adds` and `dels`, its `rows`, and for moves and renames an `other` that names the path and title it came from or went to. A row's `left` and `right` cells each hold a `line`, and for modified rows, `tokens` that mark which words changed.
+
+## The HTML report format
 
 `narrator.diff` returns `FileJson[]`, a format built for rendering in a browser. Every cell carries HTML from [`toHtml`](/concepts/markup) and the source line range it describes, so a viewer can link each sentence back to the code.
 
@@ -80,4 +90,4 @@ type CellJson = { d: number; kind: string; html: string; from: number | null; to
 
 Row kinds are `same`, `add`, `del`, `mod` (a modified line, with `merged` holding an inline word diff) and `fold` (hidden unchanged lines). Unit statuses are `added`, `removed`, `modified`, `unchanged`, `moved`, `renamed` and `moved-away`.
 
-If you want lines instead of HTML, call the lower-level functions yourself: `fileNarrator(path).units(src, path)` for each side, then `diffUnits(before, after)` and `diffLines(a, b)` from `@usenarrator/core`.
+For full control, call the lower-level functions yourself: `fileNarrator(path).units(src, path)` for each side, then `diffUnits(before, after)` and `diffLines(a, b)` from `@usenarrator/core`.

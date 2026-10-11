@@ -13,7 +13,7 @@ import { hono } from "@usenarrator/plugin-hono";
 typescript({ parser: oxcParser, plugins: [hono()] });
 ```
 
-The plugin declares `library: { name: "hono", versions: ">=4 <6" }`. It only narrates Hono APIs in files that import from `hono` or belong to a package that depends on it (when the host passes `dependencies` to `typescript()`), so `get`, `json` and `use` calls in an Express app are left alone.
+The plugin declares `library: { name: "hono", versions: ">=4 <6" }`. It only narrates Hono APIs in files that import from `hono` or belong to a package that depends on it (see [Dependency detection](/concepts/dependency-detection)), so `get`, `json` and `use` calls in an Express app are left alone.
 
 ## Examples
 

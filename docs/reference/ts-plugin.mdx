@@ -19,6 +19,8 @@ type TsPlugin<P = any> = {
   constants?: Record<string, string>;
   calls?: Record<string, CallRule<P>>;
   conditions?: Record<string, CondRule<P>>;
+  members?: Record<string, MemberRule<P>>;
+  jsx?: JsxRule<P>;
   statements?: StmtRule<P>[];
   describeSchema?: (e: Engine, n: N, say: P) => string | null;
 };
@@ -35,7 +37,7 @@ type TsPlugin<P = any> = {
   Phrasebooks keyed by locale id. `en` is required. A phrasebook may also include `glossary`, `constants` and `errorLabels`, which the engine merges over the plugin's own fields.
 </ParamField>
 <ParamField path="library" type="{ name: string; versions: string }">
-  The npm package this plugin reads and the semver range it was written against. Metadata only today. See [Plugin versioning](/guides/plugin-versioning).
+  The npm package this plugin reads and the semver range it was written against. The engine doesn't enforce it; guard rules with `e.usesLibrary` and pick readings with `e.libraryMajor`. See [Plugin versioning](/guides/plugin-versioning).
 </ParamField>
 <ParamField path="vocabulary" type="Vocabulary">
   Glossary entries, acronyms, verbs and predicate prefixes used to read identifiers.
@@ -58,6 +60,12 @@ type TsPlugin<P = any> = {
 <ParamField path="conditions" type="Record<string, CondRule<P>>">
   Condition rules, used when a call appears where a yes or no answer is expected.
 </ParamField>
+<ParamField path="members" type="Record<string, MemberRule<P>>">
+  Property-read rules keyed by `Obj.prop`, `*.owner.prop`, `*.prop`, `Obj.*` or `*.owner.*`, tried in that order. See [member rules](/guides/writing-a-plugin#member-rules-and-jsx).
+</ParamField>
+<ParamField path="jsx" type="JsxRule<P>">
+  Reads a JSX element or fragment wherever the engine meets one. Later plugins' rules are tried first.
+</ParamField>
 <ParamField path="statements" type="StmtRule<P>[]">
   Rules that can take over a whole statement.
 </ParamField>
@@ -73,16 +81,21 @@ type RuleResult = Doc | string | null | undefined;
 type CallRule<P> = (ctx: { node: N; args: N[]; obj: N | null; e: Engine; stmt: boolean; say: P }) => RuleResult;
 type CondRule<P> = (ctx: { node: N; args: N[]; obj: N | null; e: Engine; neg: boolean; say: P }) => RuleResult;
 type StmtRule<P> = (ctx: { node: N; e: Engine; d: number; say: P }) => boolean;
+type MemberRule<P> = (ctx: { node: N; obj: N; prop: string; e: Engine; say: P }) => RuleResult;
+type JsxRule<P> = (ctx: { node: N; e: Engine; say: P }) => RuleResult;
 ```
 
 <ResponseField name="node" type="N">
-  The call expression. `N` is an ESTree node from oxc.
+  The call expression, member expression, JSX element or statement. `N` is an ESTree node from oxc. For tagged template keys, it is the tagged template and `args[0]` is its template literal.
 </ResponseField>
 <ResponseField name="args" type="N[]">
   The call's arguments.
 </ResponseField>
 <ResponseField name="obj" type="N | null">
-  The receiver for `Obj.method` and `*.method` keys, otherwise `null`.
+  The receiver for `Obj.method` and `*.method` keys, otherwise `null`. For member rules, the object whose property is read.
+</ResponseField>
+<ResponseField name="prop" type="string">
+  For member rules, the property name.
 </ResponseField>
 <ResponseField name="stmt" type="boolean">
   `true` when the call is a statement on its own, so it should read as an action ("Send the receipt") rather than a noun ("the receipt that was sent").
@@ -104,6 +117,7 @@ Return `null` or `undefined` to let the next rule try. A string result is treate
 | Export | Description |
 | --- | --- |
 | `definePlugin(p)` | Identity function that infers `P`. |
+| `ImportInfo` | `{ from: string; name: string }`, the value type of `e.imports`. |
 | `unwrap(n)` | Strips parentheses, TypeScript casts and assertions, optional chains and `await` from a node. |
 | `std`, `stdEn` | The built-in plugin for JavaScript itself and its English phrasebook. |
 | `typescript(options)` | The TypeScript source language. See the [Engine reference](/reference/engine). |

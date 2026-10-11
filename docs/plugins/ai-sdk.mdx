@@ -14,7 +14,7 @@ typescript({ parser: oxcParser, plugins: [aiSdk()] });
 // or pin a major version: aiSdk({ version: 6 }) or aiSdk({ version: 7 })
 ```
 
-The plugin declares `library: { name: "ai", versions: ">=6 <8" }` and only narrates files that import from `ai` or an `@ai-sdk/*` package, or belong to a package that depends on `ai` (when the host passes `dependencies` to `typescript()`); that dependency's major picks the v6 or v7 reading unless `version` is pinned.
+The plugin declares `library: { name: "ai", versions: ">=6 <8" }` and only narrates files that import from `ai` or an `@ai-sdk/*` package, or belong to a package that depends on `ai` (see [Dependency detection](/concepts/dependency-detection)); that dependency's major picks the v6 or v7 reading unless `version` is pinned.
 
 ## Examples
 

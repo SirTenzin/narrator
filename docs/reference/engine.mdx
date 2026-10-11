@@ -16,6 +16,7 @@ function typescript(options: {
   parser: Parser;
   plugins?: (TsPlugin | TsPlugin[])[];
   setup?: (ctx: { engine: Engine; path: string }) => void;
+  dependencies?: (path: string) => Record<string, string> | undefined;
 }): SourceLanguage & { engine(locale: Locale): Engine };
 ```
 
@@ -28,8 +29,11 @@ function typescript(options: {
 <ParamField path="setup" type="({ engine, path }) => void">
   Runs before each file is narrated. Use it to install cross-file hooks, such as `engine.typeOfCall`, which lets the engine look up the declared return type of a function defined in another file.
 </ParamField>
+<ParamField path="dependencies" type="(path) => Record<string, string> | undefined">
+  A fallback source of package dependencies per file. Normally you pass a dependency index to `createNarrator` instead, which takes precedence over this option. See [Dependency detection](/concepts/dependency-detection).
+</ParamField>
 
-The language handles `.ts`, `.tsx`, `.js`, `.jsx`, `.mjs` and `.cjs`, but not `.d.ts`. Its extra `engine(locale)` method creates a bare engine, which is handy in tools and tests.
+The language handles `.ts`, `.tsx`, `.js`, `.jsx`, `.mjs` and `.cjs`, but not `.d.ts`. Its `ecosystems` are `["npm"]`. Its extra `engine(locale)` method creates a bare engine, which is handy in tools and tests.
 
 ```ts
 type Parser = (filename: string, src: string) => ParseOutput;
@@ -53,6 +57,20 @@ Every rule receives the engine as `e`. These are the methods plugins in the repo
 | `e.raw(node, reason?)` | `string` | The source as a `c` markup token. Counts as a fallback in stats. |
 | `e.typeText(typeNode)` | `string` | Renders a type annotation. |
 | `e.fold(node)` | `number \| null` | Constant-folds arithmetic like `60 * 60 * 24`. |
+
+### The current file
+
+These describe the file being narrated. They are set before any rule runs.
+
+| Member | Description |
+| --- | --- |
+| `e.usesLibrary(lib)` | `true` when the file imports `lib` or a subpath of it, or its package depends on `lib`. The standard guard for library plugins. |
+| `e.libraryMajor(lib)` | The major version of `lib` the file's package declares, or `null`. Use it to pick a reading per major. |
+| `e.imports` | A `Map` from each imported local name to `{ from, name }`. `import { a as b } from "x"` gives `b → { from: "x", name: "a" }`, and a default import has `name: "default"`. |
+| `e.program` | The file's syntax tree. Use it, or the engine itself, as a cache key for facts you compute once per file. |
+| `e.path` | The file's path as the host passed it. The CLI and the browser extension pass repository-relative paths. |
+| `e.dependencies` | The file's package dependencies, name to version range. Empty when the host has no manifests. |
+| `e.src` | The source text of the file. |
 
 ### Names
 
@@ -87,12 +105,12 @@ Every rule receives the engine as `e`. These are the methods plugins in the repo
 
 | Field | Description |
 | --- | --- |
-| `e.src` | The source of the file being narrated. Plugins use it as a cache key for per-file facts such as imports. |
 | `e.say` | The locale's core phrases. |
 | `e.g` | The locale's grammar. |
 | `e.locale` | The active locale. |
 | `e.stats` | Node and fallback counts for the current file. |
 | `e.parse` | The parser, if a rule needs to parse a fragment. |
+| `e.phrasesFor(plugin)` | Another plugin's phrasebook for the active locale, for plugins that render each other's phrases. |
 
 <Warning>
   The Engine is a large class and most of its members are public. The methods above are the ones plugins rely on today. Others are internal to the walker and may change without notice.

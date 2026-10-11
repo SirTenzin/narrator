@@ -1,58 +1,79 @@
 ---
 title: "Getting started"
-description: "Install Narrator, narrate a file, and narrate a diff in about five minutes."
+description: "Install Narrator, narrate files and diffs from the terminal, then do the same from code."
 ---
 
-This page takes you from nothing to narrating your own code and your own diffs. You need [Bun](https://bun.sh) 1.1 or newer. The packages currently ship TypeScript source rather than compiled JavaScript, so Node needs a bundler or a TypeScript loader until the first release.
+This page takes you from nothing to narrating your own code and your own diffs, first with the CLI and then from TypeScript. You need Node 20 or newer, or [Bun](https://bun.sh) 1.1 or newer. The `@usenarrator/*` packages are published as ESM JavaScript with type declarations, so they work in Node and Bun without a bundler or TypeScript loader.
 
 <Note>
-  The `@usenarrator/*` packages are not on npm yet. Until the first release, clone the repository and work inside it. The package names below are the ones you will install once they are published, and the imports are identical either way.
+  Version 0.1.0 is the first release. If your package manager can't find the packages yet, clone [the repository](https://github.com/SirTenzin/narrator), run `bun install`, and work inside it. The imports on this page are the same either way, and the CLI runs as `bun apps/cli/narrate.ts` instead of `narrator`.
 </Note>
 
 <Steps>
-  <Step title="Get the code">
-    ```bash
-    git clone https://github.com/SirTenzin/narrator
-    cd narrator
-    bun install
-    ```
-
-    Once the packages are published, this step becomes:
-
-    ```bash
-    bun add @usenarrator/core @usenarrator/lang-ts @usenarrator/locale-en oxc-parser
-    ```
-  </Step>
-
   <Step title="Try the CLI">
-    The repository includes a small CLI at `apps/cli/narrate.ts`. Give it a file, or pipe code into it.
+    Install the CLI, or run it once with `npx`:
 
     ```bash
-    bun apps/cli/narrate.ts path/to/file.ts          # coloured output
-    bun apps/cli/narrate.ts path/to/file.ts --plain  # plain text
-    echo 'if (xs.includes(b)) go()' | bun apps/cli/narrate.ts --plain
+    npm install --global @usenarrator/cli
+    # or, without installing:
+    npx @usenarrator/cli src/billing.ts
+    ```
+
+    Give it files, directories or globs. It prints the English for each TypeScript or JavaScript file it finds, skipping `node_modules`, `dist` and other build folders. With no arguments it reads code from standard input.
+
+    ```bash
+    narrator src/billing.ts            # one file
+    narrator src/                      # every TS/JS file under src
+    narrator "src/**/*.test.ts"        # a glob
+    echo 'if (xs.includes(b)) go()' | narrator --plain
     ```
 
     The last command prints `If b is in xs, run go.`
+
+    By default, the CLI reads the `package.json` files in your repository and loads only the plugins for libraries you depend on, so a Hono app gets the Hono plugin without any configuration. See [Dependency detection](/concepts/dependency-detection).
+
+    | Option | What it does |
+    | --- | --- |
+    | `--plugins zod,drizzle` | Load exactly these plugins instead of detecting them. Use `all` or `none` for every plugin or none. |
+    | `--preset autumn` | Add a codebase preset on top of the plugins. `autumn` is the example preset in the repository. |
+    | `--locale en` | The output language. Other locales are loaded from `@usenarrator/locale-<id>`. |
+    | `--plain`, `--ansi`, `--json`, `--html` | The output format. The default is coloured text in a terminal and plain text otherwise. |
+
+    The [CLI reference](/reference/cli) lists every plugin name and the packages that turn it on.
+  </Step>
+
+  <Step title="Narrate a diff from the terminal">
+    `narrator diff` narrates a git change set. Give it a range, or a single revision to compare against your working tree.
+
+    ```bash
+    narrator diff main..HEAD      # what this branch changed
+    narrator diff main...HEAD     # the same, from the merge base
+    narrator diff HEAD            # uncommitted changes
+    ```
+
+    Each changed declaration is printed as a unit, with removed sentences marked `-` and added sentences marked `+`. The next step shows the same output from code. Use `--json` for structured output, or `--html` for a standalone side-by-side page.
   </Step>
 
   <Step title="Narrate a file from code">
-    A narrator is three choices: which source languages it reads, which plugins those languages use, and which locale it writes in.
+    Install the Node package and any plugins you want:
 
-    {/* run file="examples/narrate-file.ts" */}
-    ```ts narrate-file.ts
-    import { createNarrator, renderText } from "@usenarrator/core";
-    import { typescript } from "@usenarrator/lang-ts";
-    import { oxcParser } from "@usenarrator/lang-ts/oxc";
-    import { en } from "@usenarrator/locale-en";
+    ```bash
+    npm install @usenarrator/node @usenarrator/plugin-zod
+    ```
+
+    `createNodeNarrator` sets up the TypeScript language with the native parser, the English locale, and the dependency manifests of the git repository around your working directory.
+
+    {/* run file="examples/node-narrator.ts" */}
+    ```ts node-narrator.ts
+    import { renderText } from "@usenarrator/core";
+    import { createNodeNarrator } from "@usenarrator/node";
     import { zod } from "@usenarrator/plugin-zod";
 
-    const narrator = createNarrator({
-    	languages: [typescript({ parser: oxcParser, plugins: [zod()] })],
-    	locale: en,
-    });
+    const narrator = createNodeNarrator({ plugins: [zod()] });
 
     const source = `
+    import { z } from "zod";
+
     export const Signup = z.object({ email: z.string().email(), plan: z.enum(["free", "pro"]) });
 
     export function countOpenSeats(team: Team) {
@@ -61,11 +82,11 @@ This page takes you from nothing to narrating your own code and your own diffs. 
     }
     `;
 
-    const { lines } = narrator.narrate(source, "signup.ts");
+    const { lines } = narrator.narrate(source, "src/signup.ts");
     console.log(renderText(lines));
     ```
 
-    Running it with `bun narrate-file.ts` prints:
+    Running it prints:
 
     ```text Output
     Let signup be a schema for an object with email and plan.
@@ -75,15 +96,15 @@ This page takes you from nothing to narrating your own code and your own diffs. 
       Give back team's seat limit minus the number of team's members.
     ```
 
-    `narrate` returns an array of `Line` objects, not a string. Each line knows its indent depth, its kind (heading, statement, bullet and so on), and the source offsets it came from. `renderText` is the simplest way to turn them into text.
+    `narrate` returns an array of `Line` objects, not a string. Each line knows its indent depth, its kind (heading, statement, bullet and so on), and the source offsets it came from. `renderText` is the simplest way to turn them into text. In a browser, or when you want to choose every piece yourself, use `createNarrator` from `@usenarrator/core` instead. See [Embedding in your app](/guides/embedding).
   </Step>
 
-  <Step title="Narrate a diff">
-    Give `narrator.diff` the old and new source of each changed file. Narrator narrates both sides, splits them into units (one per top-level declaration), and lines up the English so you see what changed in meaning rather than in characters.
+  <Step title="Narrate a diff from code">
+    Give `narrator.diffFiles` the old and new source of each changed file. Narrator narrates both sides, splits them into units (one per top-level declaration), and lines up the English so you see what changed in meaning rather than in characters. `renderDiffText` prints the result the way the CLI does.
 
     {/* run file="examples/narrate-diff.ts" */}
     ```ts narrate-diff.ts
-    import { createNarrator } from "@usenarrator/core";
+    import { createNarrator, renderDiffText } from "@usenarrator/core";
     import { typescript } from "@usenarrator/lang-ts";
     import { oxcParser } from "@usenarrator/lang-ts/oxc";
     import { en } from "@usenarrator/locale-en";
@@ -104,36 +125,22 @@ This page takes you from nothing to narrating your own code and your own diffs. 
     }
     `;
 
-    const [file] = narrator.diff([{ path: "team.ts", oldPath: null, status: "modified", oldSrc: before, newSrc: after }]);
-    const text = (html: string) =>
-    	html
-    		.replace(/<span class="t">(.*?)<\/span>/g, "($1)")
-    		.replace(/<[^>]+>/g, "")
-    		.replaceAll("&amp;", "&")
-    		.replaceAll("&lt;", "<")
-    		.replaceAll("&gt;", ">");
-
-    for (const unit of file!.units) {
-    	console.log(`${unit.title} (${unit.status}, +${unit.adds} -${unit.dels})`);
-    	for (const row of unit.rows) {
-    		if (row.kind === "same") console.log(`    ${text(row.right!.html)}`);
-    		if (row.left && row.kind !== "same") console.log(`  - ${text(row.left.html)}`);
-    		if (row.right && row.kind !== "same") console.log(`  + ${text(row.right.html)}`);
-    	}
-    }
+    const files = narrator.diffFiles([{ path: "team.ts", oldPath: null, status: "modified", oldSrc: before, newSrc: after }]);
+    console.log(renderDiffText({ files }));
     ```
 
     ```text Output
-    To count open seats (modified, +3 -2)
-        To count open seats, given team (Team):
-      - If team's plan is "enterprise", give back infinity.
-      + If team's plan is "enterprise" or team is trial, give back infinity.
-      - Give back team's seat limit minus the number of team's members.
-      + Let used be the number of team's members where m is not guest.
-      + Give back the larger of 0 and team's seat limit minus used.
+    team.ts [modified, +3 -2]
+      ~ To count open seats [modified]
+          To count open seats, given team (Team):
+        -   If team's plan is "enterprise", give back infinity.
+        +   If team's plan is "enterprise" or team is trial, give back infinity.
+        -   Give back team's seat limit minus the number of team's members.
+        +   Let used be the number of team's members where m is not guest.
+        +   Give back the larger of 0 and team's seat limit minus used.
     ```
 
-    The first condition was edited in place, so it shows as a removed line and an added line. The `return` grew from one sentence into a bulleted condition, which is easier to review than the code change that caused it.
+    The first condition was edited in place, so it shows as a removed line and an added line. The `return` grew into two sentences, which is easier to review than the code change that caused it. To render diffs as HTML instead, use `narrator.diff`, described in [Units and diffs](/concepts/units-and-diffs).
   </Step>
 </Steps>
 
@@ -147,7 +154,7 @@ This page takes you from nothing to narrating your own code and your own diffs. 
     Use the native parser on the server or the WASM parser in a browser.
   </Card>
   <Card title="Plugins" icon="puzzle" href="/plugins/overview">
-    Add zod, Drizzle, Effect, Hono and more so library calls read naturally.
+    Add React, Next.js, Drizzle, Stripe and more so library calls read naturally.
   </Card>
   <Card title="Write a plugin" icon="pencil" href="/guides/writing-a-plugin">
     Teach Narrator what your own helpers mean.

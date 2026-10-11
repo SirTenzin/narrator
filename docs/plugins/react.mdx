@@ -1,0 +1,153 @@
+---
+title: "React"
+description: "Read React components as the UI they show, the state they keep and the effects they run."
+---
+
+<span className="nr-pill">@usenarrator/plugin-react</span>
+
+The [React](https://react.dev) plugin reads a component the way you would describe a screen: what it keeps track of, what it shows, and what happens when someone clicks, types or submits. JSX becomes a description of the UI, so a `<button onClick={...}>` reads as "a button" with what it does when clicked, and a list rendered with `map` reads as "for each todo in visible".
+
+```ts
+import { react } from "@usenarrator/plugin-react";
+
+typescript({ parser: oxcParser, plugins: [react()] });
+```
+
+The plugin declares `library: { name: "react", versions: ">=18 <20" }`. It reads JSX as UI in files that import React, `react-dom` or Next.js, or that belong to a package depending on one of them (see [Dependency detection](/concepts/dependency-detection)). Files written for other JSX libraries, such as Solid or Preact, are left alone. If you use Next.js, use the [Next.js plugin](/plugins/nextjs) instead, because it already includes this one.
+
+## Examples
+
+{/* narrate plugins="react" path="TodoList.tsx" */}
+```tsx State, conditions and lists
+import { useState } from "react";
+
+export function TodoList({ todos, onToggle }) {
+  const [filter, setFilter] = useState("all");
+  const visible = todos.filter((t) => filter === "all" || !t.done);
+  if (visible.length === 0) return <p>Nothing to do.</p>;
+  return (
+    <section>
+      <button onClick={() => setFilter(filter === "all" ? "open" : "all")}>Toggle filter</button>
+      <ul>
+        {visible.map((todo) => (
+          <li key={todo.id}>
+            <input type="checkbox" checked={todo.done} onChange={() => onToggle(todo.id)} />
+            {todo.title}
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+```
+
+```text English
+TodoList, a component that takes todos and on toggle:
+  Keep track of filter (starts as "all").
+  Let visible be todos, keeping only those where filter is "all" or t's done is missing.
+  If visible is empty, show a paragraph "Nothing to do.".
+  Show a section containing:
+    • a button "Toggle filter" (when clicked, set filter to "open" if filter is "all", otherwise "all")
+    • a list containing:
+      • for each todo in visible:
+        • an item containing:
+          • a checkbox (checked when todo's done is set; when changed, trigger on toggle (todo's ID))
+          • todo's title
+```
+
+{/* narrate plugins="react" path="ChatRoom.tsx" */}
+```tsx Effects, memos and refs
+import { useEffect, useMemo, useRef } from "react";
+
+export function ChatRoom({ roomId, messages }) {
+  const inputRef = useRef(null);
+  const unread = useMemo(() => messages.filter((m) => !m.read).length, [messages]);
+
+  useEffect(() => {
+    const connection = createConnection(roomId);
+    connection.connect();
+    return () => connection.disconnect();
+  }, [roomId]);
+
+  return <h2>{unread} unread</h2>;
+}
+```
+
+```text English
+ChatRoom, a component that takes room ID and messages:
+  Keep input ref as a value that survives re-renders (starts as nothing).
+  Let unread be the number of messages where m's read is missing, recalculated only when messages changes.
+  Whenever room ID changes:
+    Create connection (room ID).
+    Connect connection.
+    Before running again and when it goes away, disconnect connection.
+  Show a heading "{unread} unread".
+```
+
+{/* narrate plugins="react" path="Profile.tsx" */}
+```tsx Actions, Suspense and lazy components
+import { Suspense, lazy, useActionState } from "react";
+
+const Chart = lazy(() => import("./Chart"));
+
+export function Profile() {
+  const [error, submitAction, isPending] = useActionState(async (previous, formData) => {
+    const error = await updateName(formData.get("name"));
+    if (error) return error;
+    return null;
+  }, null);
+
+  return (
+    <form action={submitAction}>
+      <input type="text" name="name" />
+      <button type="submit" disabled={isPending}>Update</button>
+      {error && <p>{error}</p>}
+      <Suspense fallback={<Spinner />}>
+        <Chart />
+      </Suspense>
+    </form>
+  );
+}
+```
+
+```text English
+Let chart be the component from "./Chart", loaded the first time it is shown.
+
+Profile, a component:
+  Keep track of error (starts as nothing); submit action runs these steps and stores what it gives back, with is pending true while it runs:
+    Update name (form data's entry for "name"), and call the result error.
+    If error is set, give back error.
+    Give back nothing.
+  Show a form that runs submit action when submitted containing:
+    • a text input (name: "name")
+    • a submit button "Update" (disabled when it is pending)
+    • if error is set, a paragraph showing error
+    • Chart, showing Spinner while it loads
+```
+
+## What it covers
+
+- Components: function and arrow components, their props, `memo`, `forwardRef`, `lazy`, render functions and class components that call `setState`.
+- JSX as UI: HTML elements by what they are (a heading, a checkbox, a link to a page), conditional rendering with `&&`, ternaries and early returns, lists rendered with `map`, fragments, and event handlers with one or several steps.
+- Hooks: `useState` and functional updates, `useEffect` and `useLayoutEffect` with their dependencies and cleanups, `useMemo`, `useCallback`, `useRef`, `useReducer` and `dispatch`, context, custom hooks, `useTransition`, `useDeferredValue` and `useId`.
+- React 19: `useActionState`, `useOptimistic`, `useFormStatus`, `use()` and form actions.
+- `react-dom`: `createRoot`, `render` and `createPortal`.
+
+## Options
+
+`react({ elements })` takes extra readings for elements from other libraries, keyed by JSX tag. Each rule receives the engine, the tag and an `attr(name)` lookup, and returns the element's description together with the attributes it has already described, or `null` to let the default reading apply. The Next.js plugin uses this to read `Link`, `Image`, `Script` and `Form`.
+
+```ts
+import type { ElementRule } from "@usenarrator/plugin-react";
+
+const Icon: ElementRule = ({ attr, text }) => {
+  const name = attr("name");
+  return name ? { element: `the ${text(name)} icon`, consumed: ["name"] } : null;
+};
+
+react({ elements: { Icon } });
+```
+
+## Translating
+
+The English phrasebook is exported as `en` and typed as `ReactPhrases`.

@@ -1,0 +1,113 @@
+---
+title: "Temporal"
+description: "Read Temporal workflows, activities, workers and clients as durable steps and the messages between them."
+---
+
+<span className="nr-pill">@usenarrator/plugin-temporal</span>
+
+The [Temporal](https://temporal.io) plugin reads the TypeScript SDK in terms of what Temporal guarantees. Proxied activities list their timeouts and retry policy, a call to an activity reads as "run the activity", `sleep` is a durable timer, and signals, queries and updates read as messages the workflow receives. On the client side it says whether starting a workflow waits for the result.
+
+```ts
+import { temporal } from "@usenarrator/plugin-temporal";
+
+typescript({ parser: oxcParser, plugins: [temporal()] });
+```
+
+The plugin declares `library: { name: "@temporalio/workflow", versions: ">=1 <2" }`. It narrates files that import from any `@temporalio/*` package (workflow, activity, worker or client) or belong to a package that depends on one (see [Dependency detection](/concepts/dependency-detection)). Other libraries' `sleep`, `condition` and `signal` functions are left alone.
+
+## Examples
+
+{/* narrate plugins="temporal" path="workflows.ts" */}
+```ts A workflow with activities, a signal and a timer
+import { condition, defineSignal, proxyActivities, setHandler } from "@temporalio/workflow";
+import type * as activities from "./activities";
+
+const { chargeCard, sendReceipt } = proxyActivities<typeof activities>({
+  startToCloseTimeout: "1 minute",
+  retry: { maximumAttempts: 5, initialInterval: "1s", backoffCoefficient: 2 },
+});
+
+export const cancelOrder = defineSignal("cancelOrder");
+
+export async function order(orderId: string) {
+  let cancelled = false;
+  setHandler(cancelOrder, () => {
+    cancelled = true;
+  });
+  const timedOut = !(await condition(() => cancelled, "30 minutes"));
+  if (cancelled) return "cancelled";
+  await chargeCard(orderId);
+  await sendReceipt(orderId);
+  return "charged";
+}
+```
+
+```text English
+Set up the activities charge card and send receipt (each attempt may take up to 1 minute; up to 5 attempts; waiting 1 second before the first retry, growing 2× each time).
+Define the signal "cancelOrder" as cancel order.
+
+To order (async), given order ID:
+  Let cancelled start as false.
+  When the signal "cancelOrder" arrives, set cancelled to true.
+  Let timed out mean the wait for cancelled is true timed out after 30 minutes.
+  If cancelled is true, give back "cancelled".
+  Run the activity charge card with order ID.
+  Run the activity send receipt with order ID.
+  Give back "charged".
+```
+
+{/* narrate plugins="temporal" path="worker.ts" */}
+```ts A worker
+import { NativeConnection, Worker } from "@temporalio/worker";
+import * as activities from "./activities";
+
+const connection = await NativeConnection.connect({ address: "localhost:7233" });
+const worker = await Worker.create({
+  connection,
+  taskQueue: "orders",
+  workflowsPath: require.resolve("./workflows"),
+  activities,
+});
+await worker.run();
+```
+
+```text English
+Let connection be a connection to the Temporal server at "localhost:7233".
+Set up a Temporal worker as worker for the task queue "orders" (workflows from "./workflows"; activities: activities).
+Run worker, taking work from its task queue until it shuts down.
+```
+
+{/* narrate plugins="temporal" path="checkout.ts" */}
+```ts Starting and signalling a workflow
+import { Client } from "@temporalio/client";
+import { cancelOrder, order } from "./workflows";
+
+const client = new Client({ connection });
+const handle = await client.workflow.start(order, {
+  taskQueue: "orders",
+  args: [orderId],
+  workflowId: `order-${orderId}`,
+});
+await handle.signal(cancelOrder);
+const outcome = await handle.result();
+```
+
+```text English
+Set up a Temporal client as client.
+Start the workflow order with order ID, without waiting for it to finish (task queue "orders"; workflow ID "order-{order ID}"), and call the result handle.
+Send the signal cancel order to handle.
+Let outcome be handle's result once the workflow finishes.
+```
+
+## What it covers
+
+- Workflows: `proxyActivities` and `proxyLocalActivities` with timeouts and retry policies, activity calls, `sleep`, `condition` with a timeout, `continueAsNew`, `patched`, cancellation scopes and `ApplicationFailure`.
+- Messages: `defineSignal`, `defineQuery` and `defineUpdate`, and `setHandler` for each.
+- Child workflows: `executeChild` and `startChild` with their options.
+- Activities: `heartbeat`, `sleep` and the activity context.
+- Workers: `NativeConnection`, `Worker.create` with its task queue, workflows and activities, and `worker.run`.
+- The client: `client.workflow.start`, `execute`, `signal`, `query`, `result`, `getHandle`, `terminate` and `cancel`, cron workflows and `client.schedule`.
+
+## Translating
+
+The English phrasebook is exported as `en` and typed as `TemporalPhrases`. Its `time` section has the same shape as the other job plugins' (`TimePhrases`).

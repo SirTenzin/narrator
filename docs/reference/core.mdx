@@ -1,7 +1,7 @@
 ---
 title: "@usenarrator/core"
 sidebarTitle: "Core"
-description: "createNarrator, lines, markup, diffs and the contracts every language and locale implements."
+description: "createNarrator, dependency manifests, lines, markup, diffs and the contracts every language and locale implements."
 ---
 
 The core package has no dependencies and knows nothing about any particular programming language. It defines the contracts, creates narrators and builds diff reports.
@@ -9,7 +9,7 @@ The core package has no dependencies and knows nothing about any particular prog
 ## createNarrator
 
 ```ts
-function createNarrator(options: { languages: SourceLanguage[]; locale: Locale }): Narrator;
+function createNarrator(options: { languages: SourceLanguage[]; locale: Locale; dependencies?: DependencyIndex }): Narrator;
 ```
 
 <ParamField path="languages" type="SourceLanguage[]" required>
@@ -17,6 +17,9 @@ function createNarrator(options: { languages: SourceLanguage[]; locale: Locale }
 </ParamField>
 <ParamField path="locale" type="Locale" required>
   The output language, for example `en` from `@usenarrator/locale-en`.
+</ParamField>
+<ParamField path="dependencies" type="DependencyIndex">
+  The repository's dependency manifests, from `createDependencyIndex` or `loadDependencyIndex` in `@usenarrator/node`. For each file, the narrator passes its language the dependencies of the file's package in that language's `ecosystems`. Without it, plugins only see imports. See [Dependency detection](/concepts/dependency-detection).
 </ParamField>
 
 ### Narrator
@@ -28,6 +31,7 @@ type Narrator = {
   narrate(src: string, path: string): FileNarration;
   fileNarrator(path: string): FileNarrator;
   diff(files: ChangedFile[], opts?: { resolve?: Resolver }): FileJson[];
+  diffFiles(files: ChangedFile[]): FileDiff[];
 };
 ```
 
@@ -44,6 +48,10 @@ type Narrator = {
   Narrates both sides of each changed file, diffs them by unit, detects moves and renames across files, and returns HTML-ready rows. Files no language handles are skipped, and files whose English didn't change are left out. `opts.resolve` turns function and value references into links. See [Units and diffs](/concepts/units-and-diffs).
 </ResponseField>
 
+<ResponseField name="diffFiles(files)" type="FileDiff[]">
+  The same change set as `diff`, as structured units whose rows hold `Line` objects rather than HTML. Render it with `renderDiffText`.
+</ResponseField>
+
 ```ts
 type ChangedFile = {
   path: string;
@@ -55,6 +63,45 @@ type ChangedFile = {
 
 type Resolver = (payload: string, kind: string) => string | null;
 ```
+
+### renderDiffText
+
+```ts
+function renderDiffText(options: { files: FileDiff[]; format?: (s: string) => string }): string;
+```
+
+Prints structured diffs as indented text: a header per file, a line per changed unit with its status, then each sentence marked `-`, `+` or left unmarked when unchanged. `format` defaults to `plain`. Pass `toAnsi` for colour.
+
+## Dependencies
+
+```ts
+type Dependencies = Record<string, string>; // package name -> version range
+
+type ManifestReader = {
+  ecosystem: string;
+  matches: (path: string) => boolean;
+  parse: (text: string) => Dependencies;
+};
+
+type DependencyIndex = {
+  manifestPaths(paths: string[]): string[];
+  forFile(path: string, ecosystem: string): Dependencies;
+};
+
+function createDependencyIndex(options: { manifests: Map<string, string>; readers?: ManifestReader[] }): DependencyIndex;
+
+const packageJson: ManifestReader;
+const defaultManifestReaders: ManifestReader[]; // [packageJson]
+```
+
+| Member | Description |
+| --- | --- |
+| `createDependencyIndex` | Builds an index from repository-relative manifest paths and their contents. Manifests that fail to parse are skipped. |
+| `manifestPaths(paths)` | Filters a list of repository paths down to the manifests the readers recognise, so a host knows what to fetch. |
+| `forFile(path, ecosystem)` | The dependencies of the nearest manifest above `path`, merged over the repository root's. |
+| `packageJson` | Reads `dependencies`, `devDependencies`, `peerDependencies` and `optionalDependencies`, ignoring manifests under `node_modules`, `dist`, `vendor` and similar folders. |
+
+See [Dependency detection](/concepts/dependency-detection).
 
 ## Lines
 
@@ -90,7 +137,8 @@ type Doc = { t: string; kids: Line[] };
 interface SourceLanguage {
   id: string;
   handles(path: string): boolean;
-  create(locale: Locale): FileNarrator;
+  ecosystems?: string[];
+  create(locale: Locale, ctx?: { dependencies?: (path: string) => Dependencies }): FileNarrator;
 }
 
 interface FileNarrator {
@@ -106,7 +154,7 @@ See [Adding a source language](/guides/source-languages) and the [Locale referen
 
 ## Diff primitives
 
-These are what `narrator.diff` is built on. Use them when you want `Line` objects instead of HTML.
+These are what `narrator.diff` and `narrator.diffFiles` are built on.
 
 ```ts
 type Unit = { key: string; title: string; start: number; end: number; lines: Line[] };
@@ -115,6 +163,7 @@ function diffUnits(before: Unit[], after: Unit[]): UnitDiff[];
 function diffLines(a: Line[], b: Line[], context?: number): Row[];
 function detectMoves(files: { path: string; units: UnitDiff[] }[]): void;
 function bodySimilarity(a: Line[], b: Line[]): number;
+function diffFiles(options: { files: ChangedFile[]; narratorFor: (path: string) => FileNarrator }): FileDiff[];
 function buildDiffReport(options: { files: ChangedFile[]; narratorFor: (path: string) => FileNarrator; resolve: Resolver }): FileJson[];
 ```
 

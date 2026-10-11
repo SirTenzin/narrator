@@ -1,0 +1,128 @@
+---
+title: "TanStack Query"
+description: "Read queries and mutations as what is fetched, how long it stays fresh, and what happens around it."
+---
+
+<span className="nr-pill">@usenarrator/plugin-tanstack-query</span>
+
+The [TanStack Query](https://tanstack.com/query) plugin reads a query as its key, the function that fetches it, and the options that decide when it is refetched or thrown away. Options like `staleTime`, `enabled` and `select` become short bullets ("Fresh for 5 minutes", "Only when ID is set"), and the fields you destructure from the result are named in plain words. Mutations read as what they run and what happens when they succeed, fail or settle.
+
+```ts
+import { tanstackQuery } from "@usenarrator/plugin-tanstack-query";
+
+typescript({ parser: oxcParser, plugins: [tanstackQuery()] });
+// or pin a major version: tanstackQuery({ version: 4 }) or tanstackQuery({ version: 5 })
+```
+
+The plugin declares `library: { name: "@tanstack/react-query", versions: ">=4 <6" }`. It narrates files that import from a TanStack Query package (React, Vue, Solid, Svelte and Angular adapters included) or belong to a package that depends on one (see [Dependency detection](/concepts/dependency-detection)). Same-named functions from other libraries are left alone.
+
+## Examples
+
+{/* narrate plugins="tanstack-query" path="todo.tsx" */}
+```tsx A query with options
+import { useQuery } from "@tanstack/react-query";
+
+const { data: todo, isPending } = useQuery({
+  queryKey: ["todos", id],
+  queryFn: () => fetchTodo(id),
+  enabled: !!id,
+  staleTime: 5 * 60 * 1000,
+  refetchOnWindowFocus: false,
+});
+```
+
+```text English
+Load the ["todos", id] query, and take its data (as todo) and whether it has no data yet:
+  • Fetched by fetch todo (ID)
+  • Only when ID is set
+  • Fresh for 5 minutes
+  • Not refetched when the window regains focus
+```
+
+{/* narrate plugins="tanstack-query" path="projects.tsx" */}
+```tsx An infinite query
+import { useInfiniteQuery } from "@tanstack/react-query";
+
+const { data, fetchNextPage, hasNextPage } = useInfiniteQuery({
+  queryKey: ["projects"],
+  queryFn: async ({ pageParam }) => {
+    const res = await fetch("/api/projects?cursor=" + pageParam);
+    return res.json();
+  },
+  initialPageParam: 0,
+  getNextPageParam: (lastPage) => lastPage.nextCursor,
+});
+```
+
+```text English
+Load the ["projects"] query, loaded page by page, and take its data, a way to load the next page, and whether there is a next page:
+  • To fetch it, given page param:
+    Fetch ("/api/projects?cursor=" followed by page param), and call the result response.
+    Give back response's JSON.
+  • Starting from page 0
+  • Next page: last page's next cursor
+```
+
+{/* narrate plugins="tanstack-query" path="add-todo.tsx" */}
+```tsx A mutation that refreshes a query
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+
+const queryClient = useQueryClient();
+const addTodo = useMutation({
+  mutationFn: (newTodo) => api.post("/todos", newTodo),
+  onSuccess: () => queryClient.invalidateQueries({ queryKey: ["todos"] }),
+});
+```
+
+```text English
+Let query client be the query client.
+
+Let add todo be a mutation:
+  • Running post API ("/todos" and new todo)
+  • When it succeeds:
+    Mark every cached query whose key starts with ["todos"] as stale, so the ones in use refetch.
+```
+
+## Versions
+
+Two things changed meaning between v4 and v5. In v4, `isLoading` meant "has no data yet", and in v5 that is `isPending`, while `isLoading` means the first fetch is in flight. Queries also stopped calling `onSuccess`, `onError` and `onSettled` in v5. The plugin picks the reading from the major version your package declares, so a v4 codebase reads `onSuccess` as a step and a v5 codebase is told that the callback is no longer called. Pass `version` to pin it. See [Plugin versioning](/guides/plugin-versioning).
+
+{/* narrate plugins="tanstack-query@5" path="v5.tsx" */}
+```tsx With tanstackQuery({ version: 5 })
+import { useQuery } from "@tanstack/react-query";
+
+const { isLoading } = useQuery({ queryKey: ["user"], queryFn: fetchUser, onSuccess: (user) => track(user) });
+```
+
+```text English
+Load the ["user"] query, and take whether its first fetch is in flight:
+  • Fetched by fetch user
+  • An onSuccess callback, which TanStack Query v5 no longer calls on queries
+```
+
+{/* narrate plugins="tanstack-query@4" path="v4.tsx" */}
+```tsx With tanstackQuery({ version: 4 })
+import { useQuery } from "@tanstack/react-query";
+
+const { isLoading } = useQuery({ queryKey: ["user"], queryFn: fetchUser, onSuccess: (user) => track(user) });
+```
+
+```text English
+Load the ["user"] query, and take whether it has no data yet:
+  • Fetched by fetch user
+  • When it loads, given user:
+    Track (user).
+```
+
+## What it covers
+
+- `useQuery`, `useSuspenseQuery`, `useInfiniteQuery`, `useQueries`, and the `create*` and `inject*` forms used by the other adapters.
+- Query options: `enabled`, `staleTime`, `gcTime`, `select`, `placeholderData`, `refetchInterval`, `retry`, refetch flags and paging options.
+- `queryOptions` and `infiniteQueryOptions`, and the v4 positional form `useQuery(key, fn, options)`.
+- `useMutation` with `onMutate`, `onSuccess`, `onError` and `onSettled`, including the optimistic update recipe, plus `mutate`, `mutateAsync` and `reset`.
+- The query client: `invalidateQueries` and its filters, `setQueryData`, `getQueryData`, `cancelQueries`, prefetching, `clear` and default options.
+- Composition with the [tRPC plugin](/plugins/trpc), whose options helpers can be passed straight to `useQuery`.
+
+## Translating
+
+The English phrasebook is exported as `en` and typed as `TanStackQueryPhrases`.

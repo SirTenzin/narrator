@@ -40,18 +40,57 @@ native and WASM agree
 
 ## On a server
 
-Install the native parser alongside the core packages and pass `oxcParser` to `typescript()`.
+On Node and Bun, the quickest setup is `@usenarrator/node`. `createNodeNarrator` wires the TypeScript language to the native parser, uses English unless you pass another locale, and loads the dependency manifests of the git checkout around the working directory so plugins know what each package uses.
 
 ```ts
-import { createNarrator } from "@usenarrator/core";
+import { createNodeNarrator, loadDependencyIndex } from "@usenarrator/node";
+import { hono } from "@usenarrator/plugin-hono";
+
+// Manifests from the repository around process.cwd():
+export const narrator = createNodeNarrator({ plugins: [hono()] });
+
+// Or point it at another checkout, or turn manifest reading off:
+const other = createNodeNarrator({ plugins: [hono()], dependencies: loadDependencyIndex({ root: "/srv/repos/api" }) });
+const bare = createNodeNarrator({ dependencies: false });
+```
+
+To choose every piece yourself, build the narrator from its parts. A narrator is three choices: which source languages it reads, which plugins those languages use, and which locale it writes in. The optional `dependencies` index is a fourth.
+
+{/* run file="examples/narrate-file.ts" */}
+```ts narrate-file.ts
+import { createNarrator, renderText } from "@usenarrator/core";
 import { typescript } from "@usenarrator/lang-ts";
 import { oxcParser } from "@usenarrator/lang-ts/oxc";
 import { en } from "@usenarrator/locale-en";
+import { zod } from "@usenarrator/plugin-zod";
 
-export const narrator = createNarrator({ languages: [typescript({ parser: oxcParser })], locale: en });
+const narrator = createNarrator({
+	languages: [typescript({ parser: oxcParser, plugins: [zod()] })],
+	locale: en,
+});
+
+const source = `
+export const Signup = z.object({ email: z.string().email(), plan: z.enum(["free", "pro"]) });
+
+export function countOpenSeats(team: Team) {
+  if (team.plan === "enterprise") return Infinity;
+  return team.seatLimit - team.members.length;
+}
+`;
+
+const { lines } = narrator.narrate(source, "signup.ts");
+console.log(renderText(lines));
 ```
 
-A narrator is cheap to create and safe to reuse. It creates a fresh file narrator for each file, so per-file state never leaks between calls.
+```text Output
+Let signup be a schema for an object with email and plan.
+
+To count open seats, given team (Team):
+  If team's plan is "enterprise", give back infinity.
+  Give back team's seat limit minus the number of team's members.
+```
+
+A narrator is cheap to create and safe to reuse. It creates a fresh file narrator for each file, so per-file state never leaks between calls. File paths matter: plugins such as Next.js read routes from them, and the dependency index looks up the nearest `package.json` by path, so pass repository-relative paths where you can.
 
 ## In a browser
 
@@ -86,16 +125,16 @@ This is the same setup the browser extension uses, except that the extension pas
 
 ## Bundle size
 
-These numbers come from the extension build and are a rough guide for planning. They were measured before any size work, so expect them to shrink.
+These numbers come from the minified extension build, which splits the code into chunks and loads each one only when it is needed.
 
-| Piece | Raw | Gzipped |
+| Piece | Minified | Gzipped |
 | --- | --- | --- |
-| oxc parser WASM | 737 KB | 256 KB |
-| Engine, English locale and plugins (JavaScript, unminified) | | about 98 KB |
+| oxc parser WASM | 720 KB | 255 KB |
+| One plugin | usually 10 to 45 KB | usually 3 to 14 KB |
+| The `pgsql-ast-parser` used by the SQL plugin | 249 KB | 43 KB |
+| Everything except the SQL parser: engine, English locale and every plugin the extension ships | 973 KB | 326 KB |
 
-Since then the extension build has been minified. Its whole background script, which includes the engine, the English locale and every plugin the extension ships, is now 281 KB raw and about 83 KB gzipped.
-
-The WASM file is the larger part, and it is fetched once and cached by the browser. The JavaScript grows with each plugin you include, so only include the plugins your users need.
+The WASM file is the largest part, and it is fetched once and cached by the browser. The JavaScript grows with each plugin you include, so load plugins lazily with `import()` and only for the libraries a change uses, the way the [browser extension](/guides/browser-extension#how-it-stays-fast) does.
 
 ## Rendering the output
 
@@ -105,4 +144,4 @@ The WASM file is the larger part, and it is fetched once and cached by the brows
 - `renderText(lines, toAnsi)` for a terminal.
 - `toHtml(line.text, resolve)` per line for a web page, using `line.d` for indentation and `line.kind` for styling. See [Markup](/concepts/markup).
 
-For diffs, `narrator.diff` returns HTML-ready rows. See [Units and diffs](/concepts/units-and-diffs).
+For diffs, `narrator.diffFiles` returns structured units with their `Line`s, which `renderDiffText` prints as text, and `narrator.diff` returns HTML-ready rows. See [Units and diffs](/concepts/units-and-diffs).

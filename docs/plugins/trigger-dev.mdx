@@ -1,0 +1,102 @@
+---
+title: "Trigger.dev"
+description: "Read Trigger.dev tasks as what they run, how they retry, and how other code starts them."
+---
+
+<span className="nr-pill">@usenarrator/plugin-trigger-dev</span>
+
+The [Trigger.dev](https://trigger.dev) plugin reads a task as a named background job with its limits: how many attempts it gets and how long it waits between them, which queue and machine it runs on, and when it is stopped. Scheduled tasks turn their cron patterns into words with the time zone. Code that starts a task says whether it waits for the result, and lists options such as delays, tags and idempotency keys.
+
+```ts
+import { triggerDev } from "@usenarrator/plugin-trigger-dev";
+
+typescript({ parser: oxcParser, plugins: [triggerDev()] });
+```
+
+The plugin declares `library: { name: "@trigger.dev/sdk", versions: ">=3 <5" }` and reads v3 and v4, including imports from `@trigger.dev/sdk/v3`. It only narrates files that import the SDK or belong to a package that depends on it (see [Dependency detection](/concepts/dependency-detection)), and even then it leaves alone calls on objects that don't come from the SDK, such as a jQuery `trigger` or a local array named `runs`.
+
+## Examples
+
+{/* narrate plugins="trigger-dev" path="trigger/welcome.ts" */}
+```ts A task with retries and hooks
+import { task, wait } from "@trigger.dev/sdk";
+
+export const sendWelcomeTask = task({
+  id: "send-welcome",
+  retry: { maxAttempts: 5, factor: 2, minTimeoutInMs: 1000, maxTimeoutInMs: 60_000 },
+  machine: "small-1x",
+  maxDuration: 300,
+  run: async (payload: { userId: string }) => {
+    const user = await db.users.find(payload.userId);
+    await wait.for({ minutes: 10 });
+    await sendEmail(user.email);
+  },
+  onFailure: async ({ error }) => {
+    await alertTeam(error);
+  },
+});
+```
+
+```text English
+Define the Trigger.dev task "send-welcome" as send welcome task (up to 5 attempts; waiting 1 second to 1 minute between attempts, growing 2× each time; on a small-1x machine; stopped after 5 minutes):
+  Find DB's users (payload's user ID), and call the result user.
+  Wait 10 minutes.
+  Send email (user's email).
+  When the run fails after its last attempt:
+    Alert team (error).
+```
+
+{/* narrate plugins="trigger-dev" path="trigger/meters.ts" */}
+```ts A scheduled task
+import { schedules } from "@trigger.dev/sdk";
+
+export const pushMeters = schedules.task({
+  id: "push-hourly-meters",
+  cron: { pattern: "10 * * * *", timezone: "Europe/London", environments: ["PRODUCTION"] },
+  run: async (payload) => pushMeterReadings(payload.timestamp),
+});
+```
+
+```text English
+Define the scheduled task "push-hourly-meters" as push meters, run every hour at minute 10 (cron 10 * * * *) (only in PRODUCTION):
+  Push meter readings (payload's timestamp), and give back the result.
+```
+
+{/* narrate plugins="trigger-dev" path="signup.ts" */}
+```ts Triggering tasks
+import { tasks } from "@trigger.dev/sdk";
+import type { sendWelcomeTask } from "./trigger/welcome";
+
+await sendWelcomeTask.trigger(
+  { userId: user.id },
+  { idempotencyKey: `welcome:${user.id}`, delay: "1h", tags: ["onboarding"] },
+);
+
+const report = await buildReportTask.triggerAndWait({ orgId }).unwrap();
+
+await tasks.trigger<typeof sendWelcomeTask>("send-welcome", { userId: user.id });
+```
+
+```text English
+Queue a background run of send welcome task with the payload user ID: user's ID:
+  • at most once per idempotency key "welcome:{user's ID}"
+  • starting after 1 hour
+  • tagged "onboarding"
+
+Start build report task and wait for its output (failing if the run failed), passing the payload org ID, and call the result report.
+Queue a background run of the task "send-welcome" with the payload user ID: user's ID.
+```
+
+Tasks defined in the same file are recognized by their `task(...)` call. Tasks imported from elsewhere are recognized when their name ends in `Task`, as in `sendWelcomeTask`, or when they are triggered by ID through `tasks.trigger`.
+
+## What it covers
+
+- Tasks: `task` and `schemaTask` with `retry`, `queue`, `machine` and `maxDuration`, and the lifecycle hooks (`onStartAttempt`, `onSuccess`, `onFailure`, `catchError` and the rest).
+- Scheduled tasks: `schedules.task` with a cron pattern, time zone and environments, and the `schedules` API for creating and managing schedules.
+- Queues: `queue()` with its concurrency limit, and on-demand queues in v3.
+- Triggering: `trigger`, `triggerAndWait` and `unwrap`, `batchTrigger` and `batch`, `tasks.trigger` by ID, and options such as `delay`, `ttl`, `tags`, `priority`, `concurrencyKey` and idempotency keys.
+- Inside a run: `wait.for`, `wait.until`, wait tokens, `retry.onThrow`, `AbortTaskRunError`, run metadata (including the parent and root run's), `idempotencyKeys` and `runs`.
+
+## Translating
+
+The English phrasebook is exported as `en` and typed as `TriggerPhrases`. Its `time` section has the same shape as the other job plugins' (`TimePhrases`).

@@ -1,0 +1,119 @@
+---
+title: "Express"
+description: "Read Express apps as routes, middleware and replies."
+---
+
+<span className="nr-pill">@usenarrator/plugin-express</span>
+
+The [Express](https://expressjs.com) plugin reads an app as the requests it answers. Each route becomes a block that says what the handler reads from the request and what it replies with, middleware is named by what it does ("JSON body parsing", "security headers"), and a four-parameter error handler reads as "When a request fails".
+
+```ts
+import { express } from "@usenarrator/plugin-express";
+
+typescript({ parser: oxcParser, plugins: [express()] });
+```
+
+The plugin declares `library: { name: "express", versions: ">=4 <6" }` and reads Express 4 and 5, including the Express 5 path syntax. It only narrates files that import or `require` Express or belong to a package that depends on it (see [Dependency detection](/concepts/dependency-detection)), so a `Map#get` or another library's `app.get` is left alone.
+
+## Examples
+
+{/* narrate plugins="express" path="server.js" */}
+```js The hello-world app
+const express = require("express");
+const app = express();
+const port = 3000;
+
+app.get("/", (req, res) => {
+  res.send("Hello World!");
+});
+
+app.listen(port, () => {
+  console.log(`Example app listening on port ${port}`);
+});
+```
+
+```text English
+Let app be a new Express app.
+Let port be 3000.
+
+Answer GET /:
+  Reply with "Hello World!".
+
+Start app listening on port port:
+  • Once it is listening:
+    Log "Example app listening on port {port}".
+```
+
+{/* narrate plugins="express" path="users.ts" */}
+```ts A route with middleware and error handling
+import express from "express";
+
+const app = express();
+
+app.get("/users/:id", requireAuth, async (req, res, next) => {
+  const { page } = req.query;
+  try {
+    const user = await db.users.find(req.params.id);
+    if (!user) return res.sendStatus(404);
+    res.status(200).json(user);
+  } catch (err) {
+    next(err);
+  }
+});
+```
+
+```text English
+Let app be a new Express app.
+
+Answer GET /users/:id, after require auth:
+  From the query parameters, take page.
+  Try the following:
+    Find DB's users (the path parameters' ID), and call the result user.
+    If user is missing, reply with status 404 Not Found.
+    Reply with user as JSON (status 200 OK).
+  If anything fails (call the problem error):
+    Pass error to the error handler.
+```
+
+{/* narrate plugins="express" path="app.ts" */}
+```ts Middleware and an error handler
+import express from "express";
+import cors from "cors";
+import helmet from "helmet";
+import userRoutes from "./routes/users";
+
+const app = express();
+app.use(cors({ origin: "https://example.com", credentials: true }));
+app.use(express.json());
+app.use(helmet());
+app.use("/api/users", userRoutes);
+
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).send("Something broke!");
+});
+```
+
+```text English
+Let app be a new Express app.
+Run CORS (origin: "https://example.com"; credentials: yes) on every request.
+Run JSON body parsing on every request.
+Run security headers on every request.
+Mount user routes under /api/users.
+
+When a request fails:
+  Log an error (with error's stack).
+  Reply with "Something broke!" (status 500 Internal Server Error).
+```
+
+## What it covers
+
+- Apps and routers: `express()`, `express.Router()`, `app.route(path)` chains, `app.listen`, settings such as `app.set` and `app.disable`, and mounting routers with `app.use(path, router)`.
+- Routes: every HTTP method and `all`, route-level middleware ("after auth"), and one-line handlers that read inline.
+- Middleware: the built-in `express.json`, `express.urlencoded` and `express.static`, common packages such as `cors`, `helmet`, `morgan`, `cookie-parser`, `compression`, `express-rate-limit` and `express-session` by what they do, inline middleware around `next()`, and error handlers.
+- The request: path and query parameters, headers, the body and cookies.
+- The response: `send`, `json`, `status`, `sendStatus`, `redirect`, `render`, cookies, headers, downloads and files, and `next(err)`.
+
+## Translating
+
+The English phrasebook is exported as `en` and typed as `ExpressPhrases`.

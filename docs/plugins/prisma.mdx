@@ -1,0 +1,115 @@
+---
+title: "Prisma"
+description: "Read Prisma Client queries, writes and transactions as what they fetch and change."
+---
+
+<span className="nr-pill">@usenarrator/plugin-prisma</span>
+
+The [Prisma](https://www.prisma.io) plugin reads Prisma Client calls the way the [Drizzle plugin](/plugins/drizzle) reads queries: as the rows they fetch, with each filter, ordering and limit as a bullet. Writes say what is set, including atomic operations like "increased by amount", and nested `create` and `connect` read as related rows. Transactions read as "all-or-nothing".
+
+```ts
+import { prisma } from "@usenarrator/plugin-prisma";
+
+typescript({ parser: oxcParser, plugins: [prisma()] });
+```
+
+The plugin declares `library: { name: "@prisma/client", versions: ">=6 <8" }` and reads Prisma 6 and 7, including the v7 driver adapters. It narrates files that import Prisma Client (or a generated client), use a `prisma` handle imported from your own code, or belong to a package that depends on Prisma (see [Dependency detection](/concepts/dependency-detection)). Drizzle's relational queries and other SDKs are left alone, and raw SQL stays with the [SQL plugin](/plugins/sql).
+
+## Examples
+
+{/* narrate plugins="prisma" path="posts.ts" */}
+```ts Reads
+import { PrismaClient } from "@prisma/client";
+
+const prisma = new PrismaClient();
+
+const posts = await prisma.post.findMany({
+  where: { published: true, author: { email: { endsWith: "@acme.com" } } },
+  select: { id: true, title: true },
+  orderBy: { createdAt: "desc" },
+  take: 20,
+});
+
+const user = await prisma.user.findUniqueOrThrow({ where: { id }, include: { posts: true } });
+```
+
+```text English
+Let prisma be a Prisma client.
+
+Let posts be the rows of posts:
+  • where all of these are true:
+    • published is true
+    • author's email ends with "@acme.com"
+  • picking only ID and title
+  • sorted by created at (newest first)
+  • at most 20 row(s)
+
+Let user be the row of users where ID is ID, failing if there is none:
+  • including posts
+```
+
+{/* narrate plugins="prisma" path="signup.ts" */}
+```ts Writes
+import { PrismaClient } from "@prisma/client";
+
+const prisma = new PrismaClient();
+
+const user = await prisma.user.create({
+  data: {
+    email,
+    name,
+    profile: { create: { bio: "" } },
+    team: { connect: { id: teamId } },
+  },
+});
+
+await prisma.team.update({ where: { id: teamId }, data: { seatsUsed: { increment: 1 } } });
+```
+
+```text English
+Let prisma be a Prisma client.
+
+Let user be a new row in users:
+  • email
+  • name
+  • profile: creating a new one with:
+    • bio: ""
+  • team: linking the existing row where ID is team ID
+
+Update the row of teams where ID is team ID:
+  • seats used: increased by 1
+```
+
+{/* narrate plugins="prisma" path="transfer.ts" */}
+```ts An interactive transaction
+import { PrismaClient } from "@prisma/client";
+
+const prisma = new PrismaClient();
+
+await prisma.$transaction(async (tx) => {
+  await tx.account.update({ where: { email: from }, data: { balance: { decrement: amount } } });
+  await tx.account.update({ where: { email: to }, data: { balance: { increment: amount } } });
+});
+```
+
+```text English
+Let prisma be a Prisma client.
+
+Do this all-or-nothing, in one transaction:
+  Update the row of accounts where email is from:
+    • balance: decreased by amount
+  Update the row of accounts where email is to:
+    • balance: increased by amount
+```
+
+## What it covers
+
+- Reads: `findMany`, `findUnique`, `findFirst` and their `OrThrow` forms, with `where` filters (including relation and list filters), `select`, `include`, `orderBy`, `take`, `skip`, cursors and compound unique keys.
+- Aggregates: `count`, `aggregate` and `groupBy`.
+- Writes: `create` with nested `create` and `connect`, `createMany`, `update` with atomic number operations, `updateMany`, `upsert`, `delete` and `deleteMany`.
+- Transactions in both the array form and the interactive form, with their options.
+- The client: `new PrismaClient` with driver adapters and logging, `$extends` with computed fields and model methods, and `prisma.config.ts`.
+
+## Translating
+
+The English phrasebook is exported as `en` and typed as `PrismaPhrases`.
