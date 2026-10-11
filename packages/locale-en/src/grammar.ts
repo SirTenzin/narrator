@@ -72,6 +72,7 @@ export const grammar: Grammar = {
 	isPlural,
 	negatePredicateHead: (w) => NEGATED_PREFIX[w] ?? `does not ${w.replace(/(ch|sh|x|ss)es$/, "$1").replace(/s$/, "")}`,
 	bareNoun: (s) => s.replace(/^an? /, ""),
+	isPluralSubject: (s) => pluralSubject(s),
 	isTimeLike: (s) => TIME_WORDS.test(s) || /\b(now|date)\b/i.test(s),
 };
 
@@ -111,6 +112,8 @@ export const pluralSubject = (subject: string) => {
 		? text.split(/[,(]/)[0]!
 		: front.split(/ (?:for|from|with|where|whose|keeping|that|which|without|minus|plus|times|divided|joined|if|or|and|as)\b|[,(:]/)[0]!;
 	const head = phrase.trim().split(/\s+/).at(-1) ?? "";
+	// "check messages (…)": a call's name isn't a plural noun.
+	if (!owned && /^\s*\(/.test(front.slice(phrase.length))) return false;
 	if (/^[A-Z]+s$/.test(head)) return true;
 	const w = head.toLowerCase();
 	if (SINGULAR_S.has(w) || /(ss|us|is|'s)$/.test(w)) return false;

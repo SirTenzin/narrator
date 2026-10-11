@@ -1,4 +1,4 @@
-import type { DeclarationPhrases } from "@usenarrator/core";
+import { type DeclarationPhrases, plain } from "@usenarrator/core";
 
 export const declarations: DeclarationPhrases = {
 	names: { defaultExport: "default export", anonymous: "anonymous", anonymousClass: "anonymous class" },
@@ -6,7 +6,7 @@ export const declarations: DeclarationPhrases = {
 	enum: ({ name, members }) => `Enum ${name}: ${members}`,
 	uninitialized: ({ name }) => `Start with no ${name} yet`,
 	letMean: ({ name, condition }) => `Let ${name} mean ${condition}`,
-	callInto: ({ call }) => call,
+	callInto: ({ call, name }) => (plain(call).toLowerCase().includes(plain(name).toLowerCase()) ? call : `${call}, and call the result ${name}`),
 	callAs: ({ call, name }) => `${call}, and call the result ${name}`,
 	letStart: ({ name, value }) => `Let ${name} start as ${value}`,
 	let: ({ name, value }) => `Let ${name} be ${value}`,

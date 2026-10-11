@@ -14,6 +14,8 @@ export interface Grammar {
 	negatePredicateHead(head: string): string;
 	/** A rendered type phrase as a bare noun, for use after "a list of": "a number" -> "number". */
 	bareNoun(phrase: string): string;
+	/** Whether a rendered sentence subject takes a plural verb ("customer's items are", "the number of items is"). */
+	isPluralSubject(subject: string): boolean;
 	/** Whether a rendered (plain) noun phrase names a moment in time, so comparisons read "before"/"after". */
 	isTimeLike(phrase: string): boolean;
 }

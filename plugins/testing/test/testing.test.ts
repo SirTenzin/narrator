@@ -13,7 +13,7 @@ test("a test block with an expectation", () => reads(`test("adds", () => { expec
 test("groups, hooks and matchers", () =>
 	reads(
 		`describe("cart", () => { beforeEach(() => reset()); it("is empty", () => { expect(cart.items).toHaveLength(0); }); });`,
-		`Test group "cart":\n  Before each test:\n    Reset.\n  Test "is empty":\n    Check that cart's items is empty.`,
+		`Test group "cart":\n  Before each test:\n    Reset.\n  Test "is empty":\n    Check that cart's items are empty.`,
 	));
 
 test("negated and argument-less matchers", () => {
@@ -23,10 +23,17 @@ test("negated and argument-less matchers", () => {
 });
 
 test("lengths read as empty or as a real count", () => {
-	reads(`expect(xs).toHaveLength(0);`, "Check that xs is empty.");
-	reads(`expect(xs).not.toHaveLength(0);`, "Check that xs is not empty.");
-	reads(`expect(xs).toHaveLength(1);`, "Check that xs has 1 item.");
-	reads(`expect(xs).toHaveLength(3);`, "Check that xs has 3 items.");
+	reads(`expect(list).toHaveLength(0);`, "Check that list is empty.");
+	reads(`expect(list).not.toHaveLength(0);`, "Check that list is not empty.");
+	reads(`expect(list).toHaveLength(1);`, "Check that list has 1 item.");
+	reads(`expect(list).toHaveLength(3);`, "Check that list has 3 items.");
+});
+
+test("claims agree with a plural subject", () => {
+	reads(`expect(cart.items).toHaveLength(0);`, "Check that cart's items are empty.");
+	reads(`expect(ids).toContain(1);`, "Check that IDs contain 1.");
+	reads(`expect(rows).not.toEqual([]);`, "Check that rows do not equal an empty list.");
+	reads(`expect(checkMessages(a)).toBe(1);`, "Check that check messages (a) is 1.");
 });
 
 test("mock call matchers", () => {

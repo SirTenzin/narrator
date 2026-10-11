@@ -37,8 +37,8 @@ type MatcherName =
 
 /** Everything the test-runner plugin says. Arguments are already-rendered markup strings. */
 export type TestingPhrases = {
-	/** `expect(subject).<matcher>(…)`; `claim` is one of `matchers`. */
-	check: (p: { subject: string; claim: string }) => string;
+	/** `expect(subject).<matcher>(…)`; `claim` is one of `matchers`, written for a singular subject; `plural` says the subject takes a plural verb. */
+	check: (p: { subject: string; claim: string; plural: boolean }) => string;
 	/** `expect(isReady(x)).toBe(true)`: the subject is already a yes/no condition. */
 	checkThat: (p: { condition: string }) => string;
 	matchers: Record<MatcherName, Claim>;

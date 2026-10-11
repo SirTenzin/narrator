@@ -41,7 +41,7 @@ Let app be a web server (Elysia) (every path starts with "/api"):
   • answer GET "/users/:id":
     • the path parameters must be an object with ID (a number, even if sent as text)
     • then:
-      Find user (ID) → user.
+      Find user (ID).
       If user is missing, reply with a 404 (Not Found) response with "User not found".
       Give back user.
   • answer POST "/users":

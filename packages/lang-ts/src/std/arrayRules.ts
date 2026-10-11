@@ -171,8 +171,8 @@ export const arrayRules: Calls = {
 		return D(say.push.add({ values: joined, list: list.t }), list.kids);
 	},
 	"*.unshift": ({ obj, args, e, say }) => D(say.unshift({ values: e.g.list(args.map((a: N) => e.text(a))), list: e.text(obj) })),
-	"*.pop": ({ obj, e, say }) => D(say.pop({ list: e.text(obj) })),
-	"*.shift": ({ obj, e, say }) => D(say.shift({ list: e.text(obj) })),
+	"*.pop": ({ obj, args, e, say, stmt }) => (args.length ? null : D(say.pop({ list: e.text(obj), stmt }))),
+	"*.shift": ({ obj, args, e, say, stmt }) => (args.length ? null : D(say.shift({ list: e.text(obj), stmt }))),
 	"*.indexOf": ({ obj, args, e, say }) => D(say.indexOf({ value: e.text(args[0]), list: e.text(obj) })),
 	"*.keys": ({ obj, args, e, say }) => (unwrap(obj).name === "Object" ? D(say.object.keys({ value: e.text(args[0]) })) : null),
 	"*.values": ({ obj, args, e, say }) => (unwrap(obj).name === "Object" ? D(say.object.values({ value: e.text(args[0]) })) : null),

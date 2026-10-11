@@ -29,6 +29,17 @@ const conjugate = (words: string[], neg: boolean) => {
 	return `${neg ? `does not ${head}` : thirdPerson(head)}${sp(tail)}`;
 };
 
+const PLURAL_HEAD: Record<string, string> = { is: "are", has: "have", was: "were", does: "do" };
+
+/** "is empty" -> "are empty", "has 3 items" -> "have 3 items", "contains x" -> "contain x". */
+const pluralClaim = (claim: string) => {
+	const [head = "", ...rest] = claim.split(" ");
+	const tail = rest.length ? ` ${rest.join(" ")}` : "";
+	if (Object.hasOwn(PLURAL_HEAD, head)) return `${PLURAL_HEAD[head]}${tail}`;
+	if (/^(equals|matches|contains|throws|passes|starts|ends|fails)$/.test(head)) return `${head.replace(/(?<=[sxz]|ch|sh)es$|s$/, "")}${tail}`;
+	return claim;
+};
+
 const ANY_TYPE: Record<string, string> = {
 	String: "any text",
 	Number: "any number",
@@ -42,7 +53,7 @@ const ANY_TYPE: Record<string, string> = {
 };
 
 export const en: TestingPhrases = {
-	check: ({ subject, claim }) => `check that ${subject} ${claim}`,
+	check: ({ subject, claim, plural }) => `check that ${subject} ${plural ? pluralClaim(claim) : claim}`,
 	checkThat: ({ condition }) => `check that ${condition}`,
 	matchers: {
 		toBe: ({ expected, neg }) => `is${not(neg)} ${expected}`,

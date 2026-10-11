@@ -47,10 +47,10 @@ for (const unit of narrator.fileNarrator("queue.ts").units(source, "queue.ts")) 
     Field jobs starts as an empty list.
 [Queue.push] Queue › push
     To push, given job (Job):
-      Add job to this's jobs.
+      Add job to this object's jobs.
 [Queue.next] Queue › next
     Next:
-      Give back take the first item off this's jobs.
+      Give back the first item, taken off this object's jobs.
 ```
 
 Statements that are not declarations, such as a top-level `app.get(...)` call, get a key built from the callee and its first argument. When the same key appears twice in a file, the second one becomes `key#2`.

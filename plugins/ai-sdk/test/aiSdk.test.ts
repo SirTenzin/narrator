@@ -68,7 +68,7 @@ export async function POST(req: Request) {
 				"",
 				"To post (async), given request (Request):",
 				"  From request's JSON, take messages.",
-				"  Stream text from the AI Gateway's anthropic/claude-sonnet-4.5 model:",
+				"  Stream text from the AI Gateway's anthropic/claude-sonnet-4.5 model, and call the result result:",
 				"    • the conversation so far: messages, converted for the model",
 				"    • tools it can use: weather",
 				"    • stop after 5 steps",
@@ -201,7 +201,7 @@ export async function POST(req: Request) {
 				"  • stops after 20 steps unless told otherwise",
 			].join("\n"),
 		);
-		expect(text).toContain(`Ask weather agent "What is the weather in San Francisco?".`);
+		expect(text).toContain(`Ask weather agent "What is the weather in San Francisco?", and call the result result.`);
 		expect(text).toContain(`Stream weather agent's answer to "Hi", and call the result stream.`);
 		expect(text).toContain("For each piece of text (chunk) as it streams in from stream:");
 		expect(text).toContain("Give back weather agent's reply to messages, streamed back to the chat UI.");

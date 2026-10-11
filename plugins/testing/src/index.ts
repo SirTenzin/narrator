@@ -108,7 +108,7 @@ function claimDoc({
 		: Object.hasOwn(say.matchers, matcher)
 			? say.matchers[matcher as Matcher]({ expected, neg, article: e.g.article(plain(expected)) })
 			: say.otherMatcher({ words: e.lex.humanize(matcher.slice(2)).split(" "), expected, neg });
-	return D(say.check({ subject: about, claim }), kids);
+	return D(say.check({ subject: about, claim, plural: e.g.isPluralSubject(about) }), kids);
 }
 
 /** A test or hook block; `heading` is only rendered once the callback is known to be a function. */

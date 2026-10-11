@@ -112,8 +112,9 @@ export type StdPhrases = {
 	/** `addBlock`: a single value shown as a block underneath (e.g. "an object with:"). */
 	push: { everything: P<"source" | "list">; add: P<"values" | "list">; addBlock: P<"value" | "list">; addThese: P<"list"> };
 	unshift: P<"values" | "list">;
-	pop: P<"list">;
-	shift: P<"list">;
+	/** `stmt`: removed as a step; otherwise the removed item is the value. */
+	pop: (p: { list: string; stmt: boolean }) => string;
+	shift: (p: { list: string; stmt: boolean }) => string;
 	indexOf: P<"value" | "list">;
 	object: {
 		keys: P<"value">;

@@ -139,8 +139,8 @@ export const en: StdPhrases = {
 		addThese: ({ list }) => `add these to ${list}`,
 	},
 	unshift: ({ values, list }) => `put ${values} at the start of ${list}`,
-	pop: ({ list }) => `take the last item off ${list}`,
-	shift: ({ list }) => `take the first item off ${list}`,
+	pop: ({ list, stmt }) => (stmt ? `take the last item off ${list}` : `the last item, taken off ${list}`),
+	shift: ({ list, stmt }) => (stmt ? `take the first item off ${list}` : `the first item, taken off ${list}`),
 	indexOf: ({ value, list }) => `the position of ${value} in ${list} (or -1)`,
 	object: {
 		keys: ({ value }) => `the keys of ${value}`,
