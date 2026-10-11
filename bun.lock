@@ -146,6 +146,17 @@
         "@usenarrator/testkit": "workspace:*",
       },
     },
+    "plugins/bullmq": {
+      "name": "@usenarrator/plugin-bullmq",
+      "version": "0.0.0",
+      "dependencies": {
+        "@usenarrator/core": "workspace:*",
+        "@usenarrator/lang-ts": "workspace:*",
+      },
+      "devDependencies": {
+        "@usenarrator/testkit": "workspace:*",
+      },
+    },
     "plugins/decimal": {
       "name": "@usenarrator/plugin-decimal",
       "version": "0.0.0",
@@ -331,6 +342,8 @@
     "@usenarrator/plugin-ai-sdk": ["@usenarrator/plugin-ai-sdk@workspace:plugins/ai-sdk"],
 
     "@usenarrator/plugin-better-auth": ["@usenarrator/plugin-better-auth@workspace:plugins/better-auth"],
+
+    "@usenarrator/plugin-bullmq": ["@usenarrator/plugin-bullmq@workspace:plugins/bullmq"],
 
     "@usenarrator/plugin-decimal": ["@usenarrator/plugin-decimal@workspace:plugins/decimal"],
 
