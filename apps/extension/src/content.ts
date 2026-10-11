@@ -1,21 +1,16 @@
-import type { DiffReport, DiffRequest } from "./background";
-import css from "./inline.css" with { type: "text" };
+import { type Child, h, render } from "./dom";
+import inlineCss from "./inline.css" with { type: "text" };
+import { githubify, parseMarkup, splitDetails } from "./markup";
+import { type ContentMessage, type DiffReport, type DiffRequest, PORT_CONTENT } from "./protocol";
+import { getSettings, onSettingsChanged, saveSettings } from "./settings";
 
 type FileJson = DiffReport["files"][number];
 type UnitJson = FileJson["units"][number];
 type RowJson = UnitJson["rows"][number];
 type CellJson = NonNullable<RowJson["left"]>;
 
-const PREF_KEY = "plainEnglish.enabled";
-const isEnabled = () => localStorage.getItem(PREF_KEY) !== "0";
-const setEnabled = (on: boolean) => localStorage.setItem(PREF_KEY, on ? "1" : "0");
-
-const esc = (s: unknown) =>
-	String(s ?? "")
-		.replace(/&/g, "&amp;")
-		.replace(/</g, "&lt;")
-		.replace(/>/g, "&gt;")
-		.replace(/"/g, "&quot;");
+const LEGACY_PREF_KEY = "plainEnglish.enabled";
+let enabled = true;
 
 /* ---------- which page are we on ---------- */
 
@@ -36,23 +31,34 @@ const state = {
 	key: "",
 	report: null as DiffReport | null,
 	error: null as string | null,
+	progress: "",
 	loading: false,
 };
 
 function loadReport(req: DiffRequest) {
 	const key = JSON.stringify(req);
 	if (state.key === key && (state.report || state.loading || state.error)) return;
-	state.key = key;
-	state.report = null;
-	state.error = null;
-	state.loading = true;
-	const port = chrome.runtime.connect({ name: "plain-english" });
-	port.onMessage.addListener((msg: any) => {
-		if (state.key !== key || msg.type === "progress") return;
+	Object.assign(state, { key, report: null, error: null, progress: "", loading: true });
+	const port = chrome.runtime.connect({ name: PORT_CONTENT });
+	port.onMessage.addListener((msg: ContentMessage) => {
+		if (state.key !== key) return;
+		if (msg.type === "progress") {
+			state.progress = msg.text;
+			return renderFlash();
+		}
 		port.disconnect();
 		state.loading = false;
-		if (msg.ok) state.report = msg.report;
-		else state.error = msg.error;
+		if (msg.ok) {
+			state.report = msg.report;
+			const { api, raw } = msg.report.requests;
+			console.info(`[Narrator] ${api} GitHub API + ${raw} raw requests; plugins: ${msg.report.plugins.join(", ")}`);
+		} else state.error = msg.error;
+		apply();
+	});
+	port.onDisconnect.addListener(() => {
+		if (state.key !== key || !state.loading) return;
+		state.loading = false;
+		state.error = "the extension's background stopped. Reload the page to try again.";
 		apply();
 	});
 	port.postMessage(req);
@@ -60,51 +66,61 @@ function loadReport(req: DiffRequest) {
 
 /* ---------- rendering into GitHub's own diff markup ---------- */
 
-/** Our inline markup kinds mapped onto GitHub's syntax-highlight classes. */
-function githubify(html: string): string {
-	return html
-		.replace(/<mark class="chg">/g, '<span class="x x-first x-last">')
-		.replace(/<\/mark>/g, "</span>")
-		.replace(/<span class="f"/g, '<span class="pl-en"')
-		.replace(/<span class="t"/g, '<span class="pl-smi pe-type"')
-		.replace(/<span class="c"/g, '<span class="pl-c1"')
-		.replace(/<span class="l">("|&quot;)/g, '<span class="pl-s">$1')
-		.replace(/<span class="l"/g, '<span class="pl-c1"');
-}
+const cls = (...names: (string | false | null | undefined)[]) => names.filter(Boolean).join(" ");
 
-function lineHtml(c: CellJson): string {
-	let html = githubify(c.html);
+function lineNode(c: CellJson): HTMLElement {
+	let nodes = githubify(parseMarkup(c.html));
+	let details: Child = null;
 	if (c.kind === "head") {
-		const [title, details] = html.split('<wbr data-details="">');
-		if (details !== undefined) html = `${title}<span class="pe-sig">${details}</span>`;
+		const { before, after } = splitDetails(nodes);
+		if (after) {
+			nodes = before;
+			details = h("span", { class: "pe-sig" }, render(after));
+		}
 	}
-	return `<span class="pe-line pe-${c.kind}" style="--pe-d:${c.d}">${html}</span>`;
+	return h("span", { class: `pe-line pe-${c.kind}`, style: `--pe-d:${c.d}` }, render(nodes), details);
 }
 
 type Side = "addition" | "deletion" | "context";
 
 /** Cell builders for one of GitHub's two diff UIs: the classic server-rendered table or the React one. */
 type Flavor = {
-	num: (side: Side, n: number | null | undefined) => string;
-	code: (side: Side, c: CellJson | null, pos?: "left" | "right") => string;
-	blank: () => string;
-	hunk: (split: boolean, html: string, attrs?: string) => string;
-	fold: (split: boolean, html: string, attrs: string) => string;
+	row: (cells: Child[]) => HTMLTableRowElement;
+	num: (side: Side, n: number | null | undefined) => HTMLElement;
+	code: (side: Side, c: CellJson | null, pos?: "left" | "right") => HTMLElement;
+	blank: () => HTMLElement[];
+	hunk: (split: boolean, content: Child, rowClass?: string) => HTMLTableRowElement;
+	fold: (split: boolean, content: Child) => HTMLTableRowElement;
 };
 
 const marker = (side: Side) => (side === "addition" ? "+" : side === "deletion" ? "-" : " ");
 
 const classic: Flavor = {
-	num: (side, n) => (n ? `<td class="blob-num blob-num-${side}" data-line-number="${n}"></td>` : `<td class="blob-num blob-num-${side} empty-cell"></td>`),
+	row: (cells) => h("tr", {}, cells),
+	num: (side, n) => (n ? h("td", { class: `blob-num blob-num-${side}`, "data-line-number": n }) : h("td", { class: `blob-num blob-num-${side} empty-cell` })),
 	code: (side, c) =>
 		c
-			? `<td class="blob-code blob-code-${side}"><span class="blob-code-inner blob-code-marker" data-code-marker="${marker(side)}">${lineHtml(c)}</span></td>`
-			: `<td class="blob-code blob-code-${side} empty-cell"></td>`,
-	blank: () => `<td class="blob-num empty-cell"></td><td class="blob-code empty-cell"></td>`,
-	hunk: (split, html, attrs = "") =>
-		`<tr class="pe-hunk" ${attrs}><td class="blob-num blob-num-hunk" ${split ? "" : 'colspan="2"'}></td><td class="blob-code blob-code-inner blob-code-hunk" ${split ? 'colspan="3"' : ""}>${html}</td></tr>`,
-	fold: (split, html, attrs) =>
-		`<tr class="pe-fold" ${attrs}><td class="blob-num blob-num-expandable" ${split ? "" : 'colspan="2"'}><span class="pe-expander">⋯</span></td><td class="blob-code blob-code-inner blob-code-hunk" ${split ? 'colspan="3"' : ""}>${html}</td></tr>`,
+			? h(
+					"td",
+					{ class: `blob-code blob-code-${side}` },
+					h("span", { class: "blob-code-inner blob-code-marker", "data-code-marker": marker(side) }, lineNode(c)),
+				)
+			: h("td", { class: `blob-code blob-code-${side} empty-cell` }),
+	blank: () => [h("td", { class: "blob-num empty-cell" }), h("td", { class: "blob-code empty-cell" })],
+	hunk: (split, content, rowClass = "pe-hunk") =>
+		h(
+			"tr",
+			{ class: rowClass },
+			h("td", { class: "blob-num blob-num-hunk", colspan: !split && 2 }),
+			h("td", { class: "blob-code blob-code-inner blob-code-hunk", colspan: split && 3 }, content),
+		),
+	fold: (split, content) =>
+		h(
+			"tr",
+			{ class: "pe-fold" },
+			h("td", { class: "blob-num blob-num-expandable", colspan: !split && 2 }, h("span", { class: "pe-expander" }, "⋯")),
+			h("td", { class: "blob-code blob-code-inner blob-code-hunk", colspan: split && 3 }, content),
+		),
 };
 
 const reactBg: Record<Side, [string, string]> = {
@@ -118,21 +134,45 @@ const reactBg: Record<Side, [string, string]> = {
 	],
 	context: ["var(--bgColor-default)", "var(--bgColor-default)"],
 };
-const reactHunk = (split: boolean, html: string, attrs: string, cls: string) =>
-	`<tr class="diff-line-row ${cls}" ${attrs}><td colspan="${split ? 4 : 3}" class="diff-hunk-cell" style="background-color: var(--bgColor-accent-muted, var(--color-accent-subtle))"><code class="diff-text-cell hunk"><div class="diff-text-inner color-fg-muted">${html}</div></code></td></tr>`;
+
+const reactHunk = (split: boolean, content: Child, rowClass: string) =>
+	h(
+		"tr",
+		{ class: `diff-line-row ${rowClass}` },
+		h(
+			"td",
+			{ colspan: split ? 4 : 3, class: "diff-hunk-cell", style: "background-color: var(--bgColor-accent-muted, var(--color-accent-subtle))" },
+			h("code", { class: "diff-text-cell hunk" }, h("div", { class: "diff-text-inner color-fg-muted" }, content)),
+		),
+	);
 
 const react: Flavor = {
+	row: (cells) => h("tr", { class: "diff-line-row" }, cells),
 	num: (side, n) =>
-		`<td class="new-diff-line-number ${side === "context" ? "diff-line-number-neutral" : ""} ${n ? "" : "empty-diff-line"}" ${n ? `data-line-number="${n}"` : ""} style="background-color: ${reactBg[side][0]}">${n ?? ""}</td>`,
+		h(
+			"td",
+			{
+				class: cls("new-diff-line-number", side === "context" && "diff-line-number-neutral", !n && "empty-diff-line"),
+				"data-line-number": n || null,
+				style: `background-color: ${reactBg[side][0]}`,
+			},
+			n ? String(n) : "",
+		),
 	code: (side, c, pos) =>
-		`<td class="diff-text-cell v-align-top ${pos ? `${pos}-side-diff-cell` : ""}" style="background-color: ${reactBg[side][1]}; padding-right: 24px">${
-			c
-				? `<code class="diff-text syntax-highlighted-line ${side === "context" ? "" : side}">${side === "context" ? "" : `<span class="diff-text-marker">${marker(side)}</span>`}<div class="diff-text-inner">${lineHtml(c)}</div></code>`
-				: ""
-		}</td>`,
-	blank: () => `<td class="empty-diff-line left-side"></td><td class="empty-diff-line left-side"></td>`,
-	hunk: (split, html, attrs = "") => reactHunk(split, html, attrs, "pe-hunk"),
-	fold: (split, html, attrs) => reactHunk(split, `<span class="pe-expander-inline">⋯</span> ${html}`, attrs, "pe-fold"),
+		h(
+			"td",
+			{ class: cls("diff-text-cell v-align-top", pos && `${pos}-side-diff-cell`), style: `background-color: ${reactBg[side][1]}; padding-right: 24px` },
+			c &&
+				h(
+					"code",
+					{ class: cls("diff-text syntax-highlighted-line", side !== "context" && side) },
+					side !== "context" && h("span", { class: "diff-text-marker" }, marker(side)),
+					h("div", { class: "diff-text-inner" }, lineNode(c)),
+				),
+		),
+	blank: () => [h("td", { class: "empty-diff-line left-side" }), h("td", { class: "empty-diff-line left-side" })],
+	hunk: (split, content, rowClass = "pe-hunk") => reactHunk(split, content, rowClass),
+	fold: (split, content) => reactHunk(split, [h("span", { class: "pe-expander-inline" }, "⋯"), " ", content], "pe-fold"),
 };
 
 /** Continuation lines of one source statement share its line number; show it once. */
@@ -143,21 +183,20 @@ const once = (seen: Seen, side: "l" | "r", n: number | null | undefined) => {
 	return n;
 };
 
-function rowHtml(fl: Flavor, r: RowJson, split: boolean, seen: Seen = { l: null, r: null }): string {
-	if (r.kind === "fold") return "";
-	const tr = (cells: string) => `<tr${fl === react ? ' class="diff-line-row"' : ""}>${cells}</tr>`;
+function rowNodes(fl: Flavor, r: RowJson, split: boolean, seen: Seen = { l: null, r: null }): HTMLTableRowElement[] {
+	if (r.kind === "fold") return [];
 	if (split) {
 		const left: Side = r.kind === "del" || r.kind === "mod" ? "deletion" : "context";
 		const right: Side = r.kind === "add" || r.kind === "mod" ? "addition" : "context";
-		const l = r.left ? fl.num(left, once(seen, "l", r.left.from)) + fl.code(left, r.left, "left") : fl.blank();
-		const rt = r.right ? fl.num(right, once(seen, "r", r.right.from)) + fl.code(right, r.right, "right") : fl.blank();
-		return tr(l + rt);
+		const l = r.left ? [fl.num(left, once(seen, "l", r.left.from)), fl.code(left, r.left, "left")] : fl.blank();
+		const rt = r.right ? [fl.num(right, once(seen, "r", r.right.from)), fl.code(right, r.right, "right")] : fl.blank();
+		return [fl.row([l, rt])];
 	}
 	if (r.kind === "same")
-		return tr(fl.num("context", once(seen, "l", r.left?.from)) + fl.num("context", once(seen, "r", r.right?.from)) + fl.code("context", r.right));
-	let out = "";
-	if (r.left) out += tr(fl.num("deletion", once(seen, "l", r.left.from)) + fl.num("deletion", null) + fl.code("deletion", r.left));
-	if (r.right) out += tr(fl.num("addition", null) + fl.num("addition", once(seen, "r", r.right.from)) + fl.code("addition", r.right));
+		return [fl.row([fl.num("context", once(seen, "l", r.left?.from)), fl.num("context", once(seen, "r", r.right?.from)), fl.code("context", r.right)])];
+	const out: HTMLTableRowElement[] = [];
+	if (r.left) out.push(fl.row([fl.num("deletion", once(seen, "l", r.left.from)), fl.num("deletion", null), fl.code("deletion", r.left)]));
+	if (r.right) out.push(fl.row([fl.num("addition", null), fl.num("addition", once(seen, "r", r.right.from)), fl.code("addition", r.right)]));
 	return out;
 }
 
@@ -170,75 +209,78 @@ const statusWord: Record<string, string> = {
 	"moved-away": "moved away",
 };
 
-function unitTitle(u: UnitJson): string {
+const fileName = (path: string) => path.split("/").pop() ?? path;
+
+function unitTitle(u: UnitJson): Child[] {
 	let origin = "";
-	if (u.other && u.status === "renamed") origin = ` (was ${esc(u.other.title)})`;
-	else if (u.other && u.status === "moved")
-		origin = ` (from ${esc(u.other.path.split("/").pop())}${u.other.title !== u.title ? `, was ${esc(u.other.title)}` : ""})`;
-	return `<span class="pe-unit-title">${esc(u.title)}</span> <span class="pe-unit-status pe-${esc(u.status)}">${statusWord[u.status] ?? esc(u.status)}</span>${origin}`;
+	if (u.other && u.status === "renamed") origin = ` (was ${u.other.title})`;
+	else if (u.other && u.status === "moved") origin = ` (from ${fileName(u.other.path)}${u.other.title !== u.title ? `, was ${u.other.title}` : ""})`;
+	return [h("span", { class: "pe-unit-title" }, u.title), " ", h("span", { class: `pe-unit-status pe-${u.status}` }, statusWord[u.status] ?? u.status), origin];
+}
+
+/** Lists every unchanged unit; past a handful the rest sit behind an "and N more" toggle. */
+function unchangedNote(units: UnitJson[]): HTMLElement {
+	const names = units.map((u) => u.title);
+	const SHOWN = 5;
+	if (names.length <= SHOWN + 1) return h("span", { class: "pe-note" }, `${names.length} unchanged: ${names.join(", ")}`);
+	const rest = h("span", { class: "pe-more-names", hidden: "" }, `, ${names.slice(SHOWN).join(", ")}`);
+	const more = h("button", { type: "button", class: "btn-link pe-more", "aria-expanded": "false" }, `and ${names.length - SHOWN} more`);
+	const glue = document.createTextNode(", ");
+	more.addEventListener("click", (e) => {
+		e.preventDefault();
+		e.stopPropagation();
+		rest.hidden = false;
+		glue.remove();
+		more.remove();
+	});
+	return h("span", { class: "pe-note" }, `${names.length} unchanged: ${names.slice(0, SHOWN).join(", ")}`, rest, glue, more);
 }
 
 function buildTable(fl: Flavor, f: FileJson | null, split: boolean, original: HTMLTableElement): HTMLTableElement {
-	const table = document.createElement("table");
-	table.className = `${original.className} pe-table`;
-	table.dataset.tabSize = original.dataset.tabSize ?? "4";
-	const style = original.getAttribute("style");
-	if (style) table.setAttribute("style", style);
-	const colgroup = original.querySelector("colgroup")?.outerHTML ?? "";
-	let body = "";
+	const table = h("table", {
+		class: `${original.className} pe-table`,
+		"data-tab-size": original.dataset.tabSize ?? "4",
+		style: original.getAttribute("style"),
+	});
+	const colgroup = original.querySelector("colgroup")?.cloneNode(true) ?? null;
+	const body = h("tbody");
+	table.append(...(colgroup ? [colgroup] : []), body);
 	if (!f) {
-		body += fl.hunk(
-			split,
-			`<span class="pe-note">Plain English: the English for this file didn't change, so the code is shown below (the edit is in imports, types, formatting or string contents).</span>`,
+		body.append(
+			fl.hunk(
+				split,
+				h(
+					"span",
+					{ class: "pe-note" },
+					"Plain English: the English for this file didn't change, so the code is shown below (the edit is in imports, types, formatting or string contents).",
+				),
+			),
 		);
-		table.innerHTML = `${colgroup}<tbody>${body}</tbody>`;
 		return table;
 	}
 	const changed = f.units.filter((u) => u.status !== "unchanged");
 	const unchanged = f.units.filter((u) => u.status === "unchanged");
-	if (!changed.length && f.status === "renamed") body += fl.hunk(split, `<span class="pe-note">Renamed with no logic changes.</span>`);
-	changed.forEach((u, ui) => {
+	if (!changed.length && f.status === "renamed") body.append(fl.hunk(split, h("span", { class: "pe-note" }, "Renamed with no logic changes.")));
+	for (const u of changed) {
 		if (u.status === "moved-away") {
-			body += fl.hunk(
-				split,
-				`${unitTitle(u)} to <b>${esc(u.other!.path.split("/").pop())}</b>${u.other!.title !== u.title ? ` as <b>${esc(u.other!.title)}</b>` : ""}`,
-			);
-			return;
+			const other = u.other!;
+			body.append(fl.hunk(split, [unitTitle(u), " to ", h("b", {}, fileName(other.path)), other.title !== u.title && [" as ", h("b", {}, other.title)]]));
+			continue;
 		}
-		body += fl.hunk(split, unitTitle(u));
+		body.append(fl.hunk(split, unitTitle(u)));
 		const seen: Seen = { l: null, r: null };
-		u.rows.forEach((r, ri) => {
-			if (r.kind === "fold") body += fl.fold(split, `${r.count} unchanged line${r.count === 1 ? "" : "s"}`, `data-unit="${ui}" data-row="${ri}"`);
-			else body += rowHtml(fl, r, split, seen);
-		});
-	});
-	if (unchanged.length) {
-		const names = unchanged
-			.slice(0, 5)
-			.map((u) => esc(u.title))
-			.join(", ");
-		body += fl.hunk(
-			split,
-			`<span class="pe-note">${unchanged.length} unchanged: ${names}${unchanged.length > 5 ? `, and ${unchanged.length - 5} more` : ""}</span>`,
-		);
+		for (const r of u.rows) {
+			if (r.kind !== "fold") {
+				body.append(...rowNodes(fl, r, split, seen));
+				continue;
+			}
+			const count = r.count ?? r.hidden?.length ?? 0;
+			const fold = fl.fold(split, `${count} unchanged line${count === 1 ? "" : "s"}`);
+			fold.addEventListener("click", () => fold.replaceWith(...(r.hidden ?? []).flatMap((hidden) => rowNodes(fl, hidden, split))));
+			body.append(fold);
+		}
 	}
-	table.innerHTML = `${colgroup}<tbody>${body}</tbody>`;
-	table.addEventListener("click", (e) => {
-		const t = e.target as HTMLElement;
-		const fold = t.closest<HTMLElement>("tr.pe-fold");
-		if (fold) {
-			const r = changed[Number(fold.dataset.unit)]!.rows[Number(fold.dataset.row)]!;
-			fold.outerHTML = (r.hidden ?? []).map((h) => rowHtml(fl, h, split)).join("");
-			return;
-		}
-		if (t.closest(".pe-show-code")) {
-			e.preventDefault();
-			original.classList.remove("pe-hidden");
-			original.removeAttribute("data-pe-hidden");
-			table.remove();
-			original.dataset.peKeep = "1";
-		}
-	});
+	if (unchanged.length) body.append(fl.hunk(split, unchangedNote(unchanged)));
 	return table;
 }
 
@@ -282,13 +324,13 @@ function restoreAll() {
 
 function apply() {
 	const req = requestForPage();
-	if (!req || !isEnabled()) return restoreAll();
+	if (!req || !enabled) return restoreAll();
 	loadReport(req);
 	renderFlash();
 	if (!state.report) return;
 	const byPath = new Map(state.report.files.map((f) => [f.path, f]));
 	for (const { container, path, original, split, flavor } of targets()) {
-		if (!narratable(path) || original.dataset.peKeep) continue;
+		if (!narratable(path)) continue;
 		const report = byPath.get(path) ?? null;
 		const signature = `${state.key}|${split}`;
 		const existing = container.querySelector<HTMLTableElement>("table.pe-table");
@@ -309,18 +351,27 @@ function apply() {
 function renderFlash() {
 	const files = document.querySelector("#files, .js-diff-progressive-container, #diff-content-parent");
 	let flash = document.querySelector<HTMLElement>(".pe-flash");
-	const msg = state.error ? `Plain English couldn't read this change: ${esc(state.error)}` : state.loading ? "Plain English is reading this change…" : "";
+	const msg = state.error
+		? `Plain English couldn't read this change: ${state.error}`
+		: state.loading
+			? `Plain English is reading this change…${state.progress ? ` ${state.progress}` : ""}`
+			: "";
 	if (!msg) return flash?.remove();
 	if (!flash) {
-		flash = document.createElement("div");
-		flash.className = `flash pe-flash mb-3 ${state.error ? "flash-warn" : ""}`;
+		flash = h("div");
 		(files?.parentElement ?? document.body).insertBefore(flash, files ?? null);
 	}
-	flash.className = `flash pe-flash mb-3 ${state.error ? "flash-warn" : ""}`;
-	flash.innerHTML = msg;
+	flash.className = cls("flash pe-flash mb-3", state.error && "flash-warn");
+	flash.textContent = msg;
 }
 
 /* ---------- the toggle in GitHub's diff settings menu ---------- */
+
+function setEnabled(on: boolean) {
+	enabled = on;
+	void saveSettings({ enabled: on });
+	apply();
+}
 
 function injectToggle() {
 	// Classic diff settings popover: add a row under "Hide whitespace".
@@ -334,13 +385,10 @@ function injectToggle() {
 		const label = mine.querySelector("label")!;
 		box.id = `pe-toggle-${Math.random().toString(36).slice(2)}`;
 		box.removeAttribute("name");
-		box.checked = isEnabled();
+		box.checked = enabled;
 		label.htmlFor = box.id;
 		label.textContent = "Plain English";
-		box.addEventListener("change", () => {
-			setEnabled(box.checked);
-			apply();
-		});
+		box.addEventListener("change", () => setEnabled(box.checked));
 		row.after(mine);
 	}
 	// New React diff settings menu: clone the "Minimize comments" item.
@@ -353,16 +401,14 @@ function injectToggle() {
 		const textNode = [...mine.querySelectorAll("*")].find((el) => el.children.length === 0 && /Minimize comments/i.test(el.textContent ?? ""));
 		if (textNode) textNode.textContent = "Plain English";
 		for (const kbd of mine.querySelectorAll("kbd, [class*='TrailingVisual']")) kbd.remove();
-		const sync = () => mine.setAttribute("aria-checked", String(isEnabled()));
-		sync();
+		mine.setAttribute("aria-checked", String(enabled));
 		mine.addEventListener(
 			"click",
 			(e) => {
 				e.preventDefault();
 				e.stopPropagation();
-				setEnabled(!isEnabled());
-				sync();
-				apply();
+				setEnabled(!enabled);
+				mine.setAttribute("aria-checked", String(enabled));
 			},
 			true,
 		);
@@ -372,9 +418,7 @@ function injectToggle() {
 
 /* ---------- wiring ---------- */
 
-const style = document.createElement("style");
-style.textContent = css;
-document.documentElement.append(style);
+document.documentElement.append(h("style", {}, inlineCss));
 
 let scheduled = false;
 const schedule = () => {
@@ -387,20 +431,40 @@ const schedule = () => {
 	});
 };
 
-new MutationObserver((muts) => {
-	if (
-		muts.every((m) => [...m.addedNodes, ...m.removedNodes].every((n) => n instanceof Element && (n.classList.contains("pe-table") || n.closest?.(".pe-table"))))
-	)
-		return;
-	schedule();
-}).observe(document.documentElement, { childList: true, subtree: true });
+const ours = (n: Node) => n instanceof Element && (n.classList.contains("pe-table") || n.classList.contains("pe-flash") || !!n.closest?.(".pe-table"));
 
-let lastPath = location.pathname;
-setInterval(() => {
-	if (location.pathname !== lastPath) {
-		lastPath = location.pathname;
-		schedule();
+async function start() {
+	const settings = await getSettings();
+	enabled = settings.enabled;
+	// Before chrome.storage, the toggle lived in github.com's localStorage.
+	if (localStorage.getItem(LEGACY_PREF_KEY) !== null) {
+		if (localStorage.getItem(LEGACY_PREF_KEY) === "0" && enabled) setEnabled(false);
+		localStorage.removeItem(LEGACY_PREF_KEY);
 	}
-}, 500);
-document.addEventListener("turbo:load", schedule);
-schedule();
+	onSettingsChanged((patch) => {
+		if (patch.enabled !== undefined && patch.enabled !== enabled) {
+			enabled = patch.enabled;
+			for (const item of document.querySelectorAll(".pe-toggle-item")) item.setAttribute("aria-checked", String(enabled));
+			for (const box of document.querySelectorAll<HTMLInputElement>(".pe-toggle-row input[type=checkbox]")) box.checked = enabled;
+		}
+		if (patch.githubToken !== undefined && state.error) state.key = "";
+		schedule();
+	});
+
+	new MutationObserver((muts) => {
+		if (muts.every((m) => [...m.addedNodes, ...m.removedNodes].every(ours))) return;
+		schedule();
+	}).observe(document.documentElement, { childList: true, subtree: true });
+
+	let lastPath = location.pathname;
+	setInterval(() => {
+		if (location.pathname !== lastPath) {
+			lastPath = location.pathname;
+			schedule();
+		}
+	}, 500);
+	document.addEventListener("turbo:load", schedule);
+	schedule();
+}
+
+void start();
