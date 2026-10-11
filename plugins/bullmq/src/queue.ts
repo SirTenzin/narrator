@@ -136,11 +136,15 @@ export function jobOptionItems(c: Ctx, n: N | null): string[] {
 	});
 }
 
-/** Short option lists read inline; longer ones become bullets beneath. */
-export function withOptions(c: Ctx, title: string, items: string[], kids: Line[] = []): Doc {
-	const inline = items.length <= 2 && plain(items.join(", ")).length < 90;
-	if (inline && items.length) return D(`${title}, ${details(c, items)}`, kids);
-	return D(title, [...kids, ...items.flatMap((i) => c.e.bullet(D(i)))]);
+/** Short option lists read inline; longer ones (or data with lines of its own) become bullets beneath. */
+function withOptions(c: Ctx, make: (data: string | null) => string, data: { t: string | null; kids: Line[] }, items: string[]): Doc {
+	if (data.kids.length) return D(make(null), [...c.e.bullet(D(data.t ?? "", data.kids)), ...items.flatMap((i) => c.e.bullet(D(i)))]);
+	const title = make(data.t);
+	if (items.length && items.length <= 2 && plain(items.join(", ")).length < 90) return D(`${title}, ${details(c, items)}`);
+	return D(
+		title,
+		items.flatMap((i) => c.e.bullet(D(i))),
+	);
 }
 
 /** Job data; a small object literal reads as its fields ("the data user ID and email: x"). */
@@ -160,8 +164,8 @@ export function dataText(c: Ctx, n: N | undefined | null): { t: string | null; k
 const add: Rule = (c, { obj, args }) => {
 	if (!isQueue(c, obj) || args.length < 2 || isFlow(c, obj)) return null;
 	const data = dataText(c, args[1]);
-	const title = c.say.queue.add({ job: jobRef(c, args[0]), queue: c.e.text(obj), data: data.t });
-	return withOptions(c, title, jobOptionItems(c, args[2] ?? null), data.kids);
+	const make = (d: string | null) => c.say.queue.add({ job: jobRef(c, args[0]), queue: c.e.text(obj), data: d });
+	return withOptions(c, make, data, jobOptionItems(c, args[2] ?? null));
 };
 
 /** One `{ name, data, opts }` entry of `addBulk`. */
@@ -191,14 +195,9 @@ const upsertScheduler: Rule = (c, { obj, args }) => {
 	const name = template && propOf(template, "name");
 	const data = dataText(c, template && propOf(template, "data"));
 	const items = jobOptionItems(c, template && propOf(template, "opts"));
-	const title = say.schedule.upsert({
-		job: jobRef(c, name ?? args[0]),
-		queue: e.text(obj),
-		schedule: scheduleText(c, args[1]),
-		id: e.text(args[0]),
-		data: data.t,
-	});
-	return withOptions(c, title, items, data.kids);
+	const make = (d: string | null) =>
+		say.schedule.upsert({ job: jobRef(c, name ?? args[0]), queue: e.text(obj), schedule: scheduleText(c, args[1]), id: e.text(args[0]), data: d });
+	return withOptions(c, make, data, items);
 };
 
 const STATE_NAMES = new Set(["completed", "failed", "delayed", "active", "wait", "waiting", "paused", "prioritized", "waiting-children", "repeat"]);

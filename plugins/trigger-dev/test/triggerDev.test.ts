@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { narrate, narrateWithStats } from "@usenarrator/testkit";
-import { triggerDev } from "../src";
+import { en as english } from "@usenarrator/locale-en";
+import { narrate, narrateWithStats, phrasebookGaps } from "@usenarrator/testkit";
+import { en, type TriggerPhrases, triggerDev } from "../src";
 
 const plugins = [triggerDev()];
 
@@ -215,5 +216,28 @@ describe("stays out of the way", () => {
 	test("a file using the SDK still leaves non-SDK owners alone", () => {
 		const code = `${V3}const runs = await db.select().from(runsTable);\nconst latest = runs.find((r) => r.live);\ncache.set("k", 1);\nemitter.trigger("x");`;
 		expect(narrate(code, { plugins })).toBe(narrate(code));
+	});
+});
+
+describe("v4 task queues and the phrasebook", () => {
+	test("an unnamed v4 queue on a task reads as its limit", () => {
+		expect(read(`${SDK}export const t = task({ id: "t", queue: { concurrencyLimit: 10 }, run: go });`)).toBe(
+			['Define the Trigger.dev task "t" as t (at most 10 runs at a time):', "  • run go"].join("\n"),
+		);
+	});
+
+	test("rules take every word from the phrasebook", () => {
+		const es: TriggerPhrases = {
+			...en,
+			wait: { ...en.wait, for: ({ duration }) => `esperar ${duration}` },
+			time: { ...en.time, amount: ({ n }) => `${n} minutos` },
+		};
+		const text = narrate(`${SDK}await wait.for({ minutes: 5 });`, { plugins, locale: { ...english, plugins: { "trigger-dev": es } } });
+		expect(text).toBe("Esperar 5 minutos.");
+	});
+
+	test("a complete translation has no gaps, and the plugin declares the versions it reads", () => {
+		expect(phrasebookGaps(en, { ...en })).toEqual({ missing: [], extra: [] });
+		expect(triggerDev().library).toEqual({ name: "@trigger.dev/sdk", versions: ">=3 <5" });
 	});
 });

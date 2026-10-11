@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { narrate, narrateWithStats } from "@usenarrator/testkit";
-import { temporal } from "../src";
+import { en as english } from "@usenarrator/locale-en";
+import { narrate, narrateWithStats, phrasebookGaps } from "@usenarrator/testkit";
+import { en, type TemporalPhrases, temporal } from "../src";
 
 const plugins = [temporal()];
 
@@ -208,5 +209,22 @@ describe("stays out of the way", () => {
 	test("a Temporal file still leaves foreign calls alone", () => {
 		const code = `import { sleep } from "@temporalio/workflow";\nimport { setTimeout } from "node:timers/promises";\nawait setTimeout(100);\nabort.signal(reason);\nawait queue.create({ name: "x" });`;
 		expect(narrate(code, { plugins })).toBe(narrate(code));
+	});
+});
+
+describe("phrasebook", () => {
+	test("rules take every word from the phrasebook", () => {
+		const nl: TemporalPhrases = {
+			...en,
+			workflow: { ...en.workflow, sleep: ({ duration }) => `wacht ${duration}` },
+			time: { ...en.time, amount: ({ n }) => `${n} dagen` },
+		};
+		const text = narrate(`${WF}export async function f() {\n\tawait sleep("30 days");\n}`, { plugins, locale: { ...english, plugins: { temporal: nl } } });
+		expect(text).toContain("Wacht 30 dagen.");
+	});
+
+	test("a complete translation has no gaps, and the plugin declares the versions it reads", () => {
+		expect(phrasebookGaps(en, { ...en })).toEqual({ missing: [], extra: [] });
+		expect(temporal().library).toEqual({ name: "@temporalio/workflow", versions: ">=1 <2" });
 	});
 });

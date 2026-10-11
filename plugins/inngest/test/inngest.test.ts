@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { narrate, narrateWithStats } from "@usenarrator/testkit";
-import { inngest } from "../src";
+import { en as english } from "@usenarrator/locale-en";
+import { narrate, narrateWithStats, phrasebookGaps } from "@usenarrator/testkit";
+import { en, type InngestPhrases, inngest } from "../src";
 
 const plugins = [inngest()];
 
@@ -209,5 +210,36 @@ describe("stays out of the way", () => {
 	test("res.send and other serve functions are left alone", () => {
 		const code = `${V3}import { serve } from "@hono/node-server";\nres.send({ name: "a", data: 1 });\nserve({ fetch: app.fetch });`;
 		expect(narrate(code, { plugins })).toBe(narrate(code));
+	});
+});
+
+describe("step IDs and computed durations", () => {
+	test("{ id, name } step options read as the ID; computed timeouts are shown as written", () => {
+		const text = read(`${V3}export const f = inngest.createFunction({ id: "f" }, { event: "a/b" }, async ({ step }) => {
+	await step.run({ id: "fetch-user", name: "Fetch user" }, () => fetchUser());
+	await step.waitForEvent("wait", { event: "app/approved", timeout: options.timeout ?? "1h" });
+});`);
+		expect(text).toContain('Step "fetch-user": fetch user.');
+		expect(text).toContain('Wait for app/approved, up to options\' timeout, or "1h" if that\'s missing (step "wait").');
+	});
+});
+
+describe("phrasebook", () => {
+	test("rules take every word from the phrasebook", () => {
+		const de: InngestPhrases = {
+			...en,
+			steps: { ...en.steps, sleep: ({ duration, id }) => `warte ${duration} (Schritt ${id})` },
+			time: { ...en.time, amount: ({ n }) => `${n} Tag` },
+		};
+		const text = narrate(`${V3}inngest.createFunction({ id: "f" }, { event: "a/b" }, async ({ step }) => { await step.sleep("s", "1d"); });`, {
+			plugins,
+			locale: { ...english, plugins: { inngest: de } },
+		});
+		expect(text).toContain('Warte 1 Tag (Schritt "s").');
+	});
+
+	test("a complete translation has no gaps, and the plugin declares the versions it reads", () => {
+		expect(phrasebookGaps(en, { ...en })).toEqual({ missing: [], extra: [] });
+		expect(inngest().library).toEqual({ name: "inngest", versions: ">=3 <5" });
 	});
 });

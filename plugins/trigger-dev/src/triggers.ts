@@ -7,10 +7,15 @@ import { cronString, cronText } from "./time";
 
 const time = (c: Ctx) => ({ e: c.e, time: c.say.time });
 
-/** Short option lists read inline; longer ones become bullets beneath. */
-function withOptions(c: Ctx, title: string, items: string[], kids: Line[] = [], inline = true): Doc {
-	if (inline && items.length && items.length <= 2 && plain(items.join(", ")).length < 90) return D(`${title} (${details(c, items)})`, kids);
-	return D(title, [...kids, ...items.flatMap((i) => c.e.bullet(D(i)))]);
+/** Short option lists read inline; longer ones (or a payload with lines of its own) become bullets beneath. */
+function withOptions(c: Ctx, make: (payload: string | null) => string, payload: { t: string | null; kids: Line[] }, items: string[], inline = true): Doc {
+	if (payload.kids.length) return D(make(null), [...c.e.bullet(D(payload.t ?? "", payload.kids)), ...items.flatMap((i) => c.e.bullet(D(i)))]);
+	const title = make(payload.t);
+	if (inline && items.length && items.length <= 2 && plain(items.join(", ")).length < 90) return D(`${title} (${details(c, items)})`);
+	return D(
+		title,
+		items.flatMap((i) => c.e.bullet(D(i))),
+	);
 }
 
 /** A payload; a small object literal reads as its fields. */
@@ -100,13 +105,13 @@ const trigger =
 		const p = payloadText(c, t.rest[0]);
 		const items = triggerItems(c, t.rest[1] ?? null);
 		const say = c.say.trigger;
-		const title =
+		const make = (payload: string | null) =>
 			mode === "start"
-				? say.start({ task: t.task, payload: p.t })
+				? say.start({ task: t.task, payload })
 				: mode === "poll"
-					? say.startAndPoll({ task: t.task, payload: p.t })
-					: say.startAndWait({ task: t.task, payload: p.t, unwrap: false });
-		return withOptions(c, title, items, p.kids);
+					? say.startAndPoll({ task: t.task, payload })
+					: say.startAndWait({ task: t.task, payload, unwrap: false });
+		return withOptions(c, make, p, items);
 	};
 
 /** One batch item: `{ payload, options }`, `{ id, payload }` (batch.trigger) or `{ task, payload }` (triggerByTask). */
@@ -151,7 +156,7 @@ const unwrapRule: Rule = (c, { obj, args }) => {
 	const t = target(c, callee.object, inner.arguments);
 	if (!t) return null;
 	const p = payloadText(c, t.rest[0]);
-	return withOptions(c, c.say.trigger.startAndWait({ task: t.task, payload: p.t, unwrap: true }), triggerItems(c, t.rest[1] ?? null), p.kids, false);
+	return withOptions(c, (payload) => c.say.trigger.startAndWait({ task: t.task, payload, unwrap: true }), p, triggerItems(c, t.rest[1] ?? null), false);
 };
 
 // ---------- wait, metadata, idempotency keys, runs, schedules, retry ----------

@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { narrate, narrateWithStats } from "@usenarrator/testkit";
-import { bullmq } from "../src";
+import { en as english } from "@usenarrator/locale-en";
+import { narrate, narrateWithStats, phrasebookGaps } from "@usenarrator/testkit";
+import { type BullmqPhrases, bullmq, en } from "../src";
 
 const plugins = [bullmq()];
 
@@ -251,5 +252,25 @@ describe("stays out of the way", () => {
 	test("Queue and Worker from other libraries are left alone", () => {
 		const code = `import { Queue } from "./myQueue";\nimport { Worker } from "node:worker_threads";\nconst q = new Queue("x");\nconst w = new Worker("./w.js");`;
 		expect(narrate(code, { plugins })).toBe(narrate(code));
+	});
+});
+
+describe("phrasebook", () => {
+	test("rules take every word from the phrasebook, schedules included", () => {
+		const fr: BullmqPhrases = {
+			...en,
+			time: { ...en.time, cron: { ...en.time.cron, at: ({ times }) => `chaque jour à ${times}` } },
+			schedule: { ...en.schedule, upsert: ({ job, schedule }) => `planifier ${job} ${schedule}` },
+		};
+		const text = narrate(`${BULL}await queue.upsertJobScheduler("digest", { pattern: "0 9 * * *" });`, {
+			plugins,
+			locale: { ...english, plugins: { bullmq: fr } },
+		});
+		expect(text).toBe('Planifier a "digest" job chaque jour à 09:00 (cron 0 9 * * *).');
+	});
+
+	test("a complete translation has no gaps, and the plugin declares the versions it reads", () => {
+		expect(phrasebookGaps(en, { ...en })).toEqual({ missing: [], extra: [] });
+		expect(bullmq().library).toEqual({ name: "bullmq", versions: ">=5 <7" });
 	});
 });
