@@ -15,6 +15,7 @@ export const autumn = (): TsPlugin[] => [
 		name: "autumn",
 		phrases: { en },
 		vocabulary: {
+			acronyms: ["mrr"],
 			verbs: [
 				"arbitrate",
 				"route",

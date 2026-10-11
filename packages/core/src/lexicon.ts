@@ -39,18 +39,12 @@ const DEFAULT_ACRONYMS = new Set([
 	"ttl",
 	"utc",
 	"iso",
-	"mrr",
-	"arr",
 ]);
 
 const ACRONYM_DISPLAY: Record<string, string> = { ids: "IDs", urls: "URLs", oauth: "OAuth", db: "DB", graphql: "GraphQL" };
 
 const DEFAULT_GLOSSARY: Record<string, string> = {
-	cus: "customer",
 	github: "GitHub",
-	cust: "customer",
-	ent: "entitlement",
-	ents: "entitlements",
 	ctx: "context",
 	prev: "previous",
 	curr: "current",
@@ -72,11 +66,8 @@ const DEFAULT_GLOSSARY: Record<string, string> = {
 	qty: "quantity",
 	amt: "amount",
 	cfg: "config",
-	cli: "client",
 	attrs: "attributes",
 	desc: "description",
-	sub: "subscription",
-	subs: "subscriptions",
 	val: "value",
 	del: "delete",
 	vals: "values",

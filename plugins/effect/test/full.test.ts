@@ -165,7 +165,7 @@ const p = Effect.gen(function* () {
   const next = yield* q
   const hub = yield* PubSub.unbounded<string>()
   yield* PubSub.publish(hub, "hello")
-  const sub = yield* PubSub.subscribe(hub)
+  const subscription = yield* PubSub.subscribe(hub)
   const done = yield* Deferred.make<string>()
   yield* Deferred.succeed(done, "ok")
   const v = yield* Deferred.await(done)

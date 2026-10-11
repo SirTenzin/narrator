@@ -3,6 +3,8 @@ import type { AutumnPhrases } from "./phrases";
 export const en: AutumnPhrases = {
 	glossary: {
 		cus: "customer",
+		cust: "customer",
+		cli: "client",
 		cp: "customer product",
 		cps: "customer products",
 		atmn: "Autumn",
