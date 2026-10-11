@@ -36,7 +36,7 @@ jobs:
           title: Version packages
           commit: Version packages
           version: bun run version
-          publish: bun tools/build/publish.ts --npm
+          publish: bun run publish:all
           createGithubReleases: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
