@@ -13,38 +13,58 @@ Everything runs inside the extension. It fetches the old and new versions of eac
 
 ## Install it
 
-The extension is on its way to the Chrome Web Store, Firefox Add-ons, Edge Add-ons and the Mac App Store. Until it is listed in your browser's store, build it from the repository and load it yourself. It works in Chromium browsers (Chrome, Arc, Edge and Brave), in Firefox 140 or newer, and in Safari on macOS.
+Narrator for GitHub is on its way to the Chrome Web Store, Firefox Add-ons, Edge Add-ons and the Mac App Store. Until it's listed in your browser's store, download it from the [latest GitHub release](https://github.com/SirTenzin/narrator/releases/latest) and add it yourself. It takes about a minute.
 
-<Steps>
-  <Step title="Build it">
-    From the repository root:
+<Tabs>
+  <Tab title="Chrome, Arc, Edge, Brave">
+    <Steps>
+      <Step title="Download it">
+        Download [narrator-for-github-chromium.zip](https://github.com/SirTenzin/narrator/releases/latest/download/narrator-for-github-chromium.zip) and unzip it. Keep the folder somewhere it won't be deleted, because the browser loads the extension from it every time it starts.
+      </Step>
+      <Step title="Open the extensions page">
+        Go to `chrome://extensions`. In Arc it's `arc://extensions`, in Edge `edge://extensions`, and in Brave `brave://extensions`.
+      </Step>
+      <Step title="Load it">
+        Turn on **Developer mode** in the top right corner, click **Load unpacked**, and choose the folder you unzipped.
+      </Step>
+    </Steps>
+    To update later, download the new zip, replace the folder's contents, and click the reload icon on the extension's card.
+  </Tab>
+  <Tab title="Firefox">
+    <Steps>
+      <Step title="Download it">
+        Download [narrator-for-github-firefox.zip](https://github.com/SirTenzin/narrator/releases/latest/download/narrator-for-github-firefox.zip). There's no need to unzip it.
+      </Step>
+      <Step title="Load it">
+        Go to `about:debugging#/runtime/this-firefox`, click **Load Temporary Add-on**, and choose the zip you downloaded.
+      </Step>
+    </Steps>
+    Firefox removes add-ons loaded this way when it quits, so you'll need to load it again after a restart. That goes away once the extension is on Firefox Add-ons. Firefox 140 or newer is required.
+  </Tab>
+  <Tab title="Safari">
+    <Steps>
+      <Step title="Download it">
+        Download [narrator-for-github-safari.zip](https://github.com/SirTenzin/narrator/releases/latest/download/narrator-for-github-safari.zip), unzip it, and move **Narrator.app** into your Applications folder.
+      </Step>
+      <Step title="Allow unsigned extensions">
+        In Safari, open **Settings**, then **Advanced**, and turn on **Show features for web developers**. Then open the **Developer** tab that appears in Settings and turn on **Allow unsigned extensions**.
+      </Step>
+      <Step title="Open the app once">
+        Right-click **Narrator.app** and choose **Open**. macOS asks for confirmation because the app isn't signed yet.
+      </Step>
+      <Step title="Turn it on">
+        In Safari's **Settings**, open **Extensions** and tick **Narrator**.
+      </Step>
+    </Steps>
+    Safari turns **Allow unsigned extensions** off again when it quits, so you'll need to switch it back on after a restart until the extension is on the App Store.
+  </Tab>
+</Tabs>
 
-    ```bash
-    bun install
-    bun apps/extension/build.ts
-    ```
+Then open any pull request's **Files changed** tab, or any commit page, on github.com. TypeScript and JavaScript files are shown in English, and other files are left alone.
 
-    This writes three builds. `apps/extension/dist` loads in Chromium browsers and Firefox and is the one to use while developing. `apps/extension/chrome/dist` and `apps/extension/firefox/dist` are the store packages: the Chrome one runs its background code as a service worker, and the Firefox one as an event page without the Chrome-only offscreen document.
-  </Step>
-  <Step title="Load it">
-    <Tabs>
-      <Tab title="Chrome, Arc, Edge, Brave">
-        Open `chrome://extensions` (`arc://extensions`, `edge://extensions` or `brave://extensions`), turn on **Developer mode**, click **Load unpacked**, and choose the `apps/extension/dist` folder.
-      </Tab>
-      <Tab title="Firefox">
-        Open `about:debugging#/runtime/this-firefox`, click **Load Temporary Add-on**, and choose `apps/extension/firefox/dist/manifest.json`. Firefox removes temporary add-ons when it quits. To start a fresh Firefox with the extension already loaded, install Mozilla's `web-ext` tool (`npm install -g web-ext`) and run `bun run firefox` from `apps/extension`. `bun run lint:firefox` checks the store package with `web-ext lint`.
-      </Tab>
-      <Tab title="Safari">
-        On a Mac with Xcode installed, run `bun run safari` from `apps/extension`. It converts the build into a Safari app at `apps/extension/safari-build/Narrator.app`. The build is unsigned, so turn on **Allow unsigned extensions** in Safari's Develop menu, open the app once, and then enable the extension in Safari's settings.
-      </Tab>
-    </Tabs>
-  </Step>
-  <Step title="Open a diff">
-    Visit any pull request's **Files changed** tab or any commit page on github.com. TypeScript and JavaScript files are shown in English. Other files are left alone.
-  </Step>
-</Steps>
-
-After you rebuild in a Chromium browser, press the reload icon on the extension's card in `chrome://extensions` to pick up the new build.
+<Accordion title="Build it from source instead">
+  From the repository root, run `bun install` and then `bun apps/extension/build.ts`. Load `apps/extension/chrome/dist` in a Chromium browser, or `apps/extension/firefox/dist/manifest.json` as a temporary add-on in Firefox. On a Mac with Xcode, `bun run safari` in `apps/extension` builds the Safari app into `apps/extension/safari-build`.
+</Accordion>
 
 ## Turn it on and off
 

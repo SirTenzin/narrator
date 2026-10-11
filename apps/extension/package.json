@@ -49,6 +49,7 @@
 		"store:screenshots": "bun store/screenshots.ts",
 		"store:tiles": "bun store/tiles.ts",
 		"store:images": "bun store/marketing.ts",
-		"store:raw": "bun store/screenshots.ts --raw"
+		"store:raw": "bun store/screenshots.ts --raw",
+		"release": "bun store/release.ts"
 	}
 }
