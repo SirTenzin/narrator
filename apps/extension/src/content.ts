@@ -252,7 +252,7 @@ function buildTable(fl: Flavor, f: FileJson | null, split: boolean, original: HT
 				h(
 					"span",
 					{ class: "pe-note" },
-					"Plain English: the English for this file didn't change, so the code is shown below (the edit is in imports, types, formatting or string contents).",
+					"Narrator: the English for this file didn't change, so the code is shown below (the edit is in imports, types, formatting or string contents).",
 				),
 			),
 		);
@@ -352,9 +352,9 @@ function renderFlash() {
 	const files = document.querySelector("#files, .js-diff-progressive-container, #diff-content-parent");
 	let flash = document.querySelector<HTMLElement>(".pe-flash");
 	const msg = state.error
-		? `Plain English couldn't read this change: ${state.error}`
+		? `Narrator couldn't read this change: ${state.error}`
 		: state.loading
-			? `Plain English is reading this change…${state.progress ? ` ${state.progress}` : ""}`
+			? `Narrator is reading this change…${state.progress ? ` ${state.progress}` : ""}`
 			: "";
 	if (!msg) return flash?.remove();
 	if (!flash) {
@@ -387,7 +387,7 @@ function injectToggle() {
 		box.removeAttribute("name");
 		box.checked = enabled;
 		label.htmlFor = box.id;
-		label.textContent = "Plain English";
+		label.textContent = "Narrator (English)";
 		box.addEventListener("change", () => setEnabled(box.checked));
 		row.after(mine);
 	}
@@ -399,7 +399,7 @@ function injectToggle() {
 		mine.removeAttribute("id");
 		for (const el of mine.querySelectorAll("[id]")) el.removeAttribute("id");
 		const textNode = [...mine.querySelectorAll("*")].find((el) => el.children.length === 0 && /Minimize comments/i.test(el.textContent ?? ""));
-		if (textNode) textNode.textContent = "Plain English";
+		if (textNode) textNode.textContent = "Narrator (English)";
 		for (const kbd of mine.querySelectorAll("kbd, [class*='TrailingVisual']")) kbd.remove();
 		mine.setAttribute("aria-checked", String(enabled));
 		mine.addEventListener(

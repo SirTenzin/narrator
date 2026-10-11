@@ -25,5 +25,5 @@ export type NarrateResult = { files: FileJson[]; plugins: string[] };
 /** Background <-> engine host (offscreen document / worker) messages. */
 export type EngineMessage = { type: "progress"; text: string } | { type: "done"; ok: true; result: NarrateResult } | { type: "done"; ok: false; error: string };
 
-export const PORT_CONTENT = "plain-english";
-export const PORT_ENGINE = "plain-english-engine";
+export const PORT_CONTENT = "narrator";
+export const PORT_ENGINE = "narrator-engine";

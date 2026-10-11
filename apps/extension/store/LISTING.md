@@ -35,7 +35,7 @@ Narrator for GitHub has one purpose: it shows the code changes in GitHub pull re
 ## Permission justifications (Chrome, Edge)
 
 **storage**
-Saves the user's two settings, whether Plain English is on and an optional GitHub token, in chrome.storage.local. It also caches the package.json files of the repository being viewed in chrome.storage.session, so returning to a pull request doesn't fetch them again.
+Saves the user's two settings, whether Narrator is on and an optional GitHub token, in chrome.storage.local. It also caches the package.json files of the repository being viewed in chrome.storage.session, so returning to a pull request doesn't fetch them again.
 
 **offscreen**
 Chrome's extension service worker can't load code on demand. The extension creates one offscreen document with the WORKERS reason, which owns a module worker. The WebAssembly parser, and only the plugins a repository needs, are loaded in that worker to turn the diff into English. The document has no UI and nothing else runs in it.
@@ -47,7 +47,7 @@ Reads the pull request or commit the user is viewing: its title, the commits to 
 Downloads the old and new version of each changed TypeScript or JavaScript file, and the package.json files that say which libraries the code uses. These downloads don't count against GitHub's API rate limit.
 
 **Content script on https://github.com/*** (shown with the host permissions)
-Adds the English rows to GitHub's diff table on pull request and commit pages, and adds the Plain English switch to GitHub's diff settings menu. It reads the page address to know which pull request or commit is open, and does nothing on other GitHub pages.
+Adds the English rows to GitHub's diff table on pull request and commit pages, and adds the Narrator (English) switch to GitHub's diff settings menu. It reads the page address to know which pull request or commit is open, and does nothing on other GitHub pages.
 
 ## Remote code (Chrome, Edge)
 
@@ -97,7 +97,7 @@ github, pull request, code review, diff, plain english, typescript, javascript
 
 ## Notes for reviewers (AMO "Notes to Reviewer", Edge "Notes for certification", Chrome "Test instructions")
 
-Narrator for GitHub needs no account. To test it, open any public pull request's changed files on github.com, for example https://github.com/openstatusHQ/openstatus/pull/2860/files. After a few seconds the TypeScript and JavaScript rows are shown as English. The gear icon above the diff has a Plain English switch to turn it off and on, and the extension's options page has the same switch and an optional GitHub token field. Without a token GitHub allows 60 API requests an hour per IP address; each pull request uses about three.
+Narrator for GitHub needs no account. To test it, open any public pull request's changed files on github.com, for example https://github.com/openstatusHQ/openstatus/pull/2860/files. After a few seconds the TypeScript and JavaScript rows are shown as English. The gear icon above the diff has a Narrator (English) switch to turn it off and on, and the extension's options page has the same switch and an optional GitHub token field. Without a token GitHub allows 60 API requests an hour per IP address; each pull request uses about three.
 
 The extension only makes requests to api.github.com and raw.githubusercontent.com, for the pull request or commit being viewed. It has no server of its own, no analytics and no remote code. The JavaScript is bundled and minified with Bun's bundler; the full source is open at https://github.com/SirTenzin/narrator, and for AMO a source archive with build instructions (README-AMO.md) is attached to this version.
 

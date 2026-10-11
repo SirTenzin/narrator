@@ -199,7 +199,7 @@ async function openFile(file, { line = null, push = true } = {}) {
 			return;
 		}
 		state.file = file;
-		document.title = `${file.split("/").pop()} · Plain English`;
+		document.title = `${file.split("/").pop()} · Narrator`;
 		renderCrumbs(file);
 		renderDocument(res.lines);
 		renderSource(file, res.src);
@@ -618,7 +618,7 @@ async function openDiff(spec, { push = true } = {}) {
 	}
 	state.renderedDiff = res;
 	state.file = null;
-	document.title = `${res.subject || res.short} · Plain English`;
+	document.title = `${res.subject || res.short} · Narrator`;
 	$("#crumbs").innerHTML = `<span class="file">${esc(res.short)}</span><span class="sep">&nbsp;·&nbsp;</span><span>${esc(res.subject)}</span>`;
 	renderDiff(res);
 	$("#reader").scrollTop = 0;

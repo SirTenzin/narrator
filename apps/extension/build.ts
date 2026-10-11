@@ -69,5 +69,5 @@ if (process.argv.includes("--sizes")) {
 		console.log(`${f.padEnd(40)} ${(bytes.length / 1024).toFixed(1).padStart(7)} KB ${(Bun.gzipSync(bytes).length / 1024).toFixed(1).padStart(7)} KB gz`);
 	}
 }
-if (process.env.PE_COPY_TO) await cp(`${root}/dist`, process.env.PE_COPY_TO, { recursive: true, force: true });
+if (process.env.NARRATOR_COPY_TO) await cp(`${root}/dist`, process.env.NARRATOR_COPY_TO, { recursive: true, force: true });
 console.log(`built ${root}/dist, ${root}/chrome/dist and ${root}/firefox/dist`);
