@@ -58,8 +58,8 @@ function trailDays(d: CronDays): string {
 export const timeEn: TimePhrases = {
 	amount: ({ n, count, unit }) => `${n} ${UNITS[unit][count === 1 ? 0 : 1]}`,
 	unit: ({ unit }) => UNITS[unit][0],
-	inMs: ({ value }) => `${value} ms`,
-	inSeconds: ({ value }) => `${value} seconds`,
+	inMs: ({ value }) => (/(ms|millis(econds)?)$/i.test(plain(value)) ? value : `${value} ms`),
+	inSeconds: ({ value }) => (/(seconds?|secs?)$/i.test(plain(value)) ? value : `${value} seconds`),
 	cron: {
 		everySecond: "every second",
 		everySeconds: ({ n }) => `every ${n} seconds`,

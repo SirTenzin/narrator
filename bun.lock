@@ -253,6 +253,17 @@
         "@usenarrator/testkit": "workspace:*",
       },
     },
+    "plugins/trigger-dev": {
+      "name": "@usenarrator/plugin-trigger-dev",
+      "version": "0.0.0",
+      "dependencies": {
+        "@usenarrator/core": "workspace:*",
+        "@usenarrator/lang-ts": "workspace:*",
+      },
+      "devDependencies": {
+        "@usenarrator/testkit": "workspace:*",
+      },
+    },
     "plugins/zod": {
       "name": "@usenarrator/plugin-zod",
       "version": "0.0.0",
@@ -371,6 +382,8 @@
     "@usenarrator/plugin-sql": ["@usenarrator/plugin-sql@workspace:plugins/sql"],
 
     "@usenarrator/plugin-testing": ["@usenarrator/plugin-testing@workspace:plugins/testing"],
+
+    "@usenarrator/plugin-trigger-dev": ["@usenarrator/plugin-trigger-dev@workspace:plugins/trigger-dev"],
 
     "@usenarrator/plugin-zod": ["@usenarrator/plugin-zod@workspace:plugins/zod"],
 
