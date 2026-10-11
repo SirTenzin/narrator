@@ -1,0 +1,13 @@
+{
+	"$schema": "../node_modules/@changesets/config/schema.json",
+	"baseBranch": "master",
+	"access": "public",
+	"changelog": "@changesets/cli/changelog",
+	"commit": false,
+	"fixed": [],
+	"linked": [],
+	"updateInternalDependencies": "patch",
+	"privatePackages": { "version": false, "tag": false },
+	"ignore": [],
+	"___experimentalUnsafeOptions_WILL_CHANGE_IN_PATCH": { "onlyUpdatePeerDependentsWhenOutOfRange": true }
+}

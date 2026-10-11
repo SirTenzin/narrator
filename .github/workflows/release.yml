@@ -1,0 +1,35 @@
+name: Release
+
+# On every push to master: if there are pending changesets, open or update a "Version packages" PR.
+# When that PR is merged, publish only the packages whose new version isn't on npm yet.
+on:
+  push:
+    branches: [master]
+
+concurrency: release-${{ github.ref }}
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
+      - run: bun test
+      - uses: changesets/action@v1
+        with:
+          title: Version packages
+          commit: Version packages
+          version: bun run version
+          publish: bun run publish:all
+          createGithubReleases: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_CONFIG_TOKEN: ${{ secrets.NPM_TOKEN }}

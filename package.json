@@ -16,11 +16,16 @@
 		"format": "biome check --write .",
 		"narrate": "bun apps/cli/narrate.ts",
 		"build": "bun tools/build/build.ts",
-		"check:publish": "bun tools/build/checkPublish.ts"
+		"check:publish": "bun tools/build/checkPublish.ts",
+		"publish:dry": "bun tools/build/publish.ts --dry-run",
+		"publish:all": "bun tools/build/publish.ts",
+		"changeset": "changeset",
+		"version": "changeset version && bun install"
 	},
 	"devDependencies": {
 		"@arethetypeswrong/cli": "^0.18.5",
 		"@biomejs/biome": "2",
+		"@changesets/cli": "^3.0.3",
 		"@types/bun": "latest",
 		"@types/chrome": "^0.3.4",
 		"oxc-parser": "^0.153.0",
