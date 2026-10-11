@@ -1,6 +1,7 @@
 import type { TsPlugin } from "@usenarrator/lang-ts";
 import { aiSdk } from "@usenarrator/plugin-ai-sdk";
 import { betterAuth } from "@usenarrator/plugin-better-auth";
+import { bullmq } from "@usenarrator/plugin-bullmq";
 import { decimal } from "@usenarrator/plugin-decimal";
 import { drizzle } from "@usenarrator/plugin-drizzle";
 import { effect } from "@usenarrator/plugin-effect";
@@ -8,10 +9,19 @@ import { effectPlatform } from "@usenarrator/plugin-effect/platform";
 import { effectSql } from "@usenarrator/plugin-effect/sql";
 import { effectTesting } from "@usenarrator/plugin-effect/testing";
 import { elysia } from "@usenarrator/plugin-elysia";
+import { express } from "@usenarrator/plugin-express";
+import { fastify } from "@usenarrator/plugin-fastify";
 import { hono } from "@usenarrator/plugin-hono";
+import { inngest } from "@usenarrator/plugin-inngest";
+import { nextjs } from "@usenarrator/plugin-nextjs";
+import { react } from "@usenarrator/plugin-react";
 import { sql } from "@usenarrator/plugin-sql";
 import { pgsqlParser } from "@usenarrator/plugin-sql/pgsql";
+import { tanstackQuery } from "@usenarrator/plugin-tanstack-query";
+import { temporal } from "@usenarrator/plugin-temporal";
 import { testing } from "@usenarrator/plugin-testing";
+import { triggerDev } from "@usenarrator/plugin-trigger-dev";
+import { trpc } from "@usenarrator/plugin-trpc";
 import { zod } from "@usenarrator/plugin-zod";
 
 type PluginSpec = {
@@ -39,6 +49,16 @@ export const PLUGINS: Record<string, PluginSpec> = {
 	hono: { create: () => [hono()], detect: oneOf("hono") },
 	elysia: { create: () => [elysia()], detect: oneOf("elysia") },
 	"ai-sdk": { create: () => [aiSdk()], detect: (name) => name === "ai" || name.startsWith("@ai-sdk/") },
+	react: { create: () => [react()], detect: (name) => name === "react" || name === "react-dom" },
+	nextjs: { create: () => nextjs(), detect: oneOf("next") },
+	"tanstack-query": { create: () => [tanstackQuery()], detect: (name) => /^@tanstack\/[a-z-]*query$/.test(name) },
+	trpc: { create: () => [trpc()], detect: (name) => name.startsWith("@trpc/") },
+	express: { create: () => [express()], detect: oneOf("express") },
+	fastify: { create: () => [fastify()], detect: oneOf("fastify") },
+	bullmq: { create: () => [bullmq()], detect: oneOf("bullmq", "bullmq-pro") },
+	inngest: { create: () => [inngest()], detect: oneOf("inngest") },
+	"trigger-dev": { create: () => [triggerDev()], detect: (name) => name.startsWith("@trigger.dev/") },
+	temporal: { create: () => [temporal()], detect: (name) => name.startsWith("@temporalio/") },
 	sql: {
 		create: () => [sql({ parser: pgsqlParser })],
 		detect: oneOf("postgres", "pg", "better-sqlite3", "@neondatabase/serverless", "kysely", "slonik", "@prisma/client", "mysql2", "bun-types", "@types/bun"),
@@ -48,7 +68,9 @@ export const PLUGINS: Record<string, PluginSpec> = {
 /** Plugin names whose libraries appear in the given dependency names. */
 export const detectPlugins = (dependencyNames: Iterable<string>): string[] => {
 	const names = [...dependencyNames];
-	return Object.keys(PLUGINS).filter((plugin) => names.some(PLUGINS[plugin]!.detect));
+	const found = Object.keys(PLUGINS).filter((plugin) => names.some(PLUGINS[plugin]!.detect));
+	// nextjs() already includes a React plugin that knows next/link and next/image.
+	return found.includes("nextjs") ? found.filter((p) => p !== "react") : found;
 };
 
 /** Resolves plugin names to plugins; throws on an unknown name. */

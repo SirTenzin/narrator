@@ -16,7 +16,7 @@ import {
 	vlen,
 } from "@usenarrator/core";
 import type { Parser } from "./parser";
-import type { CallRule, CondRule, DisplayText, ImportInfo, MemberRule, StmtRule, TsPlugin } from "./plugin";
+import type { CallRule, CondRule, DisplayText, ImportInfo, JsxRule, MemberRule, StmtRule, TsPlugin } from "./plugin";
 
 export type N = any;
 
@@ -154,9 +154,12 @@ export class Engine {
 	conds: Record<string, Bound<CondRule>[]> = Object.create(null);
 	stmtRules: Bound<StmtRule>[] = [];
 	members: Record<string, Bound<MemberRule>[]> = Object.create(null);
+	jsxRules: Bound<JsxRule>[] = [];
 	/** The current file's AST and its imports (local name -> where it came from), set by `narrate`. */
 	program: N = null;
 	imports = new Map<string, ImportInfo>();
+	/** The current file's path as the host passed it (repo-relative in the CLI and extension). */
+	path = "";
 	/** The current file's package dependencies (name -> version range), when the host knows them. */
 	dependencies: Record<string, string> = {};
 
@@ -216,6 +219,7 @@ export class Engine {
 		for (const [k, r] of Object.entries(d.calls ?? {})) (this.calls[k] ??= []).unshift(bind(r));
 		for (const [k, r] of Object.entries(d.conditions ?? {})) (this.conds[k] ??= []).unshift(bind(r));
 		this.stmtRules.push(...(d.statements ?? []).map(bind));
+		if (d.jsx) this.jsxRules.unshift(bind(d.jsx));
 		for (const [k, r] of Object.entries(d.members ?? {})) (this.members[k] ??= []).unshift(bind(r));
 		return this;
 	}
@@ -492,6 +496,10 @@ export class Engine {
 				return D(p.classExpr({ name: n.id?.name ?? null }));
 			case "JSXElement":
 			case "JSXFragment":
+				for (const rule of this.jsxRules) {
+					const r = rule({ node: n, e: this });
+					if (r) return asDoc(r);
+				}
 				return this.jsx(n);
 			case "MetaProperty":
 				return D(n.meta?.name === "new" ? p.newTarget : p.metaProperty);
@@ -2261,6 +2269,7 @@ export class Engine {
 
 	narrate(src: string, filename = "input.ts"): { lines: Line[]; errors: number } {
 		this.src = src;
+		this.path = filename;
 		this.lines = [];
 		this.bools = new Set();
 		this.aliases = new Map();

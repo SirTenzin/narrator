@@ -25,10 +25,42 @@ const LOADERS: Record<PluginId, (v: PluginVersions) => Promise<TsPlugin[]>> = {
 	aiSdk: async (v) => [(await import("@usenarrator/plugin-ai-sdk")).aiSdk({ version: v.aiSdk })],
 	decimal: async () => [(await import("@usenarrator/plugin-decimal")).decimal()],
 	autumn: async () => (await import("@usenarrator/example-autumn")).autumn(),
+	react: async () => [(await import("@usenarrator/plugin-react")).react()],
+	nextjs: async () => (await import("@usenarrator/plugin-nextjs")).nextjs(),
+	tanstackQuery: async () => [(await import("@usenarrator/plugin-tanstack-query")).tanstackQuery()],
+	trpc: async () => [(await import("@usenarrator/plugin-trpc")).trpc()],
+	express: async () => [(await import("@usenarrator/plugin-express")).express()],
+	fastify: async () => [(await import("@usenarrator/plugin-fastify")).fastify()],
+	bullmq: async () => [(await import("@usenarrator/plugin-bullmq")).bullmq()],
+	inngest: async () => [(await import("@usenarrator/plugin-inngest")).inngest()],
+	triggerDev: async () => [(await import("@usenarrator/plugin-trigger-dev")).triggerDev()],
+	temporal: async () => [(await import("@usenarrator/plugin-temporal")).temporal()],
 };
 
 /** Later plugins win, so this is the CLI's order; the Autumn preset already bundles drizzle and decimal. */
-const ORDER: PluginId[] = ["zod", "testing", "effect", "effectTesting", "betterAuth", "hono", "elysia", "aiSdk", "drizzle", "decimal", "autumn"];
+const ORDER: PluginId[] = [
+	"zod",
+	"testing",
+	"effect",
+	"effectTesting",
+	"betterAuth",
+	"hono",
+	"elysia",
+	"aiSdk",
+	"react",
+	"nextjs",
+	"tanstackQuery",
+	"trpc",
+	"express",
+	"fastify",
+	"bullmq",
+	"inngest",
+	"triggerDev",
+	"temporal",
+	"drizzle",
+	"decimal",
+	"autumn",
+];
 const pluginIds = (selected: Set<PluginId>) => ORDER.filter((id) => selected.has(id) && !(selected.has("autumn") && (id === "drizzle" || id === "decimal")));
 
 let sqlParser: SqlParser | null = null;

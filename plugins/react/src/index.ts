@@ -1,5 +1,5 @@
 import { D, type Doc } from "@usenarrator/core";
-import { type CallRule, definePlugin, type Engine, type MemberRule, type N, type StmtRule, type TsPlugin, unwrap } from "@usenarrator/lang-ts";
+import { type CallRule, definePlugin, type Engine, type JsxRule, type MemberRule, type N, type StmtRule, type TsPlugin, unwrap } from "@usenarrator/lang-ts";
 import { componentHeads, componentStmt, findComponent, type Heads, hookDefStmt, renderComponent, returnStmt } from "./components";
 import { en } from "./en";
 import { factsReader, reactName } from "./facts";
@@ -144,6 +144,16 @@ export function createReact(options: ReactOptions = {}): ReactKit {
 				s(ctx(e, say), node, d),
 	);
 	const members: Record<string, MemberRule<ReactPhrases>> = { "*.current": ({ e, say, obj }) => currentRule(ctx(e, say), obj) };
+	const inside = new Set<N>();
+	const jsx: JsxRule<ReactPhrases> = ({ node, e, say }) => {
+		if (inside.has(node) || !(e.usesLibrary("react") || e.usesLibrary("next"))) return null;
+		inside.add(node);
+		try {
+			return uiDoc(ctx(e, say), node);
+		} finally {
+			inside.delete(node);
+		}
+	};
 	plugin = definePlugin<ReactPhrases>({
 		name: "react",
 		library: { name: "react", versions: ">=18 <20" },
@@ -151,6 +161,7 @@ export function createReact(options: ReactOptions = {}): ReactKit {
 		calls,
 		statements,
 		members,
+		jsx,
 	});
 	return {
 		plugin,

@@ -39,7 +39,7 @@ export function nextjs(options: NextOptions = {}): TsPlugin[] {
 	let core: TsPlugin<NextPhrases> | null = null;
 	const sayOf = (e: Engine) => e.phrasesFor(core!) as NextPhrases;
 	const kit = createReact({ elements: { ...nextElements(sayOf), ...options.react?.elements } });
-	const read = factsReader(options.pathOf ?? (() => null));
+	const read = factsReader(options.pathOf ?? ((e) => e.path || null));
 	const ctx = (e: Engine, say: NextPhrases): Ctx => ({ e, say, facts: read(e), kit });
 
 	const callTable: Record<string, CallRule<NextPhrases>> = {};

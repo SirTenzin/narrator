@@ -20,7 +20,28 @@ export function majorOf(range: string | undefined): number | null {
 	return m ? Number(m[1]) : null;
 }
 
-export type PluginId = "zod" | "testing" | "drizzle" | "betterAuth" | "effect" | "effectTesting" | "hono" | "elysia" | "aiSdk" | "decimal" | "autumn";
+export type PluginId =
+	| "zod"
+	| "testing"
+	| "drizzle"
+	| "betterAuth"
+	| "effect"
+	| "effectTesting"
+	| "hono"
+	| "elysia"
+	| "aiSdk"
+	| "decimal"
+	| "autumn"
+	| "react"
+	| "nextjs"
+	| "tanstackQuery"
+	| "trpc"
+	| "express"
+	| "fastify"
+	| "bullmq"
+	| "inngest"
+	| "triggerDev"
+	| "temporal";
 
 const uses = (deps: Deps, names: (string | RegExp)[]) => Object.keys(deps).some((d) => names.some((n) => (typeof n === "string" ? d === n : n.test(d))));
 
@@ -34,6 +55,16 @@ const LIBRARIES: Record<Exclude<PluginId, "testing" | "autumn">, (string | RegEx
 	elysia: ["elysia"],
 	aiSdk: ["ai", /^@ai-sdk\//],
 	decimal: ["decimal.js", "decimal.js-light"],
+	react: ["react", "react-dom"],
+	nextjs: ["next"],
+	tanstackQuery: [/^@tanstack\/[a-z-]*query$/],
+	trpc: [/^@trpc\//],
+	express: ["express"],
+	fastify: ["fastify"],
+	bullmq: ["bullmq", "bullmq-pro"],
+	inngest: ["inngest"],
+	triggerDev: [/^@trigger\.dev\//],
+	temporal: [/^@temporalio\//],
 };
 const TEST_RUNNERS = ["vitest", "jest", "mocha", "ava", "@jest/globals", "@types/jest", "@types/mocha", "@types/bun", "bun-types", "@playwright/test"];
 const TEST_FILE = /(\.|\/|^)(test|spec)s?\.[cm]?[jt]sx?$|(^|\/)__tests__\//;
@@ -41,10 +72,11 @@ const TEST_FILE = /(\.|\/|^)(test|spec)s?\.[cm]?[jt]sx?$|(^|\/)__tests__\//;
 /** Plugins worth loading for a change whose packages declare `union`; everything when no manifest was found (`union` null). */
 export function selectPlugins({ union, paths, owner }: { union: Deps | null; paths: string[]; owner: string }): Set<PluginId> {
 	const all = Object.keys(LIBRARIES) as PluginId[];
-	if (!union) return new Set([...all, "testing", "autumn"]);
+	if (!union) return new Set([...all.filter((id) => id !== "react"), "testing", "autumn"]);
 	const out = new Set(all.filter((id) => uses(union, LIBRARIES[id as keyof typeof LIBRARIES])));
 	if (uses(union, TEST_RUNNERS) || paths.some((p) => TEST_FILE.test(p))) out.add("testing");
 	if (owner.toLowerCase() === "useautumn") out.add("autumn");
+	if (out.has("nextjs")) out.delete("react");
 	return out;
 }
 

@@ -21,6 +21,9 @@ export type DisplayText = {
 /** Narrates a property read like `c.env.DB`. Keys: `Obj.prop`, `*.owner.prop`, `*.prop`. */
 export type MemberRule<P = any> = (ctx: { node: N; obj: N; prop: string; e: Engine; say: P }) => RuleResult;
 
+/** Narrates a JSX element or fragment wherever the engine meets one (arguments, lambdas, returns). */
+export type JsxRule<P = any> = (ctx: { node: N; e: Engine; say: P }) => RuleResult;
+
 /** Where an imported local name came from: `import { a as b } from "x"` -> b: { from: "x", name: "a" }. */
 export type ImportInfo = { from: string; name: string };
 
@@ -47,6 +50,7 @@ export type TsPlugin<P = any> = {
 	calls?: Record<string, CallRule<P>>;
 	conditions?: Record<string, CondRule<P>>;
 	members?: Record<string, MemberRule<P>>;
+	jsx?: JsxRule<P>;
 	statements?: StmtRule<P>[];
 	/** Describes a schema-builder expression (e.g. `z.object({...})`) as a type, or null if it isn't one. */
 	describeSchema?: (e: Engine, n: N, say: P) => string | null;

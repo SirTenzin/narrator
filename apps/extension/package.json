@@ -19,7 +19,17 @@
 		"@usenarrator/plugin-sql": "workspace:*",
 		"@usenarrator/plugin-testing": "workspace:*",
 		"@usenarrator/plugin-zod": "workspace:*",
-		"pgsql-ast-parser": "^12.0.2"
+		"pgsql-ast-parser": "^12.0.2",
+		"@usenarrator/plugin-react": "workspace:*",
+		"@usenarrator/plugin-nextjs": "workspace:*",
+		"@usenarrator/plugin-tanstack-query": "workspace:*",
+		"@usenarrator/plugin-trpc": "workspace:*",
+		"@usenarrator/plugin-express": "workspace:*",
+		"@usenarrator/plugin-fastify": "workspace:*",
+		"@usenarrator/plugin-bullmq": "workspace:*",
+		"@usenarrator/plugin-inngest": "workspace:*",
+		"@usenarrator/plugin-trigger-dev": "workspace:*",
+		"@usenarrator/plugin-temporal": "workspace:*"
 	},
 	"scripts": {
 		"build": "bun build.ts",

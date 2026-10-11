@@ -38,8 +38,10 @@ describe("arguments", () => {
 });
 
 test("plugins are detected from dependency names", () => {
-	expect(detectPlugins(["zod", "drizzle-orm", "@effect/platform", "@ai-sdk/openai", "react"])).toEqual(["zod", "drizzle", "effect", "ai-sdk"]);
-	expect(detectPlugins(["react"])).toEqual([]);
+	expect(detectPlugins(["zod", "drizzle-orm", "@effect/platform", "@ai-sdk/openai", "react"])).toEqual(["zod", "drizzle", "effect", "ai-sdk", "react"]);
+	expect(detectPlugins(["react"])).toEqual(["react"]);
+	expect(detectPlugins(["react", "next"])).toEqual(["nextjs"]);
+	expect(detectPlugins(["left-pad"])).toEqual([]);
 });
 
 describe("narrating files", () => {
