@@ -78,6 +78,8 @@ const isNullish = (n: N) => {
 		(n.type === "UnaryExpression" && n.operator === "void")
 	);
 };
+const HTTP_METHODS = new Set(["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"]);
+
 const isBoolLit = (n: N) => unwrap(n)?.type === "Literal" && typeof unwrap(n).value === "boolean";
 const calleeName = (n: N): string | null => {
 	const c = unwrap(n?.callee);
@@ -92,6 +94,19 @@ const colonSplit = (t: string) => ({ text: t.replace(/:$/, ""), colon: t.endsWit
 const WRAPPERS = new Set(["Promise", "Array", "Partial", "Readonly", "Required", "NonNullable", "Awaited", "ReadonlyArray", "Pick", "Omit"]);
 
 /** The named type behind an annotation (`Promise<Foo[]> | null` -> "Foo"), or null for primitives/inline shapes. */
+/** `Item[]`, `Array<Item>`, `readonly Item[]`, optionally `| null`: a list annotation. */
+function isListType(t: N): boolean {
+	if (!t) return false;
+	if (t.type === "TSArrayType") return true;
+	if (t.type === "TSParenthesizedType" || t.type === "TSTypeOperator") return isListType(t.typeAnnotation);
+	if (t.type === "TSTypeReference") return /^(Readonly)?Array$/.test(t.typeName?.name ?? "");
+	if (t.type === "TSUnionType") {
+		const real = t.types.filter((x: N) => !/^TS(Null|Undefined)Keyword$/.test(x.type));
+		return real.length === 1 && isListType(real[0]);
+	}
+	return false;
+}
+
 export function typeRefName(t: N, code: (n: N) => string): string | null {
 	if (!t) return null;
 	switch (t.type) {
@@ -191,7 +206,7 @@ export class Engine {
 
 	/** A property or key name as linked display text: `cusId` -> "customer ID". */
 	prop(key: string): string {
-		return mk("v", this.lex.humanize(key), key);
+		return mk("v", this.words(key), key);
 	}
 
 	schemaText(n: N): string | null {
@@ -219,7 +234,12 @@ export class Engine {
 		const alias = this.aliases.get(name);
 		if (alias) return alias;
 		const t = this.varTypes.get(name);
-		return mk("v", this.lex.humanize(name), t ? `${name}|${t}` : name);
+		return mk("v", this.words(name), t ? `${name}|${t}` : name);
+	}
+
+	/** An identifier as words; HTTP methods and vowelless initialisms (`GET`, `KV`) keep their casing, other constants read as words. */
+	words(name: string): string {
+		return HTTP_METHODS.has(name) || /^[B-DF-HJ-NP-TV-Z][B-DF-HJ-NP-TV-Z0-9]{1,3}$/.test(name) ? name : this.lex.humanize(name);
 	}
 
 	fnRef(name: string, text: string) {
@@ -425,7 +445,7 @@ export class Engine {
 			case "JSXFragment":
 				return this.jsx(n);
 			case "MetaProperty":
-				return D(p.metaProperty);
+				return D(n.meta?.name === "new" ? p.newTarget : p.metaProperty);
 			default:
 				return D(this.raw(n));
 		}
@@ -546,7 +566,7 @@ export class Engine {
 			const rootType = i === 0 && root?.type === "Identifier" ? this.varTypes.get(root.name) : undefined;
 			const ownerType = rootType && !rootType.startsWith("@") ? rootType : null;
 			names.push(s.name!);
-			words.push(mk("v", this.lex.humanize(s.name!), ownerType ? `${s.name}|@${ownerType}.${s.name}` : s.name!));
+			words.push(mk("v", this.words(s.name!), ownerType ? `${s.name}|@${ownerType}.${s.name}` : s.name!));
 		}
 		return this.joinPossessive(base, words, root?.type === "CallExpression" && !!base && base === firstBase);
 	}
@@ -645,6 +665,9 @@ export class Engine {
 				? mk("v", this.lex.humanize(p.key.name), p.key.name)
 				: this.literal(p.key);
 		if (p.shorthand && p.key.type === "Identifier") return D(this.ref(p.key.name));
+		const key = p.computed ? null : p.key.type === "Identifier" ? p.key.name : typeof p.key.value === "string" ? p.key.value : null;
+		const v0 = unwrap(p.value);
+		if (key && v0?.type === "Identifier" && this.lex.humanize(v0.name) === this.lex.humanize(key)) return D(this.ref(v0.name));
 		if (p.kind === "get") return D(x.object.getter({ key: keyText }));
 		if (p.method || (isFn(p.value) && unwrap(p.value).body.type === "BlockStatement")) {
 			const f = p.method ? p.value : unwrap(p.value);
@@ -928,7 +951,9 @@ export class Engine {
 			if (this.ambient.has(p.name)) return [];
 			const t = withTypes ? this.varTypes.get(p.name) : undefined;
 			const typeName = t?.startsWith("@") ? null : t;
-			return [typeName ? x.typed({ name: this.ref(p.name), type: mk("t", typeName, typeName) }) : this.ref(p.name)];
+			if (!typeName) return [this.ref(p.name)];
+			const shown = isListType(p.typeAnnotation?.typeAnnotation) ? this.say.types.listOf({ item: typeName }) : typeName;
+			return [x.typed({ name: this.ref(p.name), type: mk("t", shown, typeName) })];
 		}
 		if (p.type === "AssignmentPattern") {
 			const inner = this.patternNames(p.left, withTypes);
@@ -1136,13 +1161,14 @@ export class Engine {
 		const a = this.argList(args);
 		const object = this.isAmbient(objNode) ? null : obj.t;
 		const kids = [...obj.kids, ...a.kids];
+		const verbObject = unwrap(objNode)?.type === "ThisExpression" ? null : object;
 		if (this.lex.isPredicateName(method))
 			return D(c.methodPredicate({ object, predicate: this.predicatePhrase(method, false), args: a.t, action: stmt }), kids);
 		const w = this.lex.words(method);
 		const verb = mk("f", this.lex.display(w.slice(0, 1)), "");
 		const rest = w.length > 1 ? mk("f", this.lex.display(w.slice(1)), "") : null;
-		if (this.lex.startsWithVerb(method)) return D(c.methodVerb({ verb, object, rest, args: a.t }), kids);
-		if (stmt && w.length > 1 && w[0] !== "on") return D(c.methodVerb({ verb, object, rest, args: a.t }), kids);
+		if (this.lex.startsWithVerb(method)) return D(c.methodVerb({ verb, object: verbObject, rest, args: a.t }), kids);
+		if (stmt && w.length > 1 && w[0] !== "on") return D(c.methodVerb({ verb, object: verbObject, rest, args: a.t }), kids);
 		const phrase = stmt ? (w[0] === "on" ? c.methodTrigger : c.methodRun) : c.method;
 		return D(phrase({ object, method: mk("f", this.lex.humanize(method), ""), args: a.t }), kids);
 	}
@@ -1316,6 +1342,7 @@ export class Engine {
 			return D(k.isSet({ subject: m.t, neg }), m.kids);
 		}
 		if (n.type === "Literal" && typeof n.value === "boolean") return D(k.bool({ value: n.value !== neg }));
+		if (n.type === "MetaProperty" && n.meta?.name === "new") return D(k.calledWithNew({ neg }));
 		if (n.type === "AssignmentExpression") {
 			const a = this.assign(n);
 			return D(k.afterAssign({ action: a.t, neg }), a.kids);
@@ -1769,7 +1796,7 @@ export class Engine {
 		const s = this.say.statements;
 		const u = unwrap(ex);
 		if (isNullish(u)) return this.emit(d, `${s.returnNothing}.`, n);
-		if (this.looksBoolean(u)) {
+		if (this.looksBoolean(u) && !isBoolLit(u)) {
 			const c = this.cond(u);
 			return this.emitDoc(d, D(s.returnWhether({ condition: c.t }), c.kids), n);
 		}
@@ -1989,6 +2016,11 @@ export class Engine {
 				}
 				if ((name === "Partial" || name === "Readonly" || name === "Required" || name === "Awaited" || name === "NonNullable") && args[0])
 					return this.typeText(args[0], top);
+				const shape = /^(z\.)?(infer|input|output|Infer)$/.exec(name);
+				if (shape && args[0]?.type === "TSTypeQuery") {
+					const schema = this.code(args[0].exprName);
+					return y.schemaShape({ schema: mk("t", schema, schema), side: shape[2] === "input" || shape[2] === "output" ? shape[2] : "data" });
+				}
 				if (name === "ReturnType" && args[0]) return y.returnOf({ fn: this.typeSubject(args[0]) });
 				if (name === "Parameters" && args[0]) return y.paramsOf({ fn: this.typeSubject(args[0]), index: null });
 				return y.reference({ type: mk("t", name, name), name });

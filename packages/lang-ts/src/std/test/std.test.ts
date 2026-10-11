@@ -15,6 +15,11 @@ describe("std", () => {
 	test("reduce over a field reads as a total", () =>
 		reads(`const total = items.reduce((sum, item) => sum + item.amount, 0);`, "Let total be the total amount across items."));
 
+	test("reduce adding the items themselves reads as a sum; a non-zero start is kept", () => {
+		reads(`const t = xs.reduce((a, b) => a + b, 0);`, "Let t be the sum of xs.");
+		reads(`const t = items.reduce((s, i) => s + i.amount, start);`, "Let t be start plus the total amount across items.");
+	});
+
 	test("a destructuring find reads as 'whose'", () =>
 		reads(`const first = rows.find(({ id }) => id === target);`, "Let first be the one in rows whose ID is target."));
 

@@ -97,9 +97,16 @@ export const arrayRules: Calls = {
 					() => e.noun(u.right),
 				);
 				const r = unwrap(u.right);
-				const prop = r.type === "MemberExpression" && unwrap(r.object).name === item ? r.property.name : null;
-				if (prop) return D(say.reduce.totalProp({ prop: e.prop(prop), list: list.t }), list.kids);
-				return D(say.reduce.total({ value: term.t, list: list.t }), [...list.kids, ...term.kids]);
+				const prop = r.type === "MemberExpression" && !r.computed && unwrap(r.object).name === item ? r.property.name : null;
+				const total = prop
+					? D(say.reduce.totalProp({ prop: e.prop(prop), list: list.t }), list.kids)
+					: r.type === "Identifier" && r.name === item
+						? D(say.reduce.sum({ list: list.t }), list.kids)
+						: D(say.reduce.total({ value: term.t, list: list.t }), [...list.kids, ...term.kids]);
+				const u0 = unwrap(init);
+				if (!init || (u0.type === "Literal" && (u0.value === 0 || u0.value === ""))) return total;
+				const start = e.noun(init);
+				return D(say.reduce.plusStart({ start: start.t, total: total.t }), [...total.kids, ...start.kids]);
 			}
 		}
 		const start = init ? e.noun(init) : D(say.reduce.firstItem);

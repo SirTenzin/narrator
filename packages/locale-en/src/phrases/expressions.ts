@@ -22,9 +22,10 @@ export const expressions: ExpressionPhrases = {
 	folded: ({ value, expression }) => `${value} (${expression})`,
 	concatText: ({ left, right }) => `${left} followed by ${right}`,
 	nothing: "nothing",
-	this: "this",
+	this: "this object",
 	parentClass: "the parent class",
 	metaProperty: "this module's info",
+	newTarget: "the class being created",
 	importMeta: {
 		main: "this file is being run directly",
 		dir: "this file's folder",

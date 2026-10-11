@@ -42,6 +42,8 @@ export interface ExpressionPhrases {
 	this: string;
 	parentClass: string;
 	metaProperty: string;
+	/** `new.target`: the class a constructor was invoked through. */
+	newTarget: string;
 	importMeta: { main: string; dir: string; url: string; path: string };
 	envVar: Phrase<{ name: string }>;
 	whether: Phrase<{ condition: string }>;
@@ -194,6 +196,8 @@ export interface ConditionPhrases {
 	subjectPredicate: Phrase<{ subject: string; predicate: string }>;
 	flag: Phrase<{ subject: string } & Neg>;
 	isSet: Phrase<{ subject: string } & Neg>;
+	/** `if (new.target)`: whether the function was invoked with `new`. */
+	calledWithNew: Phrase<Neg>;
 	isEmpty: Phrase<{ subject: string } & Neg>;
 	afterAssign: Phrase<{ action: string } & Neg>;
 	allOf: string;
@@ -329,6 +333,8 @@ export interface TypePhrases {
 	keyOf: Phrase<{ type: string }>;
 	bigint: string;
 	predicate: Phrase<{ subject: string; type: string }>;
+	/** `z.infer<typeof S>` / `z.input` / `z.output`: the data a schema describes. */
+	schemaShape: Phrase<{ schema: string; side: "data" | "input" | "output" }>;
 	member: Phrase<{ name: string; optional: boolean }>;
 	explain: {
 		object: Phrase<{ name: string; bases: string | null }>;

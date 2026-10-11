@@ -2,6 +2,10 @@ import type { ZodPhrases } from "./phrases";
 
 export const en: ZodPhrases = {
 	schema: ({ type }) => `a schema for ${type}`,
+	parse: ({ value, schema }) => `${value}, validated against ${schema}`,
+	parseStep: ({ value, schema }) => `validate ${value} against ${schema}`,
+	following: "the following",
+	safeParse: ({ value, schema }) => `the outcome of validating ${value} against ${schema}`,
 	base: {
 		string: "text",
 		number: "a number",

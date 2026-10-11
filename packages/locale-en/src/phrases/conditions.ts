@@ -21,6 +21,7 @@ export const conditions: ConditionPhrases = {
 	subjectPredicate: ({ subject, predicate }) => `${subject} ${predicate}`,
 	flag: ({ subject, neg }) => `${subject} is ${neg ? "false" : "true"}`,
 	isSet: ({ subject, neg }) => `${subject} ${missingOrSet(neg)}`,
+	calledWithNew: ({ neg }) => `this ${neg ? "was not" : "was"} called with new`,
 	isEmpty: ({ subject, neg }) => `${subject} ${neg ? "is not empty" : "is empty"}`,
 	afterAssign: ({ action, neg }) => `(after we ${action}) the result ${missingOrSet(neg)}`,
 	allOf: "all of these are true",

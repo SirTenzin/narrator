@@ -35,6 +35,7 @@ export const types: TypePhrases = {
 	paramsOf: ({ fn, index }) => (index === null ? `the inputs of ${fn}` : `the ${ORDINALS[index] ?? `#${index + 1}`} input of ${fn}`),
 	bigint: "a big number",
 	predicate: ({ subject, type }) => `whether ${subject} is ${type}`,
+	schemaShape: ({ schema, side }) => `the ${side === "data" ? "" : `${side} `}shape of the schema ${schema}`,
 	member: ({ name, optional }) => `${name}${optional ? " (optional)" : ""}`,
 	explain: {
 		object: ({ name, bases }) => `${name} is an object${bases !== null ? ` (plus everything in ${bases})` : ""} with`,

@@ -1,4 +1,4 @@
-import type { Grammar } from "@usenarrator/core";
+import { type Grammar, plain } from "@usenarrator/core";
 
 const NEGATED_PREFIX: Record<string, string> = {
 	is: "is not",
@@ -40,11 +40,20 @@ const possessive = (s: string) => {
 	return /s$/.test(bare) && !/(ss|us|is)$/.test(bare) ? `${s}'` : `${s}'s`;
 };
 
+/** Initialisms are read letter by letter, so "an HTTP", "an SQL", "a URL"; words go by their first sound. */
+const article = (s: string) => {
+	const first = plain(s).trim().split(/[\s-]/)[0] ?? "";
+	if (/^[A-Z][A-Z0-9]*[A-Z0-9](s|es)?$/.test(first) || /^[A-Z][A-Z]+[a-z]/.test(first)) return /^[AEFHILMNORSX]/.test(first) ? "an" : "a";
+	if (/^[a-z]$/i.test(first)) return /^[aefhilmnorsx]$/i.test(first) ? "an" : "a";
+	if (/^(hour|honest|honou?r|heir)/i.test(first)) return "an";
+	return /^[aeiou]/i.test(first) && !/^(one|once|uni|use|usu|uti|eu|ure|ura)/i.test(first) ? "an" : "a";
+};
+
 export const grammar: Grammar = {
 	list: (xs, conj = "and") =>
 		xs.length <= 1 ? (xs[0] ?? "") : xs.length === 2 ? `${xs[0]} ${conj} ${xs[1]}` : `${xs.slice(0, -1).join(", ")}, ${conj} ${xs.at(-1)}`,
 	formatNumber: (n) => n.toLocaleString("en-US"),
-	article: (s) => (/^[aeiou]/i.test(s) && !/^(one|uni|use)/i.test(s) ? "an" : "a"),
+	article,
 	possessive,
 	plural: (w) => {
 		if (isPlural(w)) return w;

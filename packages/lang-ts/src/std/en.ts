@@ -70,6 +70,8 @@ export const en: StdPhrases = {
 	reduce: {
 		totalProp: ({ prop, list }) => `the total ${prop} across ${list}`,
 		total: ({ value, list }) => `the total of ${value} across ${list}`,
+		sum: ({ list }) => `the sum of ${list}`,
+		plusStart: ({ start, total }) => `${start} plus ${total}`,
 		firstItem: "the first item",
 		step: ({ value }) => `the running total becomes ${value}`,
 		block: ({ list, start, item, acc }) => `${list} combined into one value, starting from ${start}; for each ${item} (with the running total ${acc})`,

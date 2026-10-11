@@ -1,4 +1,4 @@
-import { D, mk } from "@usenarrator/core";
+import { D, mk, plain } from "@usenarrator/core";
 import { type CallRule, definePlugin, type Engine, type N, type TsPlugin, unwrap } from "@usenarrator/lang-ts";
 import { en } from "./en";
 import type { ZodPhrases } from "./phrases";
@@ -86,6 +86,49 @@ function baseText({ e, say, base }: { e: Engine; say: ZodPhrases; base: { m: str
 	return null;
 }
 
+const zodDecls = new WeakMap<object, Set<string>>();
+
+/** Top-level names declared as `const X = z.…` in the current file. */
+function zodNames(e: Engine): Set<string> {
+	const cached = e.program && zodDecls.get(e.program);
+	if (cached) return cached;
+	const names = new Set<string>();
+	for (const st of e.program?.body ?? []) {
+		const decl = st.type === "ExportNamedDeclaration" ? st.declaration : st;
+		if (decl?.type !== "VariableDeclaration") continue;
+		for (const v of decl.declarations) if (v.id?.type === "Identifier" && rootsAtZ(v.init)) names.add(v.id.name);
+	}
+	if (e.program) zodDecls.set(e.program, names);
+	return names;
+}
+
+function rootsAtZ(n: N): boolean {
+	let cur = unwrap(n);
+	while (cur?.type === "CallExpression" || cur?.type === "MemberExpression") cur = unwrap(cur.type === "CallExpression" ? cur.callee : cur.object);
+	return cur?.type === "Identifier" && cur.name === "z";
+}
+
+/** Whether `n` names a Zod schema: an inline `z.…` chain, a local `const X = z.…`, or anything called `…Schema`. */
+function isSchema(e: Engine, n: N): boolean {
+	const u = unwrap(n);
+	if (rootsAtZ(u)) return true;
+	const name = u?.type === "Identifier" ? u.name : u?.type === "MemberExpression" && !u.computed ? u.property.name : null;
+	return !!name && (/schema$/i.test(name) || (u.type === "Identifier" && zodNames(e).has(name)));
+}
+
+const parseRule =
+	(safe: boolean): CallRule<ZodPhrases> =>
+	({ obj, args, e, say, stmt }) => {
+		if (!obj || args.length < 1 || !isSchema(e, obj)) return null;
+		const value = e.noun(args[0]);
+		const schema = e.noun(obj);
+		const phrase = safe ? say.safeParse : stmt ? say.parseStep : say.parse;
+		const x = e.say.expressions;
+		const block = value.kids.length > 0 && [x.object.withBlock, x.array.listOfBlock].includes(plain(value.t).replace(/:$/, ""));
+		const said = phrase({ value: block ? say.following : value.t, schema: schema.t });
+		return D(block ? `${said}:` : said, [...schema.kids, ...value.kids]);
+	};
+
 const zodRule: CallRule<ZodPhrases> = ({ node, e, say }) => {
 	const t = zodText(e, node, say);
 	return t ? D(say.schema({ type: t })) : null;
@@ -132,6 +175,12 @@ export const zod = (): TsPlugin<ZodPhrases> =>
 	definePlugin({
 		name: "zod",
 		phrases: { en },
-		calls: zodRules,
+		calls: {
+			...zodRules,
+			"*.parse": parseRule(false),
+			"*.parseAsync": parseRule(false),
+			"*.safeParse": parseRule(true),
+			"*.safeParseAsync": parseRule(true),
+		},
 		describeSchema: zodText,
 	});

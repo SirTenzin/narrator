@@ -409,7 +409,7 @@ serve({ fetch: app.fetch, port: 8787 }, (info) => {
 		);
 		expect(read(`${HONO}const app = new Hono();\nDeno.serve(app.fetch);`)).toContain("Serve app.");
 		const vercel = read(`${HONO}import { handle } from "hono/vercel";\nconst app = new Hono();\nexport const GET = handle(app);\nexport default handle(app);`);
-		expect(vercel).toContain("Let get be app as a Vercel handler.");
+		expect(vercel).toContain("Let GET be app as a Vercel handler.");
 		expect(vercel).toContain("Export app as this module's Vercel handler.");
 	});
 });

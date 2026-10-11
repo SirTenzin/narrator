@@ -71,6 +71,10 @@ export type StdPhrases = {
 	reduce: {
 		totalProp: P<"prop" | "list">;
 		total: P<"value" | "list">;
+		/** `xs.reduce((a, b) => a + b)`: the items themselves added up. */
+		sum: P<"list">;
+		/** A total that starts from a non-zero value; `total` is one of the phrases above. */
+		plusStart: P<"start" | "total">;
 		firstItem: string;
 		step: P<"value">;
 		/** `acc` is the running total's name, or "" when the lambda has none. */
