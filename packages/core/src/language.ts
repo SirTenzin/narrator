@@ -1,3 +1,4 @@
+import type { Dependencies } from "./dependencies";
 import type { Unit } from "./diff";
 import type { Line } from "./lines";
 import type { Locale } from "./locale";
@@ -17,5 +18,7 @@ export interface FileNarrator {
 export interface SourceLanguage {
 	id: string;
 	handles(path: string): boolean;
-	create(locale: Locale): FileNarrator;
+	/** Dependency ecosystems this language's code imports from, e.g. ["npm"]; picks which manifests apply. */
+	ecosystems?: string[];
+	create(locale: Locale, ctx?: { dependencies?: (path: string) => Dependencies }): FileNarrator;
 }

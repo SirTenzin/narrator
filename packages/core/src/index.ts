@@ -1,3 +1,4 @@
+export * from "./dependencies";
 export * from "./diff";
 export * from "./language";
 export * from "./lexicon";
