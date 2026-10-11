@@ -4,7 +4,7 @@ import { en } from "./en";
 import { flowCalls } from "./flow";
 import type { BullmqPhrases } from "./phrases";
 import { queueCalls, queueDetails, queueRef } from "./queue";
-import { type Ctx, ctorKind, details, factsReader, type Rule, type Site } from "./shared";
+import { type Ctx, ctorKind, details, factsReader, framed, type Rule, type Site } from "./shared";
 import { attemptsMade, workerCalls, workerParts } from "./worker";
 
 export { en } from "./en";
@@ -110,6 +110,6 @@ export const bullmq = (): TsPlugin<BullmqPhrases> => {
 		errors: ["UnrecoverableError", "DelayedError", "WaitingChildrenError", "WaitingError", "RateLimitError"],
 		calls,
 		members,
-		statements: [create, resultAs],
+		statements: [framed(create), framed(resultAs)],
 	});
 };

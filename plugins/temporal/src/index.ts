@@ -3,7 +3,7 @@ import { type CallRule, type CondRule, definePlugin, type Engine, type N, type S
 import { clientCalls, clientDetails, workerCalls, workerParts } from "./client";
 import { en } from "./en";
 import type { TemporalPhrases } from "./phrases";
-import { type Ctx, details, exportedName, factsReader, isWorker, type Rule, usesTemporal } from "./shared";
+import { type Ctx, details, exportedName, factsReader, framed, isWorker, type Rule, usesTemporal } from "./shared";
 import { activityItems, argsText, messageTypes, workflowCalls, workflowConditions } from "./workflow";
 
 export { en } from "./en";
@@ -130,6 +130,6 @@ export const temporal = (): TsPlugin<TemporalPhrases> => {
 		errors: ["ApplicationFailure", "CancelledFailure"],
 		calls,
 		conditions,
-		statements: [define, steps],
+		statements: [framed(define), framed(steps)],
 	});
 };

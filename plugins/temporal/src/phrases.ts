@@ -116,7 +116,8 @@ export type TemporalPhrases = {
 		maxActivities: Phrase<"n">;
 		maxWorkflows: Phrase<"n">;
 		run: Phrase<"worker">;
-		runUntil: Phrase<"worker" | "until">;
+		/** `worker.runUntil(work)`; the work follows after a colon or beneath. */
+		runUntil: Phrase<"worker">;
 		shutdown: Phrase<"worker">;
 	};
 	connection: (p: { address: string | null; details: string | null }) => string;
@@ -144,6 +145,8 @@ export type TemporalPhrases = {
 		executeUpdate: (p: { message: string; workflow: string; args: string | null }) => string;
 		startUpdate: (p: { message: string; workflow: string; args: string | null }) => string;
 		result: Phrase<"workflow">;
+		/** `await handle.result()` as a step of its own. */
+		waitResult: Phrase<"workflow">;
 		cancel: Phrase<"workflow">;
 		terminate: (p: { workflow: string; reason: string | null }) => string;
 		describe: Phrase<"workflow">;

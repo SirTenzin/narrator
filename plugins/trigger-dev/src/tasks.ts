@@ -33,7 +33,7 @@ export function retryItems(c: Ctx, n: N): string[] {
 	const min = propOf(o, "minTimeoutInMs");
 	const max = propOf(o, "maxTimeoutInMs");
 	const factor = propOf(o, "factor");
-	if ((min || max) && e.fold(attempts) !== 1) {
+	if ((min || max) && !(attempts && e.fold(attempts) === 1)) {
 		const ms = (x: N) => (x ? dur(c, x) : null);
 		items.push(
 			say.config.backoff({ min: ms(min), max: ms(max), factor: factor ? e.text(factor) : null, randomize: unwrap(propOf(o, "randomize"))?.value === true }),

@@ -3,7 +3,7 @@ import { type CallRule, definePlugin, type Engine, type N, type StmtRule, type T
 import { en } from "./en";
 import { functionCalls, functionParts, triggersText } from "./functions";
 import type { InngestPhrases } from "./phrases";
-import { type Ctx, codeText, factsReader, importedAs, objectArg, propOf, type Rule, usesInngest } from "./shared";
+import { type Ctx, codeText, factsReader, framed, importedAs, objectArg, propOf, type Rule, usesInngest } from "./shared";
 import { isStepCall, serveDoc, stepCalls, stepDoc } from "./steps";
 
 export { en } from "./en";
@@ -83,6 +83,6 @@ export const inngest = (): TsPlugin<InngestPhrases> => {
 		phrases: { en },
 		errors: ["NonRetriableError", "RetryAfterError", "StepError"],
 		calls,
-		statements: [serveStatement, define, stepResult],
+		statements: [framed(serveStatement), framed(define), framed(stepResult)],
 	});
 };

@@ -77,6 +77,8 @@ export const timeEn: TimePhrases = {
 
 const KIND: Record<MessageKind, string> = { signal: "signal", query: "query", update: "update" };
 const withArgs = (args: string | null) => (args ? ` with ${args}` : "");
+/** "the task queue "emails"", or just the variable when it already says so (`taskQueue`). */
+const taskQueue = (queue: string) => (/task queue$/i.test(plain(queue)) ? queue : `the task queue ${queue}`);
 
 export const en: TemporalPhrases = {
 	time: timeEn,
@@ -88,7 +90,7 @@ export const en: TemporalPhrases = {
 		scheduleToClose: ({ duration }) => `giving up ${duration} after it is scheduled, retries included`,
 		scheduleToStart: ({ duration }) => `failing if no worker picks it up within ${duration}`,
 		heartbeat: ({ duration }) => `an attempt fails if it sends no heartbeat for ${duration}`,
-		taskQueue: ({ queue }) => `on the task queue ${queue}`,
+		taskQueue: ({ queue }) => `on ${taskQueue(queue)}`,
 		call: ({ activity, args }) => `run the activity ${activity}${withArgs(args)}`,
 		heartbeatNow: ({ details }) => `send a heartbeat${details ? ` with ${details}` : ""} so Temporal knows this activity is still alive`,
 		info: "this activity's info",
@@ -140,14 +142,14 @@ export const en: TemporalPhrases = {
 			`${nonRetryable ? "a non-retryable" : "an application"} failure${type ? ` of type ${type}` : ""}${message ? `: ${message}` : ""}`,
 	},
 	worker: {
-		create: ({ as, queue, details }) => `set up a Temporal worker${as ? ` as ${as}` : ""} for the task queue ${queue}${paren(details)}`,
+		create: ({ as, queue, details }) => `set up a Temporal worker${as ? ` as ${as}` : ""} for ${taskQueue(queue)}${paren(details)}`,
 		workflowsFrom: ({ path }) => `workflows from ${path}`,
 		activities: ({ activities }) => `activities: ${activities}`,
 		namespace: ({ namespace }) => `namespace ${namespace}`,
 		maxActivities: ({ n }) => `at most ${n} activities at a time`,
 		maxWorkflows: ({ n }) => `at most ${n} workflow tasks at a time`,
 		run: ({ worker }) => `run ${worker}, taking work from its task queue until it shuts down`,
-		runUntil: ({ worker, until }) => `run ${worker} until ${until} finishes`,
+		runUntil: ({ worker }) => `run ${worker} until this finishes`,
 		shutdown: ({ worker }) => `shut down ${worker} once its current work finishes`,
 	},
 	connection: ({ address, details }) => `a connection to the Temporal server${address ? ` at ${address}` : ""}${paren(details)}`,
@@ -157,7 +159,7 @@ export const en: TemporalPhrases = {
 		execute: ({ workflow, args, details }) => `run the workflow ${workflow}${withArgs(args)} and wait for its result${paren(details)}`,
 		signalWithStart: ({ workflow, signal, args, details }) =>
 			`send ${signal}${withArgs(args)} to the workflow, starting ${workflow} first if it isn't running${paren(details)}`,
-		taskQueue: ({ queue }) => `task queue ${queue}`,
+		taskQueue: ({ queue }) => (/task queue$/i.test(plain(queue)) ? queue : `task queue ${queue}`),
 		workflowId: ({ id }) => `workflow ID ${id}`,
 		cron: ({ schedule }) => `repeating ${schedule}`,
 		startDelay: ({ duration }) => `starting after ${duration}`,
@@ -174,13 +176,14 @@ export const en: TemporalPhrases = {
 		executeUpdate: ({ message, workflow, args }) => `send ${message}${withArgs(args)} to ${workflow} and wait for its result`,
 		startUpdate: ({ message, workflow, args }) => `send ${message}${withArgs(args)} to ${workflow}, without waiting for its result`,
 		result: ({ workflow }) => `${workflow}'s result once the workflow finishes`,
+		waitResult: ({ workflow }) => `wait for ${workflow}'s workflow to finish`,
 		cancel: ({ workflow }) => `ask ${workflow} to cancel`,
 		terminate: ({ workflow, reason }) => `stop ${workflow} immediately${reason ? ` because ${reason}` : ""}`,
 		describe: ({ workflow }) => `the current status of ${workflow}`,
 	},
 	schedule: {
 		create: ({ id, action, when, details }) => `create the schedule ${id} to ${action} ${when}${paren(details)}`,
-		startWorkflow: ({ workflow, args, queue }) => `start the workflow ${workflow}${withArgs(args)}${queue ? ` on the task queue ${queue}` : ""}`,
+		startWorkflow: ({ workflow, args, queue }) => `start the workflow ${workflow}${withArgs(args)}${queue ? ` on ${taskQueue(queue)}` : ""}`,
 		every: ({ duration }) => `every ${duration}`,
 		overlap: ({ policy }) => `when runs overlap: ${policy}`,
 		paused: "created paused",

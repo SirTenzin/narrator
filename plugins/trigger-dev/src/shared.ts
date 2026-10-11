@@ -1,6 +1,6 @@
 import type { Doc, Line } from "@usenarrator/core";
 import { lowerFirst, mk } from "@usenarrator/core";
-import { type Engine, type N, unwrap } from "@usenarrator/lang-ts";
+import { type Engine, type N, type StmtRule, unwrap } from "@usenarrator/lang-ts";
 import type { TriggerPhrases } from "./phrases";
 import { durationText } from "./time";
 
@@ -67,14 +67,19 @@ export function fnLines(e: Engine, fn: N): Line[] {
 	return e.body({ type: "ReturnStatement", argument: f.body, start: f.body.start, end: f.body.end }, 0);
 }
 
-/** A callback whose steps fit on one line, as that line's text (lowercased, no full stop); otherwise null. */
+/** A callback whose steps fit on one line, as that line's text (lowercased, no full stop); otherwise null, leaving no trace. */
 export function oneLine(e: Engine, fn: N): string | null {
 	const f = unwrap(fn);
 	const only = f.body.type === "BlockStatement" && f.body.body.length === 1 ? f.body.body[0] : null;
-	const value = f.body.type !== "BlockStatement" ? f.body : only?.type === "ReturnStatement" && only.argument ? only.argument : null;
+	const raw = f.body.type !== "BlockStatement" ? f.body : only?.type === "ReturnStatement" && only.argument ? only.argument : null;
+	const value = raw?.type === "UnaryExpression" && raw.operator === "void" ? raw.argument : raw;
+	const stats = { ...e.stats, fallbackTypes: { ...e.stats.fallbackTypes } };
+	const used = new Set(e.usedComments);
 	const lines = value ? e.body({ type: "ExpressionStatement", expression: value, start: value.start, end: value.end }, 0) : e.body(f.body, 0);
-	if (lines.length !== 1 || lines[0]!.text.endsWith(":")) return null;
-	return lowerFirst(lines[0]!.text.replace(/\.$/, ""));
+	if (lines.length === 1 && !lines[0]!.text.endsWith(":")) return lowerFirst(lines[0]!.text.replace(/\.$/, ""));
+	e.stats = stats;
+	e.usedComments = used;
+	return null;
 }
 
 /** The SDK export a callee was imported as (`task`, `tasks`, `wait`), with its module. */
@@ -139,5 +144,26 @@ export function factsReader(): (e: Engine) => Facts {
 		cache.set(key, facts);
 		if (e.program) scan(e.program, facts);
 		return facts;
+	};
+}
+
+/** Runs a statement rule in its own frame so block lines from `e.text(…)` inside it land beneath its line, as they do for call rules. */
+export function framed<P>(rule: StmtRule<P>): StmtRule<P> {
+	return (ctx) => {
+		const { e, d } = ctx;
+		e.orphanFrames.push([]);
+		const start = e.lines.length;
+		let claimed = false;
+		try {
+			claimed = rule(ctx);
+			return claimed;
+		} finally {
+			const orphans = e.orphanFrames.pop() ?? [];
+			const head = e.lines[start];
+			if (claimed && head && orphans.length) {
+				head.text = head.text.replace(/\.$/, ":");
+				for (const k of orphans) e.lines.push({ ...k, d: k.d + d + 1, start: k.start < 0 ? head.start : k.start, end: k.end < 0 ? head.end : k.end });
+			}
+		}
 	};
 }

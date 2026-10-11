@@ -29,7 +29,7 @@ export function retryItems(c: Ctx, n: N): string[] {
 	const initial = propOf(o, "initialInterval");
 	const factor = propOf(o, "backoffCoefficient");
 	const max = propOf(o, "maximumInterval");
-	if ((initial || factor || max) && e.fold(attempts) !== 1)
+	if ((initial || factor || max) && !(attempts && e.fold(attempts) === 1))
 		items.push(say.retry.backoff({ initial: initial ? dur(c, initial) : null, factor: factor ? e.text(factor) : null, max: max ? dur(c, max) : null }));
 	const types = unwrap(propOf(o, "nonRetryableErrorTypes"));
 	if (types)

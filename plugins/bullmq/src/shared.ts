@@ -1,5 +1,5 @@
 import { D, type Doc, type Line } from "@usenarrator/core";
-import { type Engine, type N, unwrap } from "@usenarrator/lang-ts";
+import { type Engine, type N, type StmtRule, unwrap } from "@usenarrator/lang-ts";
 import type { BullmqPhrases } from "./phrases";
 import { durationText } from "./time";
 
@@ -174,3 +174,24 @@ export function factsReader(): (e: Engine) => Facts {
 }
 
 export const asDoc = (t: string, kids: Line[] = []) => D(t, kids);
+
+/** Runs a statement rule in its own frame so block lines from `e.text(…)` inside it land beneath its line, as they do for call rules. */
+export function framed<P>(rule: StmtRule<P>): StmtRule<P> {
+	return (ctx) => {
+		const { e, d } = ctx;
+		e.orphanFrames.push([]);
+		const start = e.lines.length;
+		let claimed = false;
+		try {
+			claimed = rule(ctx);
+			return claimed;
+		} finally {
+			const orphans = e.orphanFrames.pop() ?? [];
+			const head = e.lines[start];
+			if (claimed && head && orphans.length) {
+				head.text = head.text.replace(/\.$/, ":");
+				for (const k of orphans) e.lines.push({ ...k, d: k.d + d + 1, start: k.start < 0 ? head.start : k.start, end: k.end < 0 ? head.end : k.end });
+			}
+		}
+	};
+}

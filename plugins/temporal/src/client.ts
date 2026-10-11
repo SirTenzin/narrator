@@ -6,11 +6,13 @@ import {
 	dur,
 	exported,
 	exportedName,
+	fnLines,
 	genericOption,
 	isHandle,
 	keyOf,
 	messageRef,
 	objectArg,
+	oneLine,
 	propOf,
 	type Rule,
 	str,
@@ -151,6 +153,8 @@ const message =
 		const [m, ...rest] = site.args;
 		if (!m) return null;
 		const ref = messageRef(c, m);
+		const kind = phrase === "signal" ? "signal" : phrase === "query" ? "query" : "update";
+		if (ref.kind === null && unwrap(m)?.type === "Identifier") ref.text = c.say.messages.noun({ kind, name: c.e.text(m) });
 		const known = ref.kind !== null || str(m) !== null;
 		if (!known && !isHandle(c, site.obj) && !isExternal(c, site.obj)) return null;
 		return onHandle((c2, workflow) => {
@@ -232,7 +236,8 @@ export function clientCalls(): Record<string, Rule> {
 		"*.query": message("query"),
 		"*.executeUpdate": message("executeUpdate"),
 		"*.startUpdate": message("startUpdate"),
-		"*.result": onHandle((c, workflow, args) => (args.length ? null : D(h(c).result({ workflow })))),
+		"*.result": (c, site) =>
+			onHandle((c2, workflow, args) => (args.length ? null : D(site.stmt ? h(c2).waitResult({ workflow }) : h(c2).result({ workflow }))))(c, site),
 		"*.cancel": onHandle((c, workflow) => D(h(c).cancel({ workflow }))),
 		"*.terminate": onHandle((c, workflow, [reason]) => D(h(c).terminate({ workflow, reason: reason ? c.e.text(reason) : null }))),
 		"*.describe": onHandle((c, workflow) => D(h(c).describe({ workflow }))),
@@ -250,7 +255,17 @@ export function workerCalls(isWorker: (c: Ctx, n: N | null) => boolean): Record<
 	const w = (c: Ctx) => c.say.worker;
 	return {
 		"*.run": (c, { obj, args }) => (isWorker(c, obj) && !args.length ? D(w(c).run({ worker: c.e.text(obj) })) : null),
-		"*.runUntil": (c, { obj, args }) => (isWorker(c, obj) && args[0] ? D(w(c).runUntil({ worker: c.e.text(obj), until: c.e.text(args[0]) })) : null),
+		"*.runUntil": (c, { obj, args }) => {
+			if (!isWorker(c, obj) || !args[0]) return null;
+			const title = w(c).runUntil({ worker: c.e.text(obj) });
+			const u = unwrap(args[0]);
+			if (u?.type === "ArrowFunctionExpression" || u?.type === "FunctionExpression") {
+				const one = oneLine(c.e, u);
+				return one !== null ? D(`${title}: ${one}`) : D(title, fnLines(c.e, u));
+			}
+			const until = u?.type === "CallExpression" ? c.e.call(u, true) : c.e.noun(u);
+			return D(`${title}: ${until.t}`, until.kids);
+		},
 		"*.shutdown": (c, { obj }) => (isWorker(c, obj) ? D(w(c).shutdown({ worker: c.e.text(obj) })) : null),
 	};
 }
